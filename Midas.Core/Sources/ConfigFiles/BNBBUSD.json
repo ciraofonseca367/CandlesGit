@@ -1,0 +1,80 @@
+{
+    "GroupLevel": "MIN5",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-05.csv",
+            "DateStart": "2020-05-01 00:00:00",
+            "DateEnd": "2020-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-06.csv",
+            "DateStart": "2020-06-01 00:00:00",
+            "DateEnd": "2020-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-07.csv",
+            "DateStart": "2020-07-01 00:00:00",
+            "DateEnd": "2020-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-08.csv",
+            "DateStart": "2020-08-01 00:00:00",
+            "DateEnd": "2020-08-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-09.csv",
+            "DateStart": "2020-09-01 00:00:00",
+            "DateEnd": "2020-09-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-10.csv",
+            "DateStart": "2020-10-01 00:00:00",
+            "DateEnd": "2020-10-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-11.csv",
+            "DateStart": "2020-11-01 00:00:00",
+            "DateEnd": "2020-11-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2020-12.csv",
+            "DateStart": "2020-12-01 00:00:00",
+            "DateEnd": "2020-12-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-01.csv",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-01-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-02.csv",
+            "DateStart": "2021-02-01 00:00:00",
+            "DateEnd": "2021-02-28 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-03.csv",
+            "DateStart": "2021-03-01 00:00:00",
+            "DateEnd": "2021-03-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-04.csv",
+            "DateStart": "2021-04-01 00:00:00",
+            "DateEnd": "2021-04-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-05.csv",
+            "DateStart": "2021-05-01 00:00:00",
+            "DateEnd": "2021-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-06.csv",
+            "DateStart": "2021-06-01 00:00:00",
+            "DateEnd": "2021-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD/BNBBUSD-5m-2021-07.csv",
+            "DateStart": "2021-07-01 00:00:00",
+            "DateEnd": "2021-07-31 23:59:59"
+        }
+    ]
+}
