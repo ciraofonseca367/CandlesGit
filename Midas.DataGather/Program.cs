@@ -21,6 +21,7 @@ using Midas.Core.Telegram;
 using Midas.Core;
 using Midas.Core.Common;
 using Midas.FeedStream;
+using Midas.Sources;
 
 namespace Midas.DataGather
 {
@@ -56,36 +57,34 @@ namespace Midas.DataGather
                 throw new ApplicationException("Timeout waiting for the runner to stop");
         }
 
+        private void OnNewCandle(string asset, Candle p, Candle c)
+        {
+            Console.WriteLine($"=== New Candle {asset} - {p.ToString()} ===");
+            p.SaveOrUpdate(_params.DbConString,String.Format("Klines_{0}_{1}", asset.ToUpper(), _params.CandleType.ToString()));
+        }
+
         public void Runner()
         {
-            LiveAssetFeedStream liveStream = null;
-
             var runParams = _params;
-
-            try
-            {
-                liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
-                    "BTCUSDT",
-                    DateRange.GetInfiniteRange(),
-                    CandleType.MIN5
-                );
-            }
-            catch (Exception err)
-            {
-                Console.WriteLine("Open socket error: " + err.Message);
-                _running = false;
-            }
 
             var client = new MongoClient(_params.DbConString);
             var database = client.GetDatabase("Sentiment");
 
             var lastNewsCheck = DateTime.MinValue;
             var state = LoadLastState();
+            
+            string streamUrl = "wss://stream.binance.com:9443/ws";
+            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 10000, "BTCBUSD", "5m");
+            var sockBTCUSDT = new BinanceWebSocket(streamUrl, 10000, "BTCUSDT", "5m");
+            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 10000, "BNBBUSD", "5m");
 
-            liveStream.OnNewCandle((p, c) => {
-                Console.WriteLine("=== New Candle "+p.ToString() + " ===");
-                p.SaveOrUpdate(_params.DbConString,String.Format("Klines_{0}_{1}", _params.Asset, _params.CandleType.ToString()));
-            });
+            var btcTStream = sockBTCUSDT.OpenAndSubscribe();
+            var btcTBtream = sockBTCBUSD.OpenAndSubscribe();
+            var bnbStream = sockBNBBUSD.OpenAndSubscribe();
+
+            btcTStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
+            btcTBtream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
+            bnbStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
 
             while (_running)
             {
@@ -145,6 +144,11 @@ namespace Midas.DataGather
                     TelegramBot.SendMessage("Data Gather - Thread Error: " + err.ToString());
                 }
             }
+
+
+            btcTStream.Dispose();
+            btcTBtream.Dispose();            
+            bnbStream.Dispose();            
 
         }
         public Dictionary<string, string> LoadLastState()
