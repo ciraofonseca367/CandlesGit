@@ -9,20 +9,13 @@ using Midas.Core;
 using Midas.Sources;
 using Midas.FeedStream;
 
-namespace BinanceWebSocket
+namespace BinanceTests
 {
     public class Program
     {
         static void Main(string[] args)
         {
-            /*
-                Parametros
 
-                Compra mercado quantidade X
-                Venda mercado quantidade X
-                Lista ordens ativas
-                Cancela ordem X
-            */
         }
 
         private static void Chat()
