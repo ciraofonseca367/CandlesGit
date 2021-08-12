@@ -73,7 +73,7 @@ namespace Midas.Util
                         try
                         {
                             string label = Convert.ToString(labels[i]);
-                            if (Convert.ToDouble(scores[i]) >= scoreThreshold && label != "ND")
+                            if (Convert.ToDouble(scores[i]) >= scoreThreshold)
                             {
                                 var prediction = new PredictionResult();
                                 prediction.CreationDate = currentTime;

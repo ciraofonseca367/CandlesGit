@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Midas.Runner", "Midas.Runne
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Midas.Investor", "Midas.InVestor\Midas.Investor.csproj", "{5DAA5A57-0AF9-4057-B53F-773CC51513DF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinanceWebSocket", "BinanceWebSocket\BinanceWebSocket.csproj", "{5B6E6277-2775-4547-A70D-22D42D1FF144}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinanceTests", "BinanceTests\BinanceTests.csproj", "{5B6E6277-2775-4547-A70D-22D42D1FF144}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Midas.Broadcast", "Midas.Broadcast\Midas.Broadcast.csproj", "{CE063FD9-6112-416B-BE43-B692C1677AE5}"
 EndProject

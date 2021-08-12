@@ -223,10 +223,20 @@ namespace Midas.Core.Card
 
             var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
 
-            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong && forecastOnPrice.GetLowestDifferente(1, _params.ForecastWindow) > stopLossLong)
-                status = "LONG";
-            else if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort && forecastOnPrice.GetHighestDifference(1, _params.ForecastWindow) < stopLossShort)
-                status = "SHORT";
+            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
+            {
+                if(forecastOnPrice.GetLowestDifferente(1, _params.ForecastWindow) > stopLossLong)
+                    status = "LONG";
+                else
+                    status = "LONG,LONG_STOP";
+            }
+            else if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
+            {
+                if(forecastOnPrice.GetHighestDifference(1, _params.ForecastWindow) < stopLossShort)
+                    status = "SHORT";
+                else
+                    status = "SHORT,SHORT_STOP";
+            }
 
             return status;
         }

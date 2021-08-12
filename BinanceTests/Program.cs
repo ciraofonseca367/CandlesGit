@@ -4,10 +4,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using Newtonsoft.Json;
-using Midas.Core.Common;
-using Midas.Core;
 using Midas.Sources;
-using Midas.FeedStream;
 
 namespace BinanceTests
 {
@@ -15,7 +12,7 @@ namespace BinanceTests
     {
         static void Main(string[] args)
         {
-
+            BinanceWebSocket socket = new BinanceWebSocket();
         }
 
         private static void Chat()

@@ -411,23 +411,30 @@ namespace Midas.Core.Services
 
                         var result = predictions.Result;
                         _lastPrediction = result;
-                        PredictionResult secondResult = null;
                         if (result.Count > 0)
                         {
-                            if (result.Count() > 1)
+                            var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
+                            var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
+                            var predictionND = result.Where(p => p.Tag == "ND").FirstOrDefault();
+
+                            int rankShort=0;
+                            for(int i=0;i<result.Count;i++)
                             {
-                                secondResult = result[1];
-                                if (result.First().Tag == "LONG" && secondResult.Tag == "SHORT")
+                                if(result[i].Tag == "SHORT")
+                                {
+                                    rankShort = i+1;
+                                    break;                                    
+                                }
+                            }
+
+                            if(predictionLong != null && predictionLong.Score >= _params.ScoreThreshold)
+                            {
+                                if(rankShort == 2 || rankShort == 1) //Neste caso temos LONG com score para entrar, mas temos Short maior que Long, ou maior que o ND.
                                 {
                                     TelegramBot.SendMessageBuffered("AVISO", "Double Conflict LONG & SHORT");
                                     TraceAndLog.GetInstance().Log("Runner", "Double Conflict LONG & SHORT");
                                 }
-                            }
-
-                            if (result.First().Tag.StartsWith("LONG") &&
-                            (secondResult == null || (secondResult != null && secondResult.Tag != "SHORT")))
-                            {
-                                if (result.First().Score >= _params.ScoreThreshold) //Aqui realmente só setamos a "CANDLE DA PREVISÃO" se o score for o configurado
+                                else
                                 {
                                     candleThatPredicted = recentClosedCandle;
                                     foreach (var prediction in result)

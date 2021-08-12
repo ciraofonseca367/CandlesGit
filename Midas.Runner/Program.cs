@@ -132,6 +132,7 @@ namespace Midas
                                     DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
                                     var fileName = c.SaveToFile(dirInfo.FullName, tag);
 
+
                                     csvWriter.Write("gs://candlebucket/");
                                     csvWriter.Write(runParams.ExperimentName);
                                     csvWriter.Write("/");

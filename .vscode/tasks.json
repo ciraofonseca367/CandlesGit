@@ -6,8 +6,8 @@
             "command": "dotnet",
             "type": "process",
             "args": [
-                "build",
-                "${workspaceFolder}/Midas.csproj",
+                "build", 
+                "${workspaceFolder}/Midas.sln",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/Midas.csproj",
+                "${workspaceFolder}/Midas.Broadcast/Midas.Broadcast.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -32,11 +32,20 @@
             "args": [
                 "watch",
                 "run",
-                "${workspaceFolder}/Midas.csproj",
+                "${workspaceFolder}/Midas.Broadcast/Midas.Broadcast.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Tests",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "test",
+                "${workspaceFolder}/Midas.Core.Tests/Midas.Core.Tests.csproj"
+            ]
         }
     ]
 }
