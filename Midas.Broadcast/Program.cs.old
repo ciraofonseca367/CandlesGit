@@ -1,0 +1,90 @@
+﻿using System;
+using System.IO;
+using System.Diagnostics;
+using System.Threading;
+using System.Collections;
+using System.Linq;
+
+namespace Midas.Broadcast
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // Start the Sort.exe process with redirected input.
+            // Use the sort command to sort the input text.
+
+            // string templateComand = "-y -s 800x600 -r 25 -deinterlace -i -  -vcodec libx264 -pix_fmt yuv420p -preset medium -b:v 2500k -acodec mpeg1video -ar 44100 -threads 6 -q:a 3 -b:a 712000 -bufsize 512k -f image2pipe rtmp://a.rtmp.youtube.com/live2/f66s-ydph-9xu5-yuk2-d5cb";
+
+            //string templateComand = "-y -s 800x600 -r 25 -i -  -vcodec libx264 -pix_fmt yuv420p -preset medium -b:v 2500k -acodec mpeg1video -ar 44100 -threads 6 -q:a 3 -b:a 712000 -bufsize 512k -f image2pipe out.mp4";
+
+
+            //string command = "-f image2pipe -framerate 20 -i - -c:v libx264 -vf format=yuv420p -r 25 -movflags +faststart -f image2pipe rtmp://a.rtmp.youtube.com/live2/f66s-ydph-9xu5-yuk2-d5cb";
+
+            //string command = "-y -vstats -loglevel warning -f image2pipe -i - -vcodec libx264 -pix_fmt yuv420p -r 30 -g 60 -b:v 2500k -movflags faststart -f flv rtmp://a.rtmp.youtube.com/live2/f66s-ydph-9xu5-yuk2-d5cb";
+            //command = "-y -vstats -f image2pipe -i - -vcodec copy -acodec copy -f flv rtmp://a.rtmp.youtube.com/live2/f66s-ydph-9xu5-yuk2-d5cb";
+            //
+            
+            string command = "-f image2pipe -framerate 3 -i - -c:v libx264 -x264-params keyint=10:scenecut=0 -preset medium -pix_fmt yuv420p -threads 0 -f flv rtmp://live.twitch.tv/app/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH";
+
+            //string command = "-f image2pipe -framerate 24 -i - -c:v libx264 -x264-params keyint=60:scenecut=0 -preset medium -pix_fmt yuv420p -threads 0 -f flv rtmp://a.rtmp.youtube.com/live2/f66s-ydph-9xu5-yuk2-d5cb";
+            
+
+            Console.WriteLine(command);
+
+            Process ffmpeg = new Process
+            {
+                StartInfo =
+                {
+                    FileName = @"/Users/cironola/Downloads/ffmpeg",
+                    Arguments = command,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true
+                }
+            };
+
+            Console.WriteLine(Process.GetCurrentProcess().MainModule.FileName);
+
+
+            var myProcess = ffmpeg;
+
+            myProcess.Start();
+
+            StreamWriter myStreamWriter = myProcess.StandardInput;
+
+            while (true)
+            {
+
+                var dirInfo = new DirectoryInfo("/Users/cironola/CandlesFaceImages/run7/103");
+                var files = dirInfo.GetFiles();
+                var ordFiles = files.OrderBy(f => f.Name).ToList();
+                foreach (var f in ordFiles)
+                {
+                    if (f.Extension == ".png")
+                    {
+
+                        byte[] buff = null;
+                        string file = Path.Combine(dirInfo.FullName, f.Name);
+                        FileStream fs = File.OpenRead(file);
+                        BinaryReader br = new BinaryReader(fs);
+                        long numBytes = new FileInfo(file).Length;
+                        buff = br.ReadBytes((int)numBytes);
+
+                        BinaryWriter bw = new BinaryWriter(myStreamWriter.BaseStream);
+
+                        bw.Write(buff);
+                        bw.Flush();
+                    }
+
+                    Thread.Sleep(320);
+                }
+            }
+
+            myStreamWriter.Close();
+
+            // Wait for the sort process to write the sorted text lines.
+            myProcess.WaitForExit();
+        }
+    }
+}

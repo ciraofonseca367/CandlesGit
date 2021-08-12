@@ -1,0 +1,174 @@
+using System.Net;
+using System.IO;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using Midas.Core.Card;
+using System.Linq;
+using MongoDB.Driver;
+using Midas.Util;
+using System.Drawing;
+using Midas.Core.Common;
+using Midas.Core;
+using Midas.Core.Chart;
+using System.Text;
+using Google.Cloud.AutoML.V1;
+
+namespace Midas
+{
+    public class RunParameters
+    {
+        private List<int> _periods;
+        public CandleType CandleType
+        {
+            get;
+            private set;
+        }
+
+        public DateRange Range
+        {
+            get;
+            private set;
+        }
+
+        public string Asset
+        {
+            get;
+            private set;
+        }
+
+        public int WindowSize
+        {
+            get;
+            private set;
+        }
+
+        public void WriteToConsole()
+        {
+            Console.WriteLine("Run Configuration as follows:");
+            Console.WriteLine("{0,-20}: {1}", "RunMode", this.RunMode.ToString());            
+            Console.WriteLine("{0,-20}: {1}", "Expirement", this.ExperimentName.ToString());
+            Console.WriteLine("{0,-20}: {1}", "CandleType", this.CandleType.ToString());
+            Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
+            Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
+            Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
+            Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
+            Console.WriteLine("{0,-20}: {1}", "Forecast Periods", String.Join(',', _periods));
+            Console.WriteLine("");
+        }
+
+        public List<int> ForecastWindow
+        {
+            get
+            {
+                return _periods;
+            }
+        }
+
+        public int MaxForecastWindow
+        {
+            get
+            {
+                return _periods.Max();
+            }
+        }
+
+        public string ExperimentName
+        {
+            get;
+            private set;
+        }
+
+        public string OutputDirectory
+        {
+            get;
+            private set;
+        }
+
+        public int CardWidth
+        {
+            get;
+            private set;
+        }
+
+        public int CardHeight
+        {
+            get;
+            private set;
+        }
+
+        public string OutputMode
+        {
+            get;
+            private set;
+        }
+
+        public RunModeType RunMode
+        {
+            get;
+            private set;
+        }
+
+        public RunParameters(string[] ps)
+        {
+            _periods = new List<int>();
+            CandleType = CandleType.MIN5;
+            DateTime start = DateTime.MinValue;
+            DateTime end = DateTime.MinValue;
+
+            string configFilePath = ps[0];
+            string configuration = File.ReadAllText(configFilePath);
+
+            dynamic stuff = JsonConvert.DeserializeObject(configuration);
+
+            CandleType = (CandleType)Enum.Parse(typeof(CandleType), stuff.CandleType.ToString(), true);
+            start = Convert.ToDateTime(stuff.StartDate);
+            end = Convert.ToDateTime(stuff.EndDate);
+            Asset = stuff.Asset.ToString();
+            ExperimentName = stuff.ExperimentName.ToString();
+            var configPeriods = stuff.ForecastWindow;
+            foreach (var p in configPeriods)
+                _periods.Add(Convert.ToInt32(p));
+
+            WindowSize = Convert.ToInt32(stuff.WindowSize);
+            OutputDirectory = stuff.OutputDirectory.ToString();
+            CardWidth = Convert.ToInt32(stuff.CardWidth);
+            CardHeight = Convert.ToInt32(stuff.CardHeight);
+            OutputMode = stuff.OutputMode.ToString();
+
+            RunMode = (RunModeType)Enum.Parse(typeof(RunModeType), stuff.RunMode.ToString());
+
+            if(RunMode == RunModeType.Create || RunMode == RunModeType.Predict)
+            {
+                if (String.IsNullOrEmpty(Asset) || end == DateTime.MinValue || start == DateTime.MinValue || _periods.Count == 0 || WindowSize == 0)
+                    throw new ArgumentException("Missing arguments for RunMode Create or Predict");
+            }
+            else
+            {
+                if(String.IsNullOrEmpty(Asset) || WindowSize == 0)
+                    throw new ArgumentException("Missing arguments for RunMode LiveStream or Invest");
+            }
+        }
+
+        public string GetDirectoryName()
+        {
+            DateTime baseDate = new DateTime(2021, 02, 24);
+            int runNumber = Convert.ToInt32((DateTime.Now - baseDate).TotalSeconds);
+
+            //return String.Format("{0} {1} {2} {3:yyyy-MM-dd_HH-mm} {4:yyyy-MM-dd_HH-mm} {5} {6} {7}",
+            return String.Format("{0}",
+                ExperimentName
+            );
+        }
+    }
+
+    public enum RunModeType
+    {
+        Predict,
+        Create,
+
+        LiveStream,
+
+        Invest
+    }
+}

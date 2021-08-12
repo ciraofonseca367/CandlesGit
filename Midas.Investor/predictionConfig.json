@@ -1,0 +1,31 @@
+{
+    "Indicators": [
+        {
+            "Name": "MA ~24 horas",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [144,"$WindowSize"],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Orange"
+        },
+        {
+            "Name": "MA Ultima Hora",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [12,"$WindowSize"],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "DarkGray"
+        },
+        {
+            "Name": "MA Volume Dia",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [100,"$WindowSize"],
+            "Source": "Volume",
+            "Color": "Black",
+            "ChartType": "Line"
+        }
+    ]    
+}

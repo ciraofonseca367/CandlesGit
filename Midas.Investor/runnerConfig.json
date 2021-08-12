@@ -1,0 +1,109 @@
+{
+    "RunMode": "LiveStream",
+    "ExperimentName": "LiveStream1",
+    "Asset": "BTCUSDT",
+    "StartDate": "2021-01-01 00:00:00",
+    "EndDate": "2021-06-23 23:59:59",
+    "CandleType": "MIN5",
+    "ScoreThreshold": -1,
+    "WindowSize": 60,
+    "CardWidth": 1600,
+    "CardHeight": 800,
+    "DrawPrediction": true,
+    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
+    "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+    
+    "Indicators": [
+        {
+            "Name": "MA200",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [200],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Orange",
+            "Size": 2
+        },
+        {
+            "Name": "MA100",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [100],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Brown",
+            "Size": 2 
+        },
+        {
+            "Name": "MA50",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [50],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Blue",
+            "Size": 2            
+        },
+        {
+            "Name": "MAHora",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [12],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Pink",
+            "Size": 2            
+        },
+        {
+            "Name": "MA6",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [6],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 5
+        },
+        {
+            "Name": "ATR",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.ATRIndicator",
+            "Params": [14],
+            "Source": "Main",
+            "Target": "NONE",
+            "ChartType": "Line",
+            "Color": "Pink"
+        },
+        {
+            "Name": "MA Volume Meio Dia",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [144],
+            "Source": "Volume",
+            "Color": "Black",
+            "ChartType": "Line",
+            "Size": 4 
+        }
+    ],
+
+    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
+    "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
+    "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
+
+    "FundName": "TestFund",
+
+    "BrokerParameters": {
+        "ApiKey": "hUKcnDYlH154l6vYjWm5MYirJoaVLhXyEkyc3sMhaI2dQZh6EnxoH050alC3J6ax",
+        "ApiSecret": "5yTc5tiMDelKsJhMoz9oxTEeISPv0tLEi6g8aOie6UoPWxhKsYwJuWWT4FjPVMgj",
+        "EndPoint": "https://testnet.binance.vision",
+        "Host": "testnet.binance.vision",
+        "BIAS_DIFF_FORBUY": 0.9999,
+        "BIAS_DIFF_FORSELL": 1,
+        "TIMEOUT_BUY": 200000,
+        "TIMEOUT_SELL": 60000,
+        "STOP_LOSS": 0.009,
+        "MSI_WINDOW_SIZE_SECONDS": 900,
+        "MIN_TARGET_PROFIT": 0.007
+    }
+}

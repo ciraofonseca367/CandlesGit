@@ -1,0 +1,6 @@
+{
+    "RunMode": "Gather",
+    "Asset": "BTCUSDT",
+    "CandleType": "MIN5",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority"
+}

@@ -1,0 +1,47 @@
+{
+    "RunMode": "LiveStream",
+    "ExperimentName": "LiveStream1",
+    "Asset": "BTCUSDT",
+    "StartDate": "2021-01-01 00:00:00",
+    "EndDate": "2021-06-23 23:59:59",
+    "CandleType": "MIN5",
+    "ScoreThreshold": -1,
+    "WindowSize": 50,
+    "CardWidth": 1280,
+    "CardHeight": 600,
+    "DrawPrediction": true,
+    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
+    "Indicators": [
+        {
+            "Name": "MA ~24 horas",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [144,"$WindowSize"],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Orange"
+        },
+        {
+            "Name": "MA Ultima Hora",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [12,"$WindowSize"],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "DarkGray"
+        },
+        {
+            "Name": "MA Volume Dia",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [100,"$WindowSize"],
+            "Source": "Volume",
+            "Color": "Black",
+            "ChartType": "Line"
+        }
+    ],
+    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
+    "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
+    "LiveStreamKey": "live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH"
+}

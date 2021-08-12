@@ -1,0 +1,93 @@
+{
+    "RunMode": "Create",
+    "ExperimentName": "run56",
+    "Asset": "BTCUSDT",
+    "StartDate": "2021-01-01 00:00:00",
+    "EndDate": "2021-07-15 23:59:59",
+    "CandleType": "MIN5",
+    "ScoreThreshold": 0.35,
+    "WindowSize": 60,
+    "ForecastWindow": 30,
+    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "OutputFileResults": "Comparativo1.csv",
+    "CardWidth": 1600,
+    "CardHeight": 800,
+    "OutputMode": "All",
+
+    "StopLoss": -1,
+    "AverageVerification": "MA 200 periodos",
+    "AllowedConsecutivePredictions": "15",
+
+    "Indicators": [
+        {
+            "Name": "MA200",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [200],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Orange",
+            "Size": 4
+        },
+        {
+            "Name": "MA100",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [100],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Brown",
+            "Size": 4 
+        },
+        {
+            "Name": "MA50",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [50],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Blue",
+            "Size": 4  
+        },
+        {
+            "Name": "MAHora",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [12],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Pink",
+            "Size": 4         
+        },
+        {
+            "Name": "MA6",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [6],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 6
+        },
+        {
+            "Name": "ATR",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.ATRIndicator",
+            "Params": [14],
+            "Source": "Main",
+            "Target": "NONE",
+            "ChartType": "Line",
+            "Color": "Pink"
+        },
+        {
+            "Name": "MA Volume Meio Dia",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [144],
+            "Source": "Volume",
+            "Color": "Black",
+            "ChartType": "Line",
+            "Size": 4
+        }
+    ]
+}
