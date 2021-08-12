@@ -153,10 +153,10 @@ namespace Midas.FeedStream
                 bufferCandle = HeartBeat();
 
                 if (_socketInfo != null)
-                    _socketInfo(bufferCandle.ToString());
+                    _socketInfo("testAsset", bufferCandle.ToString());
 
                 if (_socketUpdate != null)
-                    _socketUpdate("Test", bufferCandle);
+                    _socketUpdate("testAsset","Test", bufferCandle);
 
                 //We've just changed candle, thus, we need to add the lastCandle to the internal buffer
                 if (lastCandle == null || bufferCandle.OpenTime > lastCandle.OpenTime)
@@ -165,7 +165,7 @@ namespace Midas.FeedStream
                         lastCandle = bufferCandle;
 
                     if (_socketNew != null)
-                        _socketNew(lastCandle, bufferCandle);
+                        _socketNew("testAsset",lastCandle, bufferCandle);
                 }
 
                 lastCandle = bufferCandle;

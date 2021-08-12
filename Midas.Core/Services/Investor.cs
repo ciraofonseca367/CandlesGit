@@ -298,7 +298,7 @@ namespace Midas.Core.Services
             }
         }
 
-        private void NewInfo(string message)
+        private void NewInfo(string id, string message)
         {
             if (_params.IsTesting)
                 Console.WriteLine(message);
@@ -376,7 +376,7 @@ namespace Midas.Core.Services
 
             liveStream.OnNewInfo(this.NewInfo);
 
-            liveStream.OnNewCandle((previewsC, cc) =>
+            liveStream.OnNewCandle((id,previewsC, cc) =>
             {
                 try
                 {
@@ -462,7 +462,7 @@ namespace Midas.Core.Services
 
             Task currentEnterTask = null;
             Task currentUpdateObserverTask = null;
-            liveStream.OnUpdate((message, cc) =>
+            liveStream.OnUpdate((id,message, cc) =>
             {
                 _lastCandle = cc;
                 _lastPrice = cc.CloseValue;
@@ -556,7 +556,7 @@ namespace Midas.Core.Services
 
             if (_params.IsTesting)
             {
-                liveStream.OnUpdate((message, cc) =>
+                liveStream.OnUpdate((id,message, cc) =>
                 {
                     var imgToBroadcast = GetSnapShot(cc);
                     imgToBroadcast.Save(Path.Combine(_params.OutputDirectory, "LiveInvestor.png"), System.Drawing.Imaging.ImageFormat.Png);

@@ -19,12 +19,15 @@ namespace Midas.Core.Util
         {
             var parans = RunParameters.GetInstance();
 
-            if (_singleTrace == null)
+            if (parans != null)
             {
-                lock (_lockSinc)
+                if (_singleTrace == null)
                 {
-                    if (_singleTrace == null)
-                        _singleTrace = new TraceAndLog(parans);
+                    lock (_lockSinc)
+                    {
+                        if (_singleTrace == null)
+                            _singleTrace = new TraceAndLog(parans);
+                    }
                 }
             }
 
@@ -36,14 +39,14 @@ namespace Midas.Core.Util
             _parans = parans;
             string filePrefix = String.Format("{0:yyyyMMdd}", DateTime.Now);
 
-            _logFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory,filePrefix + ".log"), FileMode.Append, FileAccess.Write, FileShare.Read));
-            _traceFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory,filePrefix + ".trace"), FileMode.Append, FileAccess.Write, FileShare.Read));
+            _logFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory, filePrefix + ".log"), FileMode.Append, FileAccess.Write, FileShare.Read));
+            _traceFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory, filePrefix + ".trace"), FileMode.Append, FileAccess.Write, FileShare.Read));
         }
 
         public static void StaticLog(string module, string description)
         {
             var logger = GetInstance();
-            if(logger != null)
+            if (logger != null)
                 logger.Log(module, description);
         }
 

@@ -31,7 +31,7 @@ namespace Midas.Sources
             _binanceUri = binanceUri;
 
             _lastPong = DateTime.Now;
-        } //Test checkindfdfdfd
+        }
 
         public BinanceWebSocket Clone()
         {
@@ -50,7 +50,7 @@ namespace Midas.Sources
             }
         }
 
-        public void OpenAndSubscribe()
+        public void ReOpenAndSubscribe()
         {
             Uri serverUri = new Uri(_binanceUri+"/"+_asset+"@kline_"+_candleType);
             TraceAndLog.StaticLog("Socket","URI: "+serverUri);
@@ -68,6 +68,20 @@ namespace Midas.Sources
                     SubscribeToAsset();
                 }
             }
+        }        
+
+        public LiveAssetFeedStream OpenAndSubscribe()
+        {
+            ReOpenAndSubscribe();
+
+            var feedStream = new BinanceLiveAssetFeedStream(
+                this,
+                _asset,
+                CandleType.MIN5,
+                CandleType.MIN5
+            );
+
+            return feedStream;
         }
 
         public void Close()
@@ -227,7 +241,7 @@ namespace Midas.Sources
 
                 _socket  = new ClientWebSocket();
 
-                OpenAndSubscribe();
+                ReOpenAndSubscribe();
             }
             catch(Exception err)
             {

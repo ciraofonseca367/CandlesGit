@@ -182,7 +182,7 @@ namespace Midas.Broadcast
 
                 TraceAndLog.GetInstance().Log("Broadcast", String.Format("Starting broadcast with {0} cached candles", cacheCandles.Count));
 
-                liveStream.OnNewCandle((previewsC, cc) =>
+                liveStream.OnNewCandle((id,previewsC, cc) =>
                 {
                     var recentClosedCandle = previewsC;
 
@@ -192,7 +192,7 @@ namespace Midas.Broadcast
                     FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
                 });
 
-                liveStream.OnUpdate((message, cc) =>
+                liveStream.OnUpdate((id,message, cc) =>
                 {
                     _lastCandle = cc;
 
