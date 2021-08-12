@@ -1,2 +1,3 @@
-Midas.Core/bin/
-Midas.Core/obj/
+bin/
+obj/
+*.DS_Store
