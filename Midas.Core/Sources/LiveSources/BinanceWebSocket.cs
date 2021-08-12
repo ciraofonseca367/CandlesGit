@@ -31,7 +31,7 @@ namespace Midas.Sources
             _binanceUri = binanceUri;
 
             _lastPong = DateTime.Now;
-        } //Test checkin
+        } //Test checkindfdfdfd
 
         public BinanceWebSocket Clone()
         {
