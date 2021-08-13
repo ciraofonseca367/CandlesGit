@@ -19,6 +19,7 @@ namespace Midas.Util
         private static bool DEBUG_firstcall = true;
 
         private const string predictionServer = "http://vps32867.publiccloud.com.br";
+        
         private HttpClient _httpClient;
         public RestPredictionClient()
         {

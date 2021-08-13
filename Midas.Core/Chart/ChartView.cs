@@ -503,9 +503,9 @@ namespace Midas.Core.Chart
                     while (currentPrice < vp.MaxAmount)
                     {
                         var Dot01Coord = vp.Translate(-1, currentPrice);
-                        Pen markerPen = new Pen(Color.Black);
-                        markerPen.Width = 4;
-                        markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                        Pen markerPen = new Pen(Color.LightGray);
+                        markerPen.Width = 2;
+                        //markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
                         d.DrawLine(markerPen, 0, Dot01Coord.y, canvas.Width, Dot01Coord.y);
 
                         currentPrice += vp.MinAmount * 0.005;
@@ -533,8 +533,8 @@ namespace Midas.Core.Chart
                 if (priceLine > 0)
                 {
                     var priceLineCoord = vp.Translate(-1, priceLine);
-                    Pen pricePen = new Pen(Color.DarkGray);
-                    pricePen.Width = 2;
+                    Pen pricePen = new Pen(Color.Black);
+                    pricePen.Width = 1;
                     d.DrawLine(pricePen, 0, priceLineCoord.y, canvas.Width, priceLineCoord.y);
                 }
 

@@ -109,18 +109,13 @@ namespace Midas.FeedStream
                     {
                         _retryAttempts++;
 
-                        if (_retryAttempts <= TOTAL_RETRIES)
-                        {
-                            this._socket = _backupSocket;
-                            this._socket.ReOpenAndSubscribe();
+                        TraceAndLog.StaticLog("Socket",_retryAttempts+ " - Trying to connect again..");
+                        
+                        this._socket = _backupSocket;
+                        this._socket.ReOpenAndSubscribe();
 
-                            if (_socketInfo != null)
-                                _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
-                        }
-                        else
-                        {
-                            break;
-                        }
+                        if (_socketInfo != null)
+                            _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
                     }
 
                     var buffer = this._socket.ReconnetableReceive();
@@ -167,7 +162,7 @@ namespace Midas.FeedStream
                         _socketInfo(_asset, msg);
                     
                     TraceAndLog.StaticLog("Socket", msg);
-                    Thread.Sleep(5000);
+                    Thread.Sleep(20000);
                 }
             }
 

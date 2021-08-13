@@ -212,31 +212,33 @@ namespace Midas.Core.Card
             double limitToPredictLong = 1;
             double limitToPredictShort = -1;
 
-            status = "ND";
+            var halfForecastWindow = Convert.ToInt32(_params.ForecastWindow/2);
 
-            var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
-            var range = new DateRange(_beginWindow, _endWindow);
-            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
-            var stopLossLong = stopLossShort *-1;
+            // var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
+            // var range = new DateRange(_beginWindow, _endWindow);
+            // var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
+            // var stopLossLong = stopLossShort *-1;
 
             var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
 
-            var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
+            status = "ND";
 
-            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
+            if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) <= limitToPredictLong &&
+            forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) >= limitToPredictShort)
+                status = "ZERO";
+            
+
+            if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) > limitToPredictLong &&
+                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) > 0)
             {
-                if(forecastOnPrice.GetLowestDifferente(1, _params.ForecastWindow) > stopLossLong)
-                    status = "LONG";
-                else
-                    status = "LONG,LONG_STOP";
+                status = "LONG";
             }
-            else if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
+            if(forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) < limitToPredictShort &&
+                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) < 0)
             {
-                if(forecastOnPrice.GetHighestDifference(1, _params.ForecastWindow) < stopLossShort)
-                    status = "SHORT";
-                else
-                    status = "SHORT,SHORT_STOP";
+                status = "SHORT";
             }
+
 
             return status;
         }
@@ -372,7 +374,9 @@ namespace Midas.Core.Card
 
                     PredictionResult first = null;
                     if(response.Count() > 0)
+                    {
                         first = response.First();
+                    }
 
                     if (first != null && first.Tag.StartsWith("LONG") && first.Score > _params.ScoreThreshold)
                     {
@@ -431,8 +435,9 @@ namespace Midas.Core.Card
                             if (_lastPrediction != null)
                                 lastPredictionDistance = Convert.ToInt32((GetFirstCandle().PointInTime_Close - _lastPrediction.PointInTime_Close).TotalMinutes);
 
-                            if (//tag2 != "SHORT" &&
-                                lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
+                            if ((score2 < 0.5) &&
+                                (lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
+                                )
                             {
                                 lowerBoundToPredict = 0.5f;
                                 upperBoundToPredict = 1.0f;
