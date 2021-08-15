@@ -60,7 +60,7 @@ namespace Midas.Core.Card
 
         public Candle GetLastCandlePlusOne()
         {
-            var endWindowPlusOne = _endWindow.AddMinutes(5);
+            var endWindowPlusOne = _endWindow.AddMinutes(Convert.ToInt32(_params.CandleType));
             return (Candle)_allCandles.Where(c => c.PointInTime_Open.ToString("yyyy-MM-dd HH:mm") == endWindowPlusOne.ToString("yyyy-MM-dd HH:mm")).FirstOrDefault();
         }
 
@@ -76,7 +76,7 @@ namespace Midas.Core.Card
             var clip = _allCandles.Where(c => futureRange.IsInside(c.PointInTime_Open)).ToList();
             clip.ForEach(c =>
             {
-                c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / 5);
+                c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / Convert.ToInt32(_params.CandleType));
                 sb.Append((((c.CloseValue - presentClosing) / c.CloseValue) * 100).ToString("0.00") + ";");
             });
 
@@ -153,14 +153,14 @@ namespace Midas.Core.Card
                 presentClosing = clip.First().CloseValue;
                 clip.ForEach(c =>
                 {
-                    c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / 5);
+                    c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / Convert.ToInt32(_params.CandleType));
                     sb.Append((((c.CloseValue - presentClosing) / c.CloseValue) * 100).ToString("0.00") + ";");
                 });   
 
                 var pureCandles = _allCandles.Where(c => futureRange.IsInside(c.PointInTime_Open)).ToList();
                 pureCandles.ForEach(c =>
                 {
-                    c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / 5);
+                    c.Periodo = Convert.ToInt32((c.PointInTime_Open - presentTime).TotalMinutes / Convert.ToInt32(_params.CandleType));
                     sb.Append((((c.CloseValue - presentClosing) / c.CloseValue) * 100).ToString("0.00") + ";");
                 });                  
 
@@ -212,31 +212,38 @@ namespace Midas.Core.Card
             double limitToPredictLong = 1;
             double limitToPredictShort = -1;
 
-            status = "ND";
+            double limitToPredictZero = 0.5;
 
-            var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
-            var range = new DateRange(_beginWindow, _endWindow);
-            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
-            var stopLossLong = stopLossShort *-1;
+
+            int halfWindow = Convert.ToInt32(_params.ForecastWindow/2);
+
+            status = "MEIO_TERMO";
 
             var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
 
-            var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
-
-            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
+            if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < limitToPredictZero &&
+            forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > limitToPredictZero*-1)
+                status = "ZERO";
+            else
             {
-                if(forecastOnPrice.GetLowestDifferente(1, _params.ForecastWindow) > stopLossLong)
+                status = "IGNORED";
+            }
+
+            if(forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) < limitToPredictShort &&
+                forecastOnAverage.GetHighestDifference(1,_params.ForecastWindow) < 0)
+            {
+                status = "SHORT";
+            }
+
+            if(forecastOnAverage.GetHighestDifference(halfWindow, _params.ForecastWindow) > limitToPredictLong &&
+                forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0)
+            {
+                if(status != "SHORT")
                     status = "LONG";
                 else
-                    status = "LONG,LONG_STOP";
+                    status = "CONFUSED";
             }
-            else if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
-            {
-                if(forecastOnPrice.GetHighestDifference(1, _params.ForecastWindow) < stopLossShort)
-                    status = "SHORT";
-                else
-                    status = "SHORT,SHORT_STOP";
-            }
+
 
             return status;
         }
@@ -431,8 +438,8 @@ namespace Midas.Core.Card
                             if (_lastPrediction != null)
                                 lastPredictionDistance = Convert.ToInt32((GetFirstCandle().PointInTime_Close - _lastPrediction.PointInTime_Close).TotalMinutes);
 
-                            if (//tag2 != "SHORT" &&
-                                lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
+                            if (tag2 != "SHORT" &&
+                                lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / Convert.ToInt32(_params.CandleType))+1 >= _params.AllowedConsecutivePredictions)
                             {
                                 lowerBoundToPredict = 0.5f;
                                 upperBoundToPredict = 1.0f;
@@ -780,7 +787,7 @@ namespace Midas.Core.Card
                     value = stop;
                 }                
 
-                if(avg.Periodo > 12) //Depois de 12 periodos
+                if(avg.Periodo >= 12) //
                 {
                     if(candle.CloseValue < avg.AmountValue)
                         value = avg.AmountValue;

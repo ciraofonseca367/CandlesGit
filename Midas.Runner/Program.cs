@@ -129,17 +129,20 @@ namespace Midas
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
                                     var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
-                                    DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
-                                    var fileName = c.SaveToFile(dirInfo.FullName, tag);
+                                    if (tag != "IGNORED")
+                                    {
+                                        DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
+                                        var fileName = c.SaveToFile(dirInfo.FullName, tag);
 
 
-                                    csvWriter.Write("gs://candlebucket/");
-                                    csvWriter.Write(runParams.ExperimentName);
-                                    csvWriter.Write("/");
-                                    csvWriter.Write(fileName);
-                                    csvWriter.Write(",");
-                                    csvWriter.Write(tag);
-                                    csvWriter.WriteLine();
+                                        csvWriter.Write("gs://candlebucket/");
+                                        csvWriter.Write(runParams.ExperimentName);
+                                        csvWriter.Write("/");
+                                        csvWriter.Write(fileName);
+                                        csvWriter.Write(",");
+                                        csvWriter.Write(tag);
+                                        csvWriter.WriteLine();
+                                    }
                                 }
                                 else
                                 {

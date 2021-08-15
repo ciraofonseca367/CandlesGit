@@ -1,16 +1,16 @@
 {
-    "RunMode": "Create",
-    "ExperimentName": "run57",
+    "RunMode": "Predict",
+    "ExperimentName": "run60_15min_2",
     "Asset": "BTCUSDT",
     "StartDate": "2021-01-01 00:00:00",
     "EndDate": "2021-07-15 23:59:59",
-    "CandleType": "MIN5",
+    "CandleType": "MIN15",
     "ScoreThreshold": 0.35,
-    "WindowSize": 60,
-    "ForecastWindow": 30,
+    "WindowSize": 30,
+    "ForecastWindow": 24,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "OutputFileResults": "Comparativo1.csv",
-    "CardWidth": 1600,
+    "CardWidth": 1200,
     "CardHeight": 800,
     "OutputMode": "All",
 
@@ -27,7 +27,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 4
+            "Size": 7
         },
         {
             "Name": "MA100",
@@ -37,7 +37,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 4 
+            "Size": 7 
         },
         {
             "Name": "MA50",
@@ -47,7 +47,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 4  
+            "Size": 7  
         },
         {
             "Name": "MAHora",
@@ -57,7 +57,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 4         
+            "Size": 7        
         },
         {
             "Name": "MA6",
@@ -67,7 +67,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 6
+            "Size": 7
         },
         {
             "Name": "ATR",

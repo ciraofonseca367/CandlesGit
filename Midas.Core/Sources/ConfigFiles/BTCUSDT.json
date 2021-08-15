@@ -241,7 +241,7 @@
             "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/",
             "Mask": "'BTCUSDT-5m-'yyyy-MM-dd'.csv'",
             "DateStart": "2021-08-01 00:00:00",
-            "DateEnd": "2021-08-08 23:59:59"
+            "DateEnd": "2021-08-12 23:59:59"
         }
     ]
 }

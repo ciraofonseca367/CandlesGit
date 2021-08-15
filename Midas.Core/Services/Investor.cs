@@ -247,11 +247,9 @@ namespace Midas.Core.Services
 
             _running = true;
 
-            _manager.SetKlineRunner(this);
-
             this._runner.Start();
 
-            if (true || !_params.IsTesting)
+            if (!_params.IsTesting)
             {
                 //Set up the Bot
                 _candleBot = new CandleBot(this, _params);
@@ -333,16 +331,16 @@ namespace Midas.Core.Services
             try
             {
                 liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
-                    "btcusdt",
+                    runParams.Asset,
                     DateRange.GetInfiniteRange(),
-                    CandleType.MIN5
+                    runParams.CandleType
                 );
 
                 if (_params.IsTesting)
                 {
                     BinanceBroker b = new BinanceBroker();
                     b.SetParameters(_params.BrokerParameters);
-                    var price = b.GetPriceQuote("BTCUSDT");
+                    var price = b.GetPriceQuote("BTCBUSD");
                     liveStream.InitPrice(price);
                 }
             }
@@ -476,6 +474,7 @@ namespace Midas.Core.Services
                         {
                             if (
                                 _params.IsTesting ||
+                                _params.DelayedTriggerEnabled ||
                                 (
                                     candleThatPredicted.Direction == CandleDirection.Down &&
                                     currentCandle.CandleAge.TotalSeconds >= 200 && currentCandle.GetPureIndecisionThreshold() >= _params.IndecisionThreshold
@@ -532,7 +531,7 @@ namespace Midas.Core.Services
                         {
                             try
                             {
-                                _klineObservers.Invoke(cc);
+                                _manager.OnCandleUpdate(cc);
                             }
                             catch (Exception err)
                             {
