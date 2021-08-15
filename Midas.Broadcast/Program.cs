@@ -95,8 +95,6 @@ namespace Midas.Broadcast
         {
             _running = true;
 
-            _manager.SetKlineRunner(this);
-
             this._runner.Start();
         }
 
@@ -149,9 +147,9 @@ namespace Midas.Broadcast
             try
             {
                 liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
-                    "BTCUSDT",
+                    "BTCBUSD",
                     DateRange.GetInfiniteRange(),
-                    CandleType.MIN5
+                    runParams.CandleType
                 );
             }
             catch (Exception err)

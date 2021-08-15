@@ -12,6 +12,7 @@
     "DrawPrediction": true,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
+   
     
     "Indicators": [
         {
@@ -22,7 +23,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 2
+            "Size": 7
         },
         {
             "Name": "MA100",
@@ -32,7 +33,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 2 
+            "Size": 7 
         },
         {
             "Name": "MA50",
@@ -42,7 +43,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 2            
+            "Size": 7  
         },
         {
             "Name": "MAHora",
@@ -52,7 +53,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 2            
+            "Size": 7        
         },
         {
             "Name": "MA6",
@@ -62,7 +63,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 5
+            "Size": 7
         },
         {
             "Name": "ATR",
@@ -82,7 +83,7 @@
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 4 
+            "Size": 4
         }
     ],
 

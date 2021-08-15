@@ -25,6 +25,7 @@ namespace Midas.Core.Common
             PointInTime_Open = c.PointInTime_Open;
             PointInTime_Close = c.PointInTime_Close;
             Volume = c.Volume;
+            Direction = c.Direction;
         }
 
         public VolumeIndicator() {}
@@ -76,6 +77,7 @@ namespace Midas.Core.Common
         double IStockPointInTime.CloseValue { get => Volume; }
         double IStockPointInTime.HighestValue { get => Volume; }
         double IStockPointInTime.LowestValue { get => Volume; }
+        public CandleDirection Direction { get; set; }
     }
 
 
@@ -166,6 +168,7 @@ namespace Midas.Core.Common
             get;
             set;
         }
+        public CandleDirection Direction { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
     }
 
 }

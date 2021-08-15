@@ -29,7 +29,7 @@ namespace Midas.Sources
             else
             {
                 string streamUrl = "wss://stream.binance.com:9443/ws";
-                var binanceSock = new BinanceWebSocket(streamUrl, 10000, asset, "5m");
+                var binanceSock = new BinanceWebSocket(streamUrl, 10000, asset, CandleTypeConverter.Convert(type));
 
                 feedStream = binanceSock.OpenAndSubscribe();
             }

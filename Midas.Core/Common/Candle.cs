@@ -65,6 +65,12 @@ namespace Midas.Core.Common
             set;
         }
 
+        public CandleDirection Direction
+        {
+            get;
+            set;
+        }
+
         public IStockPointInTime Clone();
     }
 
@@ -101,7 +107,7 @@ namespace Midas.Core.Common
             get;
             set;
         }
-        
+
         public DateTime PointInTime
         {
             get
@@ -189,6 +195,10 @@ namespace Midas.Core.Common
             get
             {
                 return (OpenValue > CloseValue ? CandleDirection.Down : CandleDirection.Up);
+            }
+            set
+            {
+
             }
         }
 
@@ -339,7 +349,7 @@ namespace Midas.Core.Common
 
         public void SaveOrUpdate(string conString, string patternName)
         {
-            if(_mongoClient == null)
+            if (_mongoClient == null)
                 _mongoClient = new MongoClient(conString);
 
             var database = _mongoClient.GetDatabase("CandlesFaces");
@@ -347,19 +357,19 @@ namespace Midas.Core.Common
             var dbCol = database.GetCollection<Candle>(patternName);
 
             var res = dbCol.Find(item => item.OpenTime == this.PointInTime_Open);
-            if(res.CountDocuments() > 0)
+            if (res.CountDocuments() > 0)
                 this._id = res.First()._id;
 
             var result = dbCol.ReplaceOne(
                 item => item.PointInTime_Open == this.PointInTime_Open,
                 this,
                 new ReplaceOptions { IsUpsert = true });
-        }        
-        
+        }
+
         private DateTime _lastPersist = DateTime.MinValue;
         public void TimedSaveOrUpdate(string conString, string patternName, TimeSpan interval)
         {
-            if((DateTime.Now - _lastPersist) > interval)
+            if ((DateTime.Now - _lastPersist) > interval)
             {
                 SaveOrUpdate(conString, patternName);
                 _lastPersist = DateTime.Now;
@@ -385,7 +395,7 @@ namespace Midas.Core.Common
         {
             get;
             set;
-        }        
+        }
 
         public DateTime PointInTime
         {
@@ -472,6 +482,8 @@ namespace Midas.Core.Common
         public double SoftStopLossMark { get => _softStopLossMark; set => _softStopLossMark = value; }
         public double Gain { get => _gain; set => _gain = value; }
         public string State { get => _state; set => _state = value; }
+        public CandleDirection Direction
+        { get; set; }
 
         public IStockPointInTime Clone()
         {

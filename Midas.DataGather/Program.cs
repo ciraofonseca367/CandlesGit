@@ -74,15 +74,12 @@ namespace Midas.DataGather
             var state = LoadLastState();
             
             string streamUrl = "wss://stream.binance.com:9443/ws";
-            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 10000, "BTCBUSD", "5m");
-            var sockBTCUSDT = new BinanceWebSocket(streamUrl, 10000, "BTCUSDT", "5m");
-            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 10000, "BNBBUSD", "5m");
+            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 120000, "BTCBUSD", "15m");
+            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 120000, "BNBBUSD", "15m");
 
-            var btcTStream = sockBTCUSDT.OpenAndSubscribe();
             var btcTBtream = sockBTCBUSD.OpenAndSubscribe();
             var bnbStream = sockBNBBUSD.OpenAndSubscribe();
 
-            btcTStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             btcTBtream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             bnbStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
 
@@ -146,7 +143,6 @@ namespace Midas.DataGather
             }
 
 
-            btcTStream.Dispose();
             btcTBtream.Dispose();            
             bnbStream.Dispose();            
 
