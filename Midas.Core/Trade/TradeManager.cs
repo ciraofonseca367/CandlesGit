@@ -194,7 +194,7 @@ namespace Midas.Trading
 
         internal void SendMessage(string thread, string message)
         {
-            _runner.SendMessage(thread, message);
+            //_runner.SendMessage(thread, message);
         }
 
         public void LoadOperations()
@@ -264,19 +264,13 @@ namespace Midas.Trading
             return Convert.ToInt32(Math.Round((DateTime.Now - _lastAttempt).TotalMinutes / 5));
         }
 
-        public void SetKlineRunner(KlineRunner runner)
-        {
-            _runner = runner;
-            runner.Subscribe(this.OnNewCandle);
-        }
-
         public BrokerOrder ForceMarketSell()
         {
             var order = _broker.MarketOrder("EMERGENCYSELL", "BTCUSDT", OrderDirection.SELL, _fund, 60000);
             return order;
         }
 
-        private void OnNewCandle(Candle c)
+        public void OnCandleUpdate(Candle c)
         {
             if (_currentOperation != null && _currentOperation.IsIn)
                 _currentOperation.OnCandleUpdateAsync(c);

@@ -144,7 +144,7 @@ namespace Midas.Util
                         FromAmount = currentValue,
                         Score = 0.75f,
                         CreationDate = DateTime.Now,
-                        DateRange = new DateRange(currentTime, currentTime.AddMinutes((1 * 5))),
+                        DateRange = new DateRange(currentTime, currentTime.AddMinutes((12 * 5))),
                         RatioLowerBound = 0.005f,
                         RatioUpperBound = 0.01f,
                         LowerBound = currentValue * (1 + 0.005),
