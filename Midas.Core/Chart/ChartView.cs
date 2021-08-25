@@ -238,21 +238,20 @@ namespace Midas.Core.Chart
 
             var timeStampOpen = InSeconds(point.PointInTime_Open);
             var timeStampClose = InSeconds(point.PointInTime_Close);
+
             var c1 = Translate(timeStampOpen, opc.LowerBound);
             var c2 = Translate(timeStampClose, opc.UpperBound);
 
-            var transparentColor = Color.FromArgb(200, c);
+            var transparentColor = Color.Gray;
             Pen p = new Pen(transparentColor, 5);
             p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
 
             Pen slp = new Pen(Color.Red, 5);
-
-            Pen sslp = new Pen(Color.PaleVioletRed, 5);
-
-            Pen stlp = new Pen(Color.LightGreen, 5);
+            slp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
             var gain = opc.Gain;
-            Color gainColor = (gain >= 0 ? Color.Green : Color.Red);
+            Color gainColor = (gain >= 0 ? Color.YellowGreen : Color.Red);
+            Pen stlp = new Pen(gainColor, 5);
 
             var highBodyY = (c1.y > c2.y ? c1.y : c2.y);
             var lowBodyY = (c2.y < c1.y ? c2.y : c1.y);
@@ -269,13 +268,14 @@ namespace Midas.Core.Chart
             var stopLine = Translate(timeStampOpen, opc.StopLossMark);
             _painter.DrawLine(slp, c1.x + 1, stopLine.y, c2.x, stopLine.y);
 
-            var softStopLine = Translate(timeStampOpen, opc.SoftStopLossMark);
-            _painter.DrawLine(sslp, c1.x + 1, softStopLine.y, c2.x, softStopLine.y);
+            var centerPointX = c2.x;
 
-            if (opc.StrenghMark > 0)
+            if (opc.ExitValue > 0)
             {
-                var strenghLine = Translate(timeStampOpen, opc.StrenghMark);
-                _painter.DrawLine(stlp, c1.x + 1, strenghLine.y, c2.x, strenghLine.y);
+                var exitLine = Translate(timeStampOpen, opc.ExitValue);
+                _painter.DrawLine(stlp, c1.x + 1, exitLine.y, c2.x, exitLine.y);
+
+                _painter.FillEllipse(new SolidBrush(gainColor), centerPointX - 7,exitLine.y-7,15,14);
             }
 
             _painter.DrawString(

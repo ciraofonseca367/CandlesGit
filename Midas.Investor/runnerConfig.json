@@ -1,19 +1,61 @@
 {
-    "RunMode": "LiveStream",
-    "ExperimentName": "LiveStream1",
+    "RunMode": "Invest",
+    "ExperimentName": "Generic",
     "Asset": "BTCBUSD",
     "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-06-23 23:59:59",
+    "EndDate": "2021-08-20 23:59:59",
     "CandleType": "MIN15",
     "ScoreThreshold": -1,
-    "WindowSize": 60,
-    "CardWidth": 1600,
+    "WindowSize": 30,
+    "CardWidth": 1200,
     "CardHeight": 800,
     "DrawPrediction": true,
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+    "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
+
+    "Assets": [
+        {
+            "Asset": "BTCBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThreshold": 0.42,
+            "FundName": "BTCBUSD_HOUR1",
+            "AtrStopLoss": 0.9,
+            "StopLossCompSoftness": 0.3,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BTCBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.42,
+            "FundName": "BTCBUSD_MIN15",
+            "AtrStopLoss": 0.9,
+            "StopLossCompSoftness": 0.3,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BNBBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThreshold": 0.42,
+            "FundName": "BNBBUSD_HOUR1",
+            "AtrStopLoss": 0.9,
+            "StopLossCompSoftness": 0.3,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BNBBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.42,
+            "FundName": "BNBBUSD_MIN15",
+            "AtrStopLoss": 0.9,
+            "StopLossCompSoftness": 0.3,
+            "AvgCompSoftness": 0.2
+        }
+
+
+    ],    
     
     "Indicators": [
         {
@@ -24,7 +66,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 2
+            "Size": 7
         },
         {
             "Name": "MA100",
@@ -34,7 +76,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 2 
+            "Size": 7
         },
         {
             "Name": "MA50",
@@ -44,17 +86,17 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 2            
+            "Size": 7        
         },
         {
-            "Name": "MAHora",
+            "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [12],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 2            
+            "Size": 7            
         },
         {
             "Name": "MA6",
@@ -64,7 +106,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 5
+            "Size": 7
         },
         {
             "Name": "ATR",
@@ -99,7 +141,7 @@
         "ApiSecret": "5yTc5tiMDelKsJhMoz9oxTEeISPv0tLEi6g8aOie6UoPWxhKsYwJuWWT4FjPVMgj",
         "EndPoint": "https://testnet.binance.vision",
         "Host": "testnet.binance.vision",
-        "BIAS_DIFF_FORBUY": 0.9999,
+        "BIAS_DIFF_FORBUY": 1,
         "BIAS_DIFF_FORSELL": 1,
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,

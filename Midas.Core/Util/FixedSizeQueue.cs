@@ -28,5 +28,6 @@ namespace Midas.Util
                 queue.TryDequeue(out outObj);
             }
         }
+
     }
 }

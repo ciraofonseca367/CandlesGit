@@ -1,0 +1,33 @@
+{
+    "GroupLevel": "HOUR1",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-04.csv",
+            "DateStart": "2021-04-01 00:00:00",
+            "DateEnd": "2021-04-30 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-05.csv",
+            "DateStart": "2021-05-01 00:00:00",
+            "DateEnd": "2021-05-31 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-06.csv",
+            "DateStart": "2021-06-01 00:00:00",
+            "DateEnd": "2021-06-30 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-07.csv",
+            "DateStart": "2021-07-01 00:00:00",
+            "DateEnd": "2021-07-31 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/",
+            "Mask": "'BNBBUSD-1h-'yyyy-MM-dd'.csv'",
+            "DateStart": "2021-08-01 00:00:00",
+            "DateEnd": "2021-08-20 23:59:59"
+        }        
+
+        
+    ]
+}

@@ -3,79 +3,656 @@ using Midas.Sources;
 using Midas.FeedStream;
 using Midas.Core.Common;
 using System.Threading;
+using System.Collections.Generic;
+using MongoDB.Driver;
+using System;
+using MongoDB.Bson;
+using System.Linq;
+using Midas.Util;
+using Midas.Core.Indicators;
+using System.IO;
+using Midas.Core.Util;
+using System.Drawing;
+using Midas.Core.Telegram;
+using Midas.Trading;
+using Midas.Core.Chart;
+using System.Threading.Tasks;
+using Midas.Core.Broker;
+using System.Text;
+using Midas.Core.Services;
 
 namespace Midas.Core.Trade
 {
     public class AssetTrader
     {
-        private static string WEB_SOCKETURI = "wss://stream.binance.com:9443";
+        private static string WEB_SOCKETURI = "wss://stream.binance.com:9443/ws";
         private string _asset;
         private CandleType _candleType;
         private LiveAssetFeedStream _stream;
         private RunParameters _params;
+        private AssetParameters _assetParams;
         private int _timeOut;
-        private Thread _runner;
+        private StreamWriter _streamLog;
+        private Candle _candleThatPredicted = null;
+        private FixedSizedQueue<Candle> _candleMovieRoll;
+        private List<CalculatedIndicator> _indicators;
+        private TradeOperationManager _manager;
+        private string _myName;
+        private InvestorService _myService;
 
-        private bool _stopping;
-
-        public AssetTrader(string asset, CandleType candleType, RunParameters @params, int timeOut)
+        public AssetTrader(InvestorService service, string asset, CandleType candleType, RunParameters @params, int timeOut, AssetParameters assetParams)
         {
+            _assetParams = assetParams;
+            _myService = service;
             _asset = asset;
             _candleType = candleType;
             _params = @params;
             _timeOut = timeOut;
-
-            //_runner = new Thread(new ThreadStart(this.Runner));
-
-            _stopping = false;
-
-            //TODO: Codigo do CandleUpdate e NewCandle conforme já anotado
-            //TODO: Alterar o código do stream para fazer o pedido de abertura inicial, já que muitas vezes da timeout
-
+            _myName = String.Format("AssetTrader_{0}_{1}", _asset, _candleType);
+            _indicators = _params.GetIndicators();
+            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
         }
 
         public void Start()
         {
-            //Start the thread
+            //Open the streamlog for this trader
+            _streamLog = new StreamWriter(
+                File.Open(
+                    Path.Combine(_params.OutputDirectory, String.Format("{0}_stream.log", _myName)),
+                    FileMode.Create, FileAccess.Write, FileShare.Read
+                    )
+                );
+
+            _candleMovieRoll = new FixedSizedQueue<Candle>(_params.WindowSize);
+
+            //Init the previous candles from DB in the movieroll and indicators
+            var cacheCandles = GetCachedCandles();
+            cacheCandles.ForEach(c =>
+            {
+                _candleMovieRoll.Enqueue(c);
+
+                FeedIndicators(c, "Main");
+            });
+
+            var initialVolumes = cacheCandles.Select(p => new VolumeIndicator(p));
+            foreach (var v in initialVolumes)
+                FeedIndicators(v, "Volume");
+
+            //Start the websocket thread
             _stream = GetLiveStream();
 
+            //Subscripbe to the candles events
             _stream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             _stream.OnUpdate(new SocketEvent(this.OnCandleUpdate));
+            _stream.OnUpdate(new SocketEvent(this.OnCandleUpdate_UpdateManager));
+            _stream.OnNewInfo(this.NewInfo);
+
+            if (_params.ScoreThreshold >= -1)
+            {
+                _stream.OnUpdate((id, message, cc) =>
+                {
+                    var img = GetSnapShot(cc);
+
+                    img.Save(
+                        Path.Combine(_params.OutputDirectory, _myName + "_LiveInvestor.png"),
+                        System.Drawing.Imaging.ImageFormat.Png
+                        );
+                });
+            }
+
+
+            TraceAndLog.StaticLog(_myName, String.Format("Starting runner with {0} cached candles", cacheCandles.Count));
         }
+
+        internal List<CalculatedIndicator> Indicators
+        {
+            get
+            {
+                return _indicators;
+            }
+        }
+
+        public AssetParameters AssetParams { get => _assetParams; }
 
         public void Stop()
         {
+            if (_streamLog != null)
+                _streamLog.Dispose();
 
+            if (_stream != null)
+                _stream.Dispose();
         }
 
-        //Vamos precisar de uma Thread?
-        // private void Runner()
-        // {
-        //     while(!_stopping)
-        //     {
-
-        //     }
-        // }
+        Bitmap _lastImg = null;
+        private List<PredictionResult> _lastPrediction;
 
         private void OnNewCandle(string id, Candle previous, Candle current)
         {
+            //TraceAndLog.StaticLog(_myName, $"====== {previous.PointInTime_Open.ToString("yyyy-MM-dd HH:mm")} ======");
 
+            try
+            {
+                string currentTrend = "None";
+
+                //THE ESSENSE OF THIS PROCEDURE
+                _candleThatPredicted = null;
+
+                var recentClosedCandle = previous;
+
+                //Feed the indicators
+                _candleMovieRoll.Enqueue(recentClosedCandle);
+                FeedIndicators(recentClosedCandle, "Main");
+                FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
+
+                //Let us get a snapshot of the moment to predict the future shall we?
+                var candlesToDraw = _candleMovieRoll.GetList();
+                var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
+
+                DateRange range = new DateRange(candlesToDraw.First().OpenTime, candlesToDraw.Last().OpenTime);
+
+                _lastImg = GetImage(_params, candlesToDraw, volumes, range, null, true);
+
+                if (_lastImg != null)
+                {
+                    //Get a prediction
+                    RestPredictionClient predict = new RestPredictionClient();
+                    float restThreshould = (_params.ScoreThreshold < 0 ? _params.ScoreThreshold : 0.1f);  //Se estivermos testando sempre pede uma previsão de testes, se não manda o minimo de 0.1 para vir todas as previsões classificadas e estudarmos aqui e filtrar abaixo
+                    var predictions = predict.PredictAsync(_lastImg, restThreshould, recentClosedCandle.CloseValue, recentClosedCandle.OpenTime);
+                    if (predictions.Wait(10000))
+                    {
+                        StorePrediction(_myName, predictions.Result);
+
+                        var result = predictions.Result;
+                        _lastPrediction = result;
+                        if (result.Count > 0)
+                        {
+                            var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
+                            var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
+                            var predictionND = result.Where(p => p.Tag == "ZERO").FirstOrDefault();
+
+                            int rankShort = 0;
+                            int rankLong = 0;
+                            double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
+                            for (int i = 0; i < result.Count; i++)
+                            {
+                                if (result[i].Tag == "SHORT")
+                                    rankShort = i + 1;
+
+                                if (result[i].Tag == "LONG")
+                                    rankLong = i + 1;
+                            }
+
+                            if (rankLong == 1 && scoreLong >= AssetParams.Score)
+                            {
+                                if (rankShort == 2 || rankShort == 1) //Neste caso temos LONG com score para entrar, mas temos Short maior que Long, ou maior que o ND.
+                                {
+                                    TelegramBot.SendMessageBuffered("AVISO", "Double Conflict LONG & SHORT");
+                                }
+                                else
+                                {
+                                    //THE ESSENSE OF THIS PROCEDURE
+                                    _candleThatPredicted = recentClosedCandle;
+                                    _manager.Signal(predictions.Result.FirstOrDefault().GetTrend());
+                                }
+                            }
+
+                            if (currentTrend != "ZERO")
+                                TelegramBot.SendImage(_lastImg, "Trend: " + currentTrend);
+                        }
+                    }
+                    else
+                    {
+                        TraceAndLog.StaticLog(_myName, "Timeout waiting on a prediction!!!");
+                    }
+                }
+            }
+            catch (Exception err)
+            {
+                TraceAndLog.StaticLog(_myName, "Predict Error - " + err.ToString());
+            }
+        }
+
+        private Candle _lastCandle;
+        private double _lastPrice;
+        private double _lastAtr;
+
+        private void OnCandleUpdate_UpdateManager(string id, string message, Candle cc)
+        {
+            try
+            {
+                _manager.OnCandleUpdate(cc);
+            }
+            catch (Exception err)
+            {
+                TraceAndLog.GetInstance().Log(_myName, "Error invoking KlineObserver - " + err.Message);
+            }
         }
 
         private void OnCandleUpdate(string id, string message, Candle cc)
         {
+            _lastCandle = cc;
+            _lastPrice = cc.CloseValue;
 
+            try
+            {
+                if (_candleThatPredicted != null && (_params.IsTesting || cc.OpenTime > _candleThatPredicted.OpenTime)) //Delayed Trigger buffer
+                {
+                    var currentCandle = cc;
+
+                    bool delayedTriggerCheck = CheckDelayedTrigger(_candleThatPredicted, currentCandle);
+
+                    if (delayedTriggerCheck)
+                    {
+                        try
+                        {
+                            var candlesToDraw = _candleMovieRoll.GetList();
+                            DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
+                            double atr = GetCurrentAtr(range);
+
+                            _lastAtr = atr;
+
+                            var prediction = _lastPrediction.FirstOrDefault();
+
+                            var op = _manager.SignalEnterAsync(
+                                cc.CloseValue,
+                                prediction.RatioLowerBound,
+                                prediction.RatioUpperBound,
+                                cc.OpenTime,
+                                prediction.DateRange.End,
+                                atr
+                                );
+
+                            TelegramBot.SendMessageBuffered("Entrada", _myName + " - Operação ativa! Veja ao vivo em: https://www.twitch.tv/cirofns");
+
+                            op.Wait(500);
+                        }
+                        catch (Exception err)
+                        {
+                            TraceAndLog.StaticLog("Main", "Error entering: " + err.ToString());
+                        }
+                    }
+                }
+
+            }
+            catch (Exception err)
+            {
+                TraceAndLog.GetInstance().Log("Entrada Error", err.ToString());
+            }
+
+        }
+
+        private double GetCurrentAtr(DateRange range)
+        {
+            var atrInd = _indicators.Where(i => i.Name == "ATR").First();
+
+            return atrInd.TakeSnapShot(range).Last().AmountValue;
+        }
+
+        private bool CheckDelayedTrigger(Candle candleThatPredicted, Candle currentCandle)
+        {
+            bool ret = false;
+
+            if (!_params.DelayedTriggerEnabled)
+                ret = true;
+            else
+            {
+                if (candleThatPredicted.Direction == CandleDirection.Down &&
+                    currentCandle.CandleAge.TotalMinutes > 4 && currentCandle.GetIndecisionThreshold() > 0.3)
+                    ret = true;
+                else if (candleThatPredicted.Direction == CandleDirection.Up)
+                    ret = true;
+            }
+            return ret;
+        }
+
+        public string GetParametersReport()
+        {
+            string configs = $"{this._asset.ToUpper()} - {this._candleType.ToString()} {_params.WindowSize.ToString()} period window\n";
+            configs += $"Score: {_params.ScoreThreshold.ToString("0.00")}% - WS: \n";
+            configs += $"{_params.CardWidth} x {_params.CardHeight}\n";
+            configs += $"Delay triggger {(_params.DelayedTriggerEnabled ? "ON" : "OFF")}";
+
+            return configs;
+        }
+
+        internal void SaveSnapshot(Candle cc)
+        {
+            var outputDir = Directory.CreateDirectory(
+                Path.Combine(_params.OutputDirectory, _params.ExperimentName)
+                );
+
+            var fileName = Path.Combine(outputDir.FullName, $"{GetIdentifier()}_{cc.OpenTime:yyyy-MM-dd HH-mm}");
+
+            var img = GetSnapShot(cc);
+
+            img.Save(fileName, System.Drawing.Imaging.ImageFormat.Png);
+        }
+
+        private string GetIdentifier()
+        {
+            return $"{_asset}-{_candleType.ToString()}";
+        }
+
+        internal Bitmap GetSnapShot(Candle cc)
+        {
+            var candlesToDraw = _candleMovieRoll.GetList().Union(new Candle[] { cc });
+            var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
+            Bitmap imgToBroadcast = null;
+
+            if (candlesToDraw.Count() > 0)
+            {
+
+                DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
+
+                var storedOperations = _manager.GetActiveStoredOperations(_asset, _candleType, _params.ExperimentName, range.End);
+                if (storedOperations != null && storedOperations.Count > 0)
+                {
+                    storedOperations = new List<TradeOperation> { storedOperations.Last() };
+                    List<VolumeIndicator> newVolumes = volumes.ToList();
+
+                    var predictionSerie = new Serie();
+                    foreach (var operation in storedOperations)
+                    {
+                        var forecastPoint = new TradeOperationCandle()
+                        {
+
+                            AmountValue = operation.PriceEntry,
+                            LowerBound = operation.GetAbsolutLowerBound(),
+                            UpperBound = operation.GetAbsolutUpperBound(),
+                            Gain = operation.GetGain(cc.CloseValue),
+                            ExitValue = operation.ExitValue,
+                            StopLossMark = operation.StopLossMark,
+                            Volume = 1,
+                            State = operation.State.ToString(),
+                            PointInTime_Open = operation.EntryDate,
+                            PointInTime_Close = operation.ExitDate
+                        };
+                        if (!operation.IsIn)
+                            forecastPoint.Gain = operation.GetGain();
+
+                        predictionSerie.PointsInTime.Add(forecastPoint);
+
+                        //We need to add a corresponding volume point o keep the proporcion right
+                        newVolumes.Add(new VolumeIndicator(forecastPoint));
+                    }
+
+                    predictionSerie.Name = "Predictions";
+                    predictionSerie.Color = Color.LightBlue;
+                    predictionSerie.Type = SeriesType.Forecast;
+
+                    var theOperation = storedOperations.Last();
+
+                    imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
+                }
+                else
+                {
+                    imgToBroadcast = GetImage(_params, candlesToDraw, volumes, range, null, false);
+                }
+            }
+
+            return imgToBroadcast;
+        }
+
+
+
+        internal Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, Serie prediction = null, bool onlySim = true)
+        {
+            Bitmap img = null;
+            DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
+
+            var frameMap = new Dictionary<string, ChartView>();
+            frameMap.Add("Main", dv.AddChartFrame(70));
+            frameMap.Add("Volume", dv.AddChartFrame(30));
+
+            frameMap["Main"].AddSerie(new Serie()
+            {
+                PointsInTime = candles.ToList(),
+                Name = "Main",
+            });
+
+            if (prediction != null)
+                frameMap["Main"].AddSerie(prediction);
+
+            frameMap["Volume"].AddSerie(new Serie()
+            {
+                PointsInTime = volumes.ToList<IStockPointInTime>(),
+                Name = "Volume",
+                Color = Color.LightBlue,
+                Type = SeriesType.Bar,
+            });
+
+            var grouped = _indicators.GroupBy(i => i.Target);
+            foreach (var group in grouped)
+            {
+                if (frameMap.ContainsKey(group.Key))
+                {
+                    foreach (var ind in group)
+                    {
+                        Serie s = new Serie();
+                        s.PointsInTime = ind.TakeSnapShot(range).ToList();
+                        s.Name = ind.Name;
+                        s.Color = ind.Color;
+                        s.Type = ind.Type;
+                        s.LineSize = ind.Size;
+
+                        if (s.Name == "MA200")
+                            s.RelativeXPos = 0.95;
+                        else if (s.Name == "MA100")
+                            s.RelativeXPos = 0.85;
+                        else if (s.Name == "MA50")
+                            s.RelativeXPos = 0.75;
+
+                        if (s.Name != "MA Volume Meio Dia")
+                            s.Frameble = false;
+
+                        frameMap[group.Key].AddSerie(s);
+                    }
+                }
+            }
+
+            bool isSim = false;
+            img = dv.GetImage(ref isSim);
+
+            if (onlySim && !isSim)
+                img = null;
+
+            return img;
+        }
+
+
+        private void NewInfo(string id, string message)
+        {
+            if (_params.IsTesting)
+                Console.WriteLine(id.ToUpper() + " - " + message);
+
+            if (_streamLog != null)
+            {
+                _streamLog.WriteLine(message);
+                _streamLog.Flush();
+            }
+        }
+
+
+        internal string GetReport()
+        {
+            return _myService.GetReport(this._asset, CandleType.None);
+        }
+
+        internal Bitmap GetSnapshotForBot()
+        {
+            if (_lastCandle != null)
+                return GetSnapShot(_lastCandle);
+            else
+                return null;
+        }
+
+        internal string GetTextSnapShot()
+        {
+            StringBuilder sb = new StringBuilder(200);
+
+            if (_lastPrediction != null)
+            {
+                _lastPrediction.ForEach(p =>
+                {
+                    sb.AppendFormat("{0} : {1:0.000}%\n", p.Tag, p.Score);
+                });
+            }
+
+            sb.AppendLine();
+
+            var candlesToDraw = _candleMovieRoll.GetList();
+            if (candlesToDraw.Count() > 0)
+            {
+                DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
+                double atr = GetCurrentAtr(range);
+
+                if (_lastPrice > 0 && atr > 0)
+                {
+                    sb.AppendLine("Price: $" + _lastPrice.ToString("0.00"));
+                    sb.AppendLine("ATR: $" + atr.ToString("0.00"));
+                    sb.AppendLine("RATR: " + ((atr / _lastPrice) * 100).ToString("0.000") + "%");
+                }
+            }
+            else
+            {
+                sb.Append("No candles here yet");
+            }
+
+            return sb.ToString();
+        }
+
+        internal string ForceMaketOrder()
+        {
+            string ret;
+
+            try
+            {
+                var order = _manager.ForceMarketSell();
+                if (order.InError)
+                    ret = $"Order error: {order.ErrorMsg}";
+                else
+                    ret = $"SOLD! Avg: {order.AverageValue}";
+            }
+            catch (Exception err)
+            {
+                ret = $"Error selling: {err.Message}";
+            }
+
+            return ret;
+        }
+
+        internal string GetState()
+        {
+            var op = _manager.GetOneActiveOperation();
+
+            return (op != null ? op.ToString() : "No active operation");
+        }
+
+        private void FeedIndicators(IStockPointInTime point, string source)
+        {
+            foreach (var ind in _indicators)
+            {
+                if (ind.Source == source)
+                    ind.AddPoint(point);
+            }
+        }
+
+        private void StorePrediction(string myName, List<PredictionResult> res)
+        {
+            try
+            {
+                var rec = new PredictionRecord()
+                {
+                    UtcCreationDate = DateTime.UtcNow,
+                    Predictions = res,
+                    Identifier = myName
+                };
+
+                var client = new MongoClient(_params.DbConString);
+
+                var database = client.GetDatabase("CandlesFaces");
+
+                var dbCol = database.GetCollection<PredictionRecord>("Predictions");
+
+                dbCol.InsertOneAsync(rec);
+            }
+            catch (Exception err)
+            {
+                TraceAndLog.StaticLog("Store Prediction", err.Message);
+            }
+        }
+
+        private List<Candle> GetCachedCandles()
+        {
+            List<Candle> ret = new List<Candle>();
+
+            if (_params.ScoreThreshold >= -1)
+            {
+                var periods = _params.WindowSize + 200;//200 é a maior média móvel
+                var begin = DateTime.UtcNow.AddMinutes(periods * Convert.ToInt32(_candleType) * -1);
+
+                var lastCandles = CandlesGateway.MapCandles(
+                    _params.DbConStringCandles,
+                    this._asset,
+                    this._candleType,
+                    CandleType.MIN15,
+                    new DateRange(begin, DateTime.UtcNow)
+                );
+
+                ret = lastCandles;
+            }
+
+            return ret;
         }
 
 
 
         private LiveAssetFeedStream GetLiveStream()
         {
-            BinanceWebSocket sock = new BinanceWebSocket(
-                WEB_SOCKETURI, _timeOut, _asset, CandleTypeConverter.Convert(_candleType)
-            );
+            LiveAssetFeedStream ret;
 
-            return sock.OpenAndSubscribe();
+            if (_params.ScoreThreshold >= -1)
+            {
+                BinanceWebSocket sock = new BinanceWebSocket(
+                    WEB_SOCKETURI, _timeOut, _asset, _candleType
+                );
+
+                ret = sock.OpenAndSubscribe();
+            }
+            else
+            {
+                ret = new HistoricalLiveAssetFeedStream(
+                    null, _asset, CandleType.MIN5, _candleType
+                );
+
+                ((HistoricalLiveAssetFeedStream)ret).DateRange = new DateRange(
+                    _params.Range.Start,
+                    _params.Range.End
+                );
+            }
+
+            return ret;
+        }
+    }
+
+    public class PredictionRecord
+    {
+        public DateTime UtcCreationDate
+        {
+            get;
+            set;
+        }
+
+        public string Identifier
+        {
+            get;
+            set;
+        }
+
+        public List<PredictionResult> Predictions
+        {
+            get;
+            set;
         }
     }
 }

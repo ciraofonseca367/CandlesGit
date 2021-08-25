@@ -17,11 +17,11 @@ namespace Midas.Sources
 
         private string _asset;
 
-        private string _candleType;
+        private CandleType _candleType;
 
         private string _binanceUri;
 
-        public BinanceWebSocket(string binanceUri, int timeout, string asset, string candleType)
+        public BinanceWebSocket(string binanceUri, int timeout, string asset, CandleType candleType)
         {
             _socket = new ClientWebSocket();
             _socket.Options.KeepAliveInterval = new TimeSpan(0,0,60);
@@ -52,7 +52,7 @@ namespace Midas.Sources
 
         public void ReOpenAndSubscribe()
         {
-            Uri serverUri = new Uri(_binanceUri+"/"+_asset+"@kline_"+_candleType);
+            Uri serverUri = new Uri(_binanceUri+"/"+_asset+"@kline_"+CandleTypeConverter.Convert(_candleType));
             TraceAndLog.StaticLog("Socket","URI: "+serverUri);
 
             var taskConnect = _socket.ConnectAsync(serverUri, CancellationToken.None);
@@ -72,13 +72,9 @@ namespace Midas.Sources
 
         public LiveAssetFeedStream OpenAndSubscribe()
         {
-            ReOpenAndSubscribe();
-
             var feedStream = new BinanceLiveAssetFeedStream(
                 this,
-                _asset,
-                CandleType.MIN5,
-                CandleType.MIN5
+                _asset, _candleType, _candleType
             );
 
             return feedStream;

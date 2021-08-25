@@ -54,17 +54,23 @@ namespace Midas.Core.Util
         {
             string entry = String.Format("{0:yyyy-MM-dd hh:mm:ss} - {1,30}:{2}", DateTime.Now, module, description);
             Console.WriteLine(entry);
-            _logFile.WriteLine(entry);
-            _logFile.Flush();
+            lock (_logFile)
+            {
+                _logFile.WriteLine(entry);
+                _logFile.Flush();
+            }
         }
 
         public void LogTrace(string module, string title, string description)
         {
             string entry = String.Format("{0:yyyy-MM-dd hh:mm:ss} - {1} - {2}", DateTime.Now, module, title);
-            _traceFile.WriteLine(entry);
-            _traceFile.WriteLine("");
-            _traceFile.WriteLine(description);
-            _traceFile.Flush();
+            lock (_traceFile)
+            {
+                _traceFile.WriteLine(entry);
+                _traceFile.WriteLine("");
+                _traceFile.WriteLine(description);
+                _traceFile.Flush();
+            }
         }
 
         public void LogTraceHttpAction(string module, string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body)
