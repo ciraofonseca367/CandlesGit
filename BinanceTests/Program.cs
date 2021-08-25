@@ -14,8 +14,8 @@ namespace BinanceTests
         {
             string streamUrl = "wss://stream.binance.com:9443/ws";
 
-            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 100000, "BTCBUSD", "15m");
-            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 100000, "BNBBUSD", "15m");
+            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN15);
+            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 100000, "BNBBUSD", Midas.Core.Common.CandleType.MIN15);
 
             var btcStream = sockBTCBUSD.OpenAndSubscribe();
             var bnbStream = sockBNBBUSD.OpenAndSubscribe();

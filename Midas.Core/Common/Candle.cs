@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Midas.Trading;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
 namespace Midas.Core.Common
@@ -87,7 +88,16 @@ namespace Midas.Core.Common
 
         public IStockPointInTime Clone()
         {
-            return null;
+            return new Candle()
+            {
+                PointInTime_Open = this.PointInTime_Open,
+                PointInTime_Close = this.PointInTime_Close,
+                OpenValue = this.OpenValue,
+                CloseValue = this.CloseValue,
+                HighestValue = this.HighestValue,
+                LowestValue = this.LowestValue,
+                Volume = this.Volume
+            };
         }
 
         public DateTime OpenTime;
@@ -100,6 +110,7 @@ namespace Midas.Core.Common
             get;
             set;
         }
+
         public DateTime CloseTime;
 
         public object _id
@@ -263,26 +274,29 @@ namespace Midas.Core.Common
         public static Candle Reduce(List<Candle> candles)
         {
             Candle reducedCandle = null;
-            foreach (var c in candles)
+            if (candles.Count > 0)
             {
-                if (reducedCandle == null)
-                    reducedCandle = c;
-                else
+                foreach (var c in candles)
                 {
-                    if (reducedCandle.LowestValue > c.LowestValue)
-                        reducedCandle.LowestValue = c.LowestValue;
+                    if (reducedCandle == null)
+                        reducedCandle = c;
+                    else
+                    {
+                        if (reducedCandle.LowestValue > c.LowestValue)
+                            reducedCandle.LowestValue = c.LowestValue;
 
-                    if (reducedCandle.HighestValue < c.HighestValue)
-                        reducedCandle.HighestValue = c.HighestValue;
+                        if (reducedCandle.HighestValue < c.HighestValue)
+                            reducedCandle.HighestValue = c.HighestValue;
 
-                    reducedCandle.Volume += c.Volume;
+                        reducedCandle.Volume += c.Volume;
+                    }
                 }
-            }
 
-            reducedCandle.OpenValue = candles[0].OpenValue;
-            reducedCandle.CloseValue = candles[candles.Count - 1].CloseValue;
-            reducedCandle.OpenTime = candles.Min(c => c.OpenTime);
-            reducedCandle.CloseTime = candles.Max(c => c.CloseTime);
+                reducedCandle.OpenValue = candles[0].OpenValue;
+                reducedCandle.CloseValue = candles[candles.Count - 1].CloseValue;
+                reducedCandle.OpenTime = candles.Min(c => c.OpenTime).ToUniversalTime();
+                reducedCandle.CloseTime = candles.Max(c => c.CloseTime).ToUniversalTime();
+            }
 
             return reducedCandle;
         }
@@ -315,7 +329,7 @@ namespace Midas.Core.Common
         {
             get
             {
-                return DateTime.UtcNow - this.OpenTime;
+                return this.CloseTime - this.OpenTime;
             }
         }
 
@@ -347,6 +361,21 @@ namespace Midas.Core.Common
             return (Direction == CandleDirection.Up ? LowestValue : HighestValue);
         }
 
+        public static bool IsMilestone(DateTime dateTime, CandleType type)
+        {
+            TimeSpan span = new TimeSpan(dateTime.Hour, dateTime.Minute, 0);
+
+            int mod = Convert.ToInt32(span.TotalMinutes);
+            if (span.TotalMinutes > 0)
+            {
+                var totalMinutes = span.TotalMinutes;
+
+                var div = Convert.ToInt32(totalMinutes) % Convert.ToInt32(type);
+            }
+
+            return mod == 0;
+        }
+
         public void SaveOrUpdate(string conString, string patternName)
         {
             if (_mongoClient == null)
@@ -366,6 +395,23 @@ namespace Midas.Core.Common
                 new ReplaceOptions { IsUpsert = true });
         }
 
+        public static Candle LoadFromDb(string conString, string collectionName, DateTime openValue)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<Candle>(collectionName);
+
+            var filterBuilder1 = Builders<Candle>.Filter;
+            var filterDefinition = new List<FilterDefinition<Candle>>();
+            filterDefinition.Add(filterBuilder1.Eq(item => item.PointInTime_Open, openValue));
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.FirstOrDefault();
+        }
+
         private DateTime _lastPersist = DateTime.MinValue;
         public void TimedSaveOrUpdate(string conString, string patternName, TimeSpan interval)
         {
@@ -374,6 +420,20 @@ namespace Midas.Core.Common
                 SaveOrUpdate(conString, patternName);
                 _lastPersist = DateTime.Now;
             }
+        }
+
+        public static DateTime GetValidMilestone(DateTime time, CandleType type)
+        {
+            var span = new TimeSpan(time.Day, time.Hour, time.Minute, 0);
+            time = new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0, DateTimeKind.Utc);
+
+            while ((span.TotalMinutes % Convert.ToInt32(type)) > 0)
+            {
+                time = time.AddMinutes(1);
+                span = new TimeSpan(time.Hour, time.Minute, 0);
+            }
+
+            return time;
         }
     }
 
@@ -385,8 +445,6 @@ namespace Midas.Core.Common
         private double _lowerBound, _upperBound;
 
         private double _stopLossMark;
-        private double _softStopLossMark;
-
         private double _gain;
 
         private string _state;
@@ -469,7 +527,7 @@ namespace Midas.Core.Common
             set;
         }
 
-        public double StrenghMark
+        public double ExitValue
         {
             get;
             set;
@@ -479,7 +537,6 @@ namespace Midas.Core.Common
         public double UpperBound { get => _upperBound; set => _upperBound = value; }
         public double StopLossMark { get => _stopLossMark; set => _stopLossMark = value; }
 
-        public double SoftStopLossMark { get => _softStopLossMark; set => _softStopLossMark = value; }
         public double Gain { get => _gain; set => _gain = value; }
         public string State { get => _state; set => _state = value; }
         public CandleDirection Direction

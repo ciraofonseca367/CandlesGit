@@ -1,0 +1,17 @@
+{
+    "GroupLevel": "HOUR1",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTCBUSD_HOUR1/",
+            "Mask": "'BTCBUSD-1h-'yyyy-MM'.csv'",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTCBUSD_HOUR1/",
+            "Mask": "'BTCBUSD-1h-'yyyy-MM-dd'.csv'",
+            "DateStart": "2021-08-01 00:00:00",
+            "DateEnd": "2021-08-20 23:59:59"
+        }
+    ]
+}

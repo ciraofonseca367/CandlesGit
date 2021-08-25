@@ -50,7 +50,7 @@
             "Size": 4  
         },
         {
-            "Name": "MAHora",
+            "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [12],

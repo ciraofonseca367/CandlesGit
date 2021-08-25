@@ -9,6 +9,8 @@ using Midas.Core.Indicators;
 using System.Reflection;
 using System.Drawing;
 using Midas.Core.Chart;
+using Midas.Core.Trade;
+using Midas.Core.Services;
 
 namespace Midas.Core
 {
@@ -74,16 +76,6 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Forecast Window", String.Join(',', _forecastWindow));
                 Console.WriteLine("");
-                Console.WriteLine("{0,-20}: {1}", "Score Threshold", String.Join(',', ScoreThreshold.ToString("0.00")));
-                Console.WriteLine("{0,-20}: {1}", "StopLoss ", this.StopLoss);
-                Console.WriteLine("{0,-20}: {1}", "Average Verification", this.AverageVerification);
-                Console.WriteLine("{0,-20}: {1}", "Tag Filter", this.TagFilter);
-                Console.WriteLine("{0,-20}: {1}", "Delayed Trigger", this.DelayedTriggerEnabled);
-                Console.WriteLine("{0,-20}: {1}", "Indecision Threshold", this.IndecisionThreshold);
-                Console.WriteLine("");
-                Console.WriteLine("{0,-20}: {1}", "Target 1", this.Target1);
-                Console.WriteLine("{0,-20}: {1}", "Target 2", this.Target2);
-                Console.WriteLine("{0,-20}: {1}", "Target 3", this.Target3);
             }
 
             if (RunMode == RunModeType.LiveStream)
@@ -110,6 +102,21 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "DB Connection", this._dbConString);
                 Console.WriteLine("");
             }
+
+            if (RunMode == RunModeType.Invest)
+            {
+                Console.WriteLine("Run Configuration as follows:");
+                Console.WriteLine("{0,-20}: {1}", "RunMode", this.RunMode.ToString());
+                Console.WriteLine("{0,-20}: {1}", "CandleType", this.CandleType.ToString());
+                Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
+                Console.WriteLine("{0,-20}: {1}", "Score", this.ScoreThreshold);
+                Console.WriteLine("{0,-20}: {1}", "Testing", this.IsTesting);
+                Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
+                Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
+                Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());                
+                Console.WriteLine("{0,-20}: {1}", "DelayedTrigger", this.DelayedTriggerEnabled);
+                Console.WriteLine("");
+            }            
         }
 
         public int ForecastWindow
@@ -244,12 +251,14 @@ namespace Midas.Core
         public string TagFilter { get; internal set; }
 
         public string DbConStringCandles { get => _dbConStringCandles; }
-        public string BotToken { get; internal set; }
         public string AverageToForecast { get; set; }
+        public string TelegramBotCode { get; private set; }
 
         private string _dbConString;
         private string _dbConStringCandles;
         private int _forecastWindow;
+
+        private dynamic _rootIndicators;
 
         public RunParameters(string[] ps)
         {
@@ -260,7 +269,7 @@ namespace Midas.Core
             DelayedTriggerEnabled = true;
             IndecisionThreshold = 0.4;
 
-            BotToken = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
+            TelegramBotCode = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
 
             AverageToForecast = "MA6";
 
@@ -330,8 +339,17 @@ namespace Midas.Core
             if (stuff.RunMode != null)
                 RunMode = (RunModeType)Enum.Parse(typeof(RunModeType), stuff.RunMode.ToString());
 
+            TelegramBotCode = Convert.ToString(stuff.TelegramBotCode);
+
             if(stuff.Indicators != null)
-                ParseIndicators(stuff.Indicators);
+            {
+                _rootIndicators = stuff.Indicators;
+                Indicators = GetIndicators();
+            }
+
+            if(stuff.Assets != null)
+                _rootAssets = stuff.Assets;
+
 
             if (RunMode == RunModeType.Predict || RunMode == RunModeType.Create)
             {
@@ -373,27 +391,48 @@ namespace Midas.Core
                 Range.End = DateTime.ParseExact(ps[4], "yyyyMMdd", null);
                 Range.End = Range.End.AddHours(23);
                 Range.End = Range.End.AddMinutes(59);
-                AverageVerification = Convert.ToString(ps[5]);
-                StopLoss = Convert.ToDouble(ps[6]);
-                AllowedConsecutivePredictions = Convert.ToInt32(ps[7]);
-                OutputFile = ExperimentName+".csv";
-                if(ps.Length > 8)
-                {
-                    DelayedTriggerEnabled = Convert.ToBoolean(ps[8]);
-                    IndecisionThreshold = Convert.ToDouble(ps[9]) / 100;
-                    Target1 = Convert.ToDouble(ps[10]);
-                    Target2 = Convert.ToDouble(ps[11]);
-                    Target3 = Convert.ToDouble(ps[12]);
-                    if(ps.Length > 13)
-                        TagFilter = Convert.ToString(ps[13]);
-                }
+                DelayedTriggerEnabled = Convert.ToBoolean(ps[5]);
+                Asset = Convert.ToString(ps[6]);
+                CandleType = (CandleType)Enum.Parse(typeof(CandleType), ps[7], true);
 
                 //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
             }
         }
 
-        private void ParseIndicators(dynamic rootArray)
+        dynamic _rootAssets = null;
+
+        public Dictionary<string, AssetTrader> GetAssetTraders(InvestorService service)
         {
+            var traders = new Dictionary<string, AssetTrader>();
+            if (_rootAssets != null)
+            {
+                foreach (var metaAsset in _rootAssets)
+                {
+                    string asset = Convert.ToString(metaAsset.Asset);
+                    CandleType candleType = (CandleType) Enum.Parse(typeof(CandleType), Convert.ToString(metaAsset.CandleType));
+                    float score = Convert.ToSingle(metaAsset.ScoreThreshold);
+                    string fundName = Convert.ToString(metaAsset.FundName);
+
+                    var assetParams = new AssetParameters();
+                    assetParams.Score = score;
+                    assetParams.FundName = fundName;
+                    assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
+                    assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
+                    assetParams.StopLossCompSoftness = Convert.ToSingle(metaAsset.StopLossCompSoftness);
+
+                    var trader = new AssetTrader(service, asset, candleType, this, 120000, assetParams);
+
+                    traders.Add(asset+":"+candleType.ToString(), trader);
+                }
+            }
+
+            return traders; 
+        }
+
+        internal List<CalculatedIndicator> GetIndicators()
+        {
+            var rootArray = _rootIndicators;
+
             List<CalculatedIndicator> indicators = new List<CalculatedIndicator>();
             if (rootArray != null)
             {
@@ -440,7 +479,7 @@ namespace Midas.Core
                 }
             }
 
-            Indicators = indicators;
+            return indicators;
         }
 
         public string GetDirectoryName()
@@ -465,5 +504,14 @@ namespace Midas.Core
         Invest,
 
         Gather
+    }
+
+    public class AssetParameters
+    {
+        public float Score { get; internal set; }
+        public string FundName { get; internal set; }
+        public float AtrStopLoss { get; internal set; }
+        public float AvgCompSoftness { get; internal set; }
+        public float StopLossCompSoftness { get; internal set; }
     }
 }

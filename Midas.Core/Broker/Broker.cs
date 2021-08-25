@@ -414,7 +414,7 @@ namespace Midas.Core.Broker
 
                         while (!status && (DateTime.Now - startWaiting).TotalMilliseconds < timeOut)
                         {
-                            Thread.Sleep(100);
+                            Thread.Sleep(300);
 
                             BrokerOrder statusOrder = null;
 
@@ -628,7 +628,7 @@ namespace Midas.Core.Broker
             order.Price = 30000;
             order.AverageValue = 30000;
             order.Status = "FILLED";
-            order.InError = true;
+            order.InError = false;
             order.ErrorMsg = "This is the test broker!";
 
             return order;
@@ -640,7 +640,7 @@ namespace Midas.Core.Broker
             order.Price = 30000;
             order.AverageValue = 30000;
             order.Status = "FILLED";
-            order.InError = true;
+            order.InError = false;
 
             return order;
         }
@@ -658,13 +658,10 @@ namespace Midas.Core.Broker
             order.Status = "FILLED";
             order.InError = false;
 
-            if(direction == OrderDirection.SELL)
-                order.InError = true;
-
             Random r = new Random();
             var t = Task<BrokerOrder>.Run(() =>
             {
-                Thread.Sleep(r.Next(20, 40) * 1000);
+                Thread.Sleep(1);
             });
 
             await t;

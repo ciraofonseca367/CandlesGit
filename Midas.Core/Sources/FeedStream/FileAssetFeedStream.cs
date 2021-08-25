@@ -18,7 +18,7 @@ namespace Midas.FeedStream
 
         public FileAssetFeedStream(string[] files, DateRange range, CandleType fileCandleType, CandleType queryCandleType)
         {
-            if(files.Length == 0)
+            if (files.Length == 0)
                 throw new ArgumentException("Impossible to create FileFeedStream with 0 files on it dude!");
 
             _files = files;
@@ -54,9 +54,9 @@ namespace Midas.FeedStream
 
         private StreamReader GetNextFile()
         {
-            if(_filePosition < _files.Length)
+            if (_filePosition < _files.Length)
             {
-                if(_activeFile != null)
+                if (_activeFile != null)
                     _activeFile.Dispose();
 
                 _activeFile = File.Open(_files[_filePosition], FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -79,6 +79,7 @@ namespace Midas.FeedStream
             string fileLine = "";
             int linePos = 0;
             StreamReader lastFile = GetCurrentStream();
+            bool canStart = true;
             while (linePos < filePeriods && lastFile != null)
             {
                 fileLine = lastFile.ReadLine();
@@ -89,17 +90,23 @@ namespace Midas.FeedStream
                     //Check if the candle is inside the desired range
                     //PS: We do a first check when we map files but since the file units can be based on one by month, for ex, we
                     //PS: will get here a list of files that contains the data in the range PLUS all the other data in the file
-                    if(_range.IsInside(candle.PointInTime_Open))
+                    if (_range.IsInside(candle.PointInTime_Open))
                     {
-                        if(ratio == 1)
-                            readCandles.Add(candle);
-                        else
+                        // if (Candle.IsMilestone(candle.OpenTime, _queryCandleType))
+                        //     canStart = true;
+
+                        if (canStart)
                         {
-                            buffer.Add(candle);
-                            if (buffer.Count == ratio)
+                            if (ratio == 1)
+                                readCandles.Add(candle);
+                            else
                             {
-                                readCandles.Add(Candle.Reduce(buffer));
-                                buffer.Clear();
+                                buffer.Add(candle);
+                                if (buffer.Count == ratio)
+                                {
+                                    readCandles.Add(Candle.Reduce(buffer));
+                                    buffer.Clear();
+                                }
                             }
                         }
 
@@ -113,11 +120,12 @@ namespace Midas.FeedStream
             }
 
             Candle[] ret = null;
-            if(readCandles.Count > 0)
+            if (readCandles.Count > 0)
                 ret = readCandles.ToArray();
 
             return ret;
         }
+
         public abstract Candle ParseFileLine(string line);
 
         public void Close(bool fromGC = false)
@@ -125,7 +133,7 @@ namespace Midas.FeedStream
             if (_activeFile != null)
                 _activeFile.Close();
 
-            if(!fromGC)
+            if (!fromGC)
                 GC.SuppressFinalize(this);
         }
 
@@ -148,8 +156,8 @@ namespace Midas.FeedStream
 
             string[] fields = line.Split(',');
             Candle c = new Candle();
-            c.OpenTime = FromTimeStamp(Convert.ToDouble(fields[0]));
-            c.OpenTime = new DateTime(c.OpenTime.Year,c.OpenTime.Month, c.OpenTime.Day, c.OpenTime.Hour, c.OpenTime.Minute, c.OpenTime.Second);
+            var openTime = FromTimeStamp(Convert.ToDouble(fields[0]));
+            c.OpenTime = openTime;
             c.OpenValue = Convert.ToDouble(fields[1]);
             c.HighestValue = Convert.ToDouble(fields[2]);
             c.LowestValue = Convert.ToDouble(fields[3]);

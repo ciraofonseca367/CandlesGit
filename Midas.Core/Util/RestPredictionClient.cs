@@ -10,6 +10,7 @@ using System.Net.Http.Headers;
 using Midas.Core.Common;
 using System.Linq;
 using Midas.Core.Util;
+using System.Threading;
 
 namespace Midas.Util
 {
@@ -137,22 +138,30 @@ namespace Midas.Util
             else
             {
                 previewTags = new List<PredictionResult>();
-                if (RestPredictionClient.DEBUG_firstcall) //In the debug mode we force the first prediction the rest will retorn blank
+                if (true || RestPredictionClient.DEBUG_firstcall) //In the debug mode we force the first prediction the rest will retorn blank
                 {
-                    previewTags.Add(new PredictionResult()
+                    Console.WriteLine("Generating test prediction in 10 seconds...");
+                    Thread.Sleep(10000);
+                    var testResult = new PredictionResult()
                     {
                         Tag = "LONG",
                         FromAmount = currentValue,
                         Score = 0.75f,
-                        CreationDate = DateTime.Now,
-                        DateRange = new DateRange(currentTime, currentTime.AddMinutes((12 * 5))),
-                        RatioLowerBound = 0.005f,
-                        RatioUpperBound = 0.01f,
-                        LowerBound = currentValue * (1 + 0.005),
-                        UpperBound = currentValue * (1 + 0.01)
-                    });
+                        CreationDate = currentTime,
+                        DateRange = new DateRange(currentTime, currentTime.AddHours(12)),
+                        RatioLowerBound = 0.75/100,
+                        RatioUpperBound = 1.25/100
+                    };
+                    
+
+                    testResult.LowerBound = currentValue * (1 + testResult.RatioLowerBound);
+                    testResult.UpperBound = currentValue * (1 + testResult.RatioUpperBound);
+
+                    previewTags.Add(testResult);
 
                     RestPredictionClient.DEBUG_firstcall = false;
+
+                    Console.WriteLine("Here is a prediction...");
                 }
             }
 

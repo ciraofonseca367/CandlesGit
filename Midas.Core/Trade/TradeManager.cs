@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Midas.Core.Broker;
 using Midas.Core.Common;
+using Midas.Core.Services;
 using Midas.Core.Trade;
 using Midas.Core.Util;
 using MongoDB.Bson;
@@ -27,32 +28,71 @@ namespace Midas.Trading
 
         private string _fundAccountName;
 
-        private KlineRunner _runner;
-
+        private string _asset;
+        private CandleType _candleType;
         private DateTime _lastAttempt;
 
         private static DateTime ANGEL_BIRTH = new DateTime(2021, 02, 24, 17, 0, 0);
 
-        private static TradeOperationManager _singleManager = null;
-        public static TradeOperationManager GetManager(string conString, string fundAccountName, dynamic brokerConfig, bool broadCastMode = false)
-        {
-            if (_singleManager == null)
-                _singleManager = new TradeOperationManager(conString, fundAccountName, brokerConfig, broadCastMode);
+        private static Dictionary<string, TradeOperationManager> _managers;
 
-            return _singleManager;
+        private TradeLogger _logger;
+        private AssetTrader _trader;
+
+        private DateTime _lastTrade;
+
+        private string _experiment;
+
+
+
+        static TradeOperationManager()
+        {
+            _managers = new Dictionary<string, TradeOperationManager>(11);
         }
 
-        public TradeOperationManager(string conString, string fundAccountName, dynamic brokerConfig, bool broadCastMode = false)
+        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
+        {
+            TradeOperationManager man = null;
+
+            string key = $"{asset}-{candleType.ToString()}";
+
+            _managers.TryGetValue(key, out man);
+            if (man == null)
+            {
+                lock (_managers)
+                {
+                    _managers.TryGetValue(key, out man);
+                    if (man == null)
+                    {
+                        man = new TradeOperationManager(trader, conString, fundAccountName, brokerConfig, asset, candleType, experiment);
+                        _managers.Add(key, man);
+                    }
+                }
+            }
+
+            return man;
+        }
+
+        public TradeOperationManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
         {
             _currentOperation = null;
             _allOperations = new List<TradeOperation>();
             _conString = conString;
+
+            _asset = asset;
+            _candleType = candleType;
+            _trader = trader;
+            _experiment = experiment;
+
+            _lastTrade = DateTime.MinValue;
 
             _broker = Broker.GetBroker("Binance", brokerConfig);
 
             _lastAttempt = ANGEL_BIRTH;
 
             GetFunds(fundAccountName);
+
+            _logger = new TradeLogger();
 
             _fundRefresher = new System.Timers.Timer(60 * 1000);
             _fundRefresher.Elapsed += OnTimedEvent;
@@ -114,6 +154,30 @@ namespace Midas.Trading
             GetFunds(_fundAccountName);
         }
 
+        public TradeLogger TradeLogger
+        {
+            get
+            {
+                return _logger;
+            }
+        }
+
+        public AssetTrader Trader { get => _trader; }
+
+        public string Experiment
+        {
+            get
+            {
+                return _experiment;
+            }
+        }
+
+
+        public PriceDirection GetPriceDirection()
+        {
+            return _logger.GetDirection(new TimeSpan(0,5,0));
+        }
+
         private void GetFunds(string fundAccountName)
         {
             var man = new FundsManager(_conString);
@@ -131,7 +195,7 @@ namespace Midas.Trading
             return query.ToList();
         }
 
-        public List<TradeOperationDto> SearchOperations(DateTime min)
+        public List<TradeOperationDto> SearchOperations(string asset, DateTime min)
         {
             var client = new MongoClient(_conString);
             var database = client.GetDatabase("CandlesFaces");
@@ -141,42 +205,18 @@ namespace Midas.Trading
             var filter = filterBuilder1.And(new FilterDefinition<TradeOperationDto>[]
             {
                 filterBuilder1.Gte(item => item.EntryDate, min),
-                filterBuilder1.Ne(item => item.PriceExitReal, 0)
+                filterBuilder1.Ne(item => item.PriceExitReal, 0),
+                filterBuilder1.Eq(item => item.Asset, asset)
             });
 
             var query = dbCol.Find(filter).ToList();
 
             return query.ToList();
-        }        
-
-
-        public void LoadCurrentOperations(DateTime minWindow)
-        {
-            var client = new MongoClient(_conString);
-            var database = client.GetDatabase("CandlesFaces");
-            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
-
-            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
-            var filter = filterBuilder1.Gte(item => item.EntryDate, minWindow);
-
-            var query = dbCol.Find(filter).ToList();
-
-            _allOperations = GetStoredOperations(minWindow);
-
-            _currentOperation = _allOperations.FirstOrDefault();
         }
 
-        public List<TradeOperation> GetStoredOperations(DateTime minWindow)
+        public List<TradeOperation> GetActiveStoredOperations(string asset, CandleType candleType,string experiment, DateTime relativeNow)
         {
-            var client = new MongoClient(_conString);
-
-            var database = client.GetDatabase("CandlesFaces");
-            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
-
-            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
-            var filter = filterBuilder1.Gte(item => item.EntryDate, minWindow);
-
-            var query = dbCol.Find(filter).ToList();
+            var query = InvestorService.SearchActiveOperations(_conString, asset, candleType,experiment, relativeNow);
 
             List<TradeOperation> localAllTransactions;
             localAllTransactions = new List<TradeOperation>();
@@ -194,7 +234,7 @@ namespace Midas.Trading
 
         internal void SendMessage(string thread, string message)
         {
-            //_runner.SendMessage(thread, message);
+            
         }
 
         public void LoadOperations()
@@ -206,9 +246,21 @@ namespace Midas.Trading
         {
             return _allOperations.Where(op => op.EntryDate > validDate).ToList();
         }
+
+        internal void OperationFinished(Candle cc)
+        {
+            _lastTrade = cc.CloseTime;
+            _trader.SaveSnapshot(cc);
+        }
+
+        private TimeSpan GetLastOperationPeriodSpan(DateTime now)
+        {
+            return now - _lastTrade;
+        }
+
         public List<TradeOperation> GetOperationsThreadSafe(DateTime validDate)
         {
-            lock(_allOperations)
+            lock (_allOperations)
             {
                 return _allOperations.Where(op => op.EntryDate > validDate).ToList();
             }
@@ -228,18 +280,18 @@ namespace Midas.Trading
         {
             TradeOperation ret = null;
 
-            if (GetLastPredictionInPeriods() >= 2)
+            if (GetLastOperationPeriodSpan(pointInTime).TotalHours > 3)
             {
                 if (_currentOperation == null)
                 {
-                    _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig);
+                    _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType);
                     _allOperations.Add(_currentOperation);
                 }
                 else
                 {
                     if (_currentOperation.IsCompleted)
                     {
-                        _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig);
+                        _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType);
                         _allOperations.Add(_currentOperation);
                     }
                 }
@@ -259,19 +311,15 @@ namespace Midas.Trading
             return ret;
         }
 
-        public int GetLastPredictionInPeriods()
-        {
-            return Convert.ToInt32(Math.Round((DateTime.Now - _lastAttempt).TotalMinutes / 5));
-        }
-
         public BrokerOrder ForceMarketSell()
         {
-            var order = _broker.MarketOrder("EMERGENCYSELL", "BTCUSDT", OrderDirection.SELL, _fund, 60000);
+            var order = _broker.MarketOrder("EMERGENCYSELL", _asset, OrderDirection.SELL, _fund, 60000);
             return order;
         }
 
         public void OnCandleUpdate(Candle c)
         {
+            _logger.AddTrade(c.OpenTime,c.AmountValue);
             if (_currentOperation != null && _currentOperation.IsIn)
                 _currentOperation.OnCandleUpdateAsync(c);
         }

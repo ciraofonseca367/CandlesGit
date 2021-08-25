@@ -45,7 +45,7 @@ namespace Midas.Broadcast
 
             _mongoClient = new MongoClient(parans.DbConString);
 
-            _manager = TradeOperationManager.GetManager(parans.DbConString, parans.FundName, parans.BrokerParameters);
+            _manager = TradeOperationManager.GetManager(null, parans.DbConString, parans.FundName, parans.BrokerParameters, parans.Asset, parans.CandleType, "Broadcast");
 
             _lastHourUpdate = DateTime.MinValue;
             _lastHourDifference = 0;
@@ -199,7 +199,7 @@ namespace Midas.Broadcast
 
                     DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                    var storedOperations = _manager.GetStoredOperations(DateTime.UtcNow.AddMinutes(-5 * 60));
+                    var storedOperations = _manager.GetActiveStoredOperations(_params.Asset,_params.CandleType, "Live", DateTime.Now);
                     if (storedOperations != null && storedOperations.Count > 0)
                     {
                         storedOperations = new List<TradeOperation> { storedOperations.Last() };
@@ -215,9 +215,8 @@ namespace Midas.Broadcast
                                 LowerBound = operation.GetAbsolutLowerBound(),
                                 UpperBound = operation.GetAbsolutUpperBound(),
                                 Gain = operation.GetGain(cc.CloseValue),
-                                StrenghMark = operation.StoredAverage,
+                                ExitValue = operation.StoredAverage,
                                 StopLossMark = operation.StopLossMark,
-                                SoftStopLossMark = operation.SoftStopLossMark,
                                 Volume = 1,
                                 State = operation.State.ToString() + (operation.IsForceActive ? " FORCE" : String.Empty),
                                 PointInTime_Open = operation.EntryDate,
@@ -255,7 +254,7 @@ namespace Midas.Broadcast
                     {
                         Log("Updating report");
 
-                        var ops = _manager.SearchOperations(DateTime.Now.AddDays(-7));
+                        var ops = _manager.SearchOperations(null, DateTime.Now.AddDays(-7));
 
                         var lastDayOps = ops.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
 
