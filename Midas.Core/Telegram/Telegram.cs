@@ -21,6 +21,11 @@ namespace Midas.Core.Telegram
             _buffers = new Dictionary<string, DateTime>(7);
         }
 
+        public static void SetApiCode(string code)
+        {
+            BOT_API = code;
+        }
+
         public static async void SendImage(Bitmap img, string msg)
         {
 

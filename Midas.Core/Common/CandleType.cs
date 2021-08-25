@@ -12,7 +12,9 @@ namespace Midas.Core.Common
         HOUR2 = 120,
         HOUR4 = 240,
         DAY1 = 1440,
-        WEEK1 = 10080
+        WEEK1 = 10080,
+
+        None = 0
     }
 
     public class CandleTypeConverter

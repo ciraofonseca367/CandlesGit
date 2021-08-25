@@ -79,8 +79,6 @@ namespace Midas.FeedStream
         public abstract void OpenSocket(string asset);
 
         private int _retryAttempts = 0;
-        private static int TOTAL_RETRIES = 3;
-
         protected MidasSocketState _state;
 
         public MidasSocketState State
@@ -100,27 +98,31 @@ namespace Midas.FeedStream
 
             Candle lastCandle = null;
             BinanceWebSocket _backupSocket = null;
+            bool _starting=true;
 
             while (!_closing)
             {
                 try
                 {
+                    if(_starting) //We Open and Subscribe to the socket only inside the loop cause the first open sometimes generates a timeout
+                    {
+                        _starting = false;
+
+                        this._socket.ReOpenAndSubscribe();
+
+                        if (_socketInfo != null)
+                            _socketInfo(_asset, "Connected: " + this._socket.SocketStatus);
+                    }
+
                     if (this._socket == null)
                     {
                         _retryAttempts++;
 
-                        if (_retryAttempts <= TOTAL_RETRIES)
-                        {
-                            this._socket = _backupSocket;
-                            this._socket.ReOpenAndSubscribe();
+                        this._socket = _backupSocket;
+                        this._socket.ReOpenAndSubscribe();
 
-                            if (_socketInfo != null)
-                                _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
-                        }
-                        else
-                        {
-                            break;
-                        }
+                        if (_socketInfo != null)
+                            _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
                     }
 
                     var buffer = this._socket.ReconnetableReceive();
@@ -177,10 +179,11 @@ namespace Midas.FeedStream
         public virtual void Close(bool fromGC = false)
         {
             _closing = true;
+
             if(_socket != null)
                 _socket.Dispose();
 
-            _threadRunner.Join(1000);
+            _threadRunner.Join(5000);
 
             if (!fromGC)
                 GC.SuppressFinalize(this);
@@ -215,8 +218,7 @@ namespace Midas.FeedStream
 
         public override void OpenSocket(string asset)
         {
-            base._socket = new BinanceWebSocket("wss://stream.binance.com:9443/ws/", 10000, asset, "5m");
-            base._socket.ReOpenAndSubscribe();
+            throw new NotImplementedException();
         }
 
         public override Candle ParseCandle(string buffer)

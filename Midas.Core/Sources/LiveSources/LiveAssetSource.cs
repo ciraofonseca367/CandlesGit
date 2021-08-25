@@ -19,20 +19,10 @@ namespace Midas.Sources
         {
             LiveAssetFeedStream feedStream;
 
-            if(RunParameters.GetInstance().ScoreThreshold < -1)
-                feedStream = new TestLiveAssetFeedStream(
-                    null,
-                    asset,
-                    CandleType.MIN5,
-                    type
-                );
-            else
-            {
-                string streamUrl = "wss://stream.binance.com:9443/ws";
-                var binanceSock = new BinanceWebSocket(streamUrl, 10000, asset, CandleTypeConverter.Convert(type));
+            string streamUrl = "wss://stream.binance.com:9443/ws";
+            var binanceSock = new BinanceWebSocket(streamUrl, 10000, asset, type);
 
-                feedStream = binanceSock.OpenAndSubscribe();
-            }
+            feedStream = binanceSock.OpenAndSubscribe();
 
             return feedStream;
         }

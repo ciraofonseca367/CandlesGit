@@ -1,0 +1,27 @@
+[{
+    "Asset": "BTCBUSD",
+    "CandleType": "HOUR1",
+    "ScoreThreshold": 0.42,
+    "FundName": "BTCBUSD_15MIN",
+    "AtrStopLoss": 0.9,
+    "StopLossCompSoftness": 0.3,
+    "AvgCompSoftness": 0.5
+},
+{
+    "Asset": "BNBBUSD",
+    "CandleType": "MIN15",
+    "ScoreThreshold": 0.42,
+    "FundName": "BTCBUSD_15MIN",
+    "AtrStopLoss": 0.9,
+    "StopLossCompSoftness": 0.3,
+    "AvgCompSoftness": 0.5
+},
+{
+    "Asset": "BNBBUSD",
+    "CandleType": "HOUR1",
+    "ScoreThreshold": 0.42,
+    "FundName": "BTCBUSD_15MIN",
+    "AtrStopLoss": 0.9,
+    "StopLossCompSoftness": 0.3,
+    "AvgCompSoftness": 0.5
+}]
