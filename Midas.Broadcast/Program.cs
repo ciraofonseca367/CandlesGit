@@ -472,7 +472,7 @@ namespace Midas.Broadcast
 
                     state = String.Format("=== 24 hrs Performance: {0:0.000}% :: 7 days Performance: {1:0.000}% ===", resultLastDay, resultLastWeek);
 
-                    var infoImage = new Bitmap(1600, 920);
+                    var infoImage = new Bitmap(_params.CardWidth, 920);
                     Graphics g = Graphics.FromImage(infoImage);
 
                     g.DrawString("$ " + currentCandle.CloseValue.ToString("#,##0.00"), new Font("Arial", 12), new SolidBrush(Color.Orange), 5, 2);
