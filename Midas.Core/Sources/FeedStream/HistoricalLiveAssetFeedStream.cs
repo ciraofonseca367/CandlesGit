@@ -29,6 +29,8 @@ namespace Midas.FeedStream
             _running = true;
 
             _logger = new TradeLogger();
+
+            Console.WriteLine("Stream: HistoricalLiveAssetStream");
         }
 
         public override void InitPrice(double initialPrice)
@@ -113,7 +115,7 @@ namespace Midas.FeedStream
                         var secondsFactor = c.CandleAge.TotalSeconds / 100;
 
                         Random r = new Random();
-                        Thread.Sleep(r.Next(50,150));
+                        Thread.Sleep(r.Next(25,50));
 
                         _socketNew("Test", previous, seedCandle);
 
@@ -139,7 +141,7 @@ namespace Midas.FeedStream
                         Console.WriteLine($"{base._asset}:{base._queryCandleType} - {lastDay}");
                     }
 
-                    previous = c;                    
+                    previous = c;
                 }
             }
 

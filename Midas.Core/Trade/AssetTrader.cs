@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using Midas.Core.Broker;
 using System.Text;
 using Midas.Core.Services;
+using Midas.Core.Forecast;
 
 namespace Midas.Core.Trade
 {
@@ -40,17 +41,22 @@ namespace Midas.Core.Trade
         private string _myName;
         private InvestorService _myService;
 
+        private IForecast _forecaster;
+
         public AssetTrader(InvestorService service, string asset, CandleType candleType, RunParameters @params, int timeOut, AssetParameters assetParams)
         {
             _assetParams = assetParams;
+            _stopping = false;
             _myService = service;
             _asset = asset;
             _candleType = candleType;
             _params = @params;
             _timeOut = timeOut;
-            _myName = String.Format("AssetTrader_{0}_{1}", _asset, _candleType);
+            _myName = String.Format("AssetTrader_{0}_{1}", Asset, _candleType);
             _indicators = _params.GetIndicators();
-            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
+            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName,_params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
+
+            _forecaster = ForecastFactory.GetForecaster(_params.Forecaster);
         }
 
         public void Start()
@@ -113,9 +119,12 @@ namespace Midas.Core.Trade
         }
 
         public AssetParameters AssetParams { get => _assetParams; }
+        public string Asset { get => _asset;  }
+        public CandleType CandleType { get => _candleType;  }
 
         public void Stop()
         {
+            _stopping = true;
             if (_streamLog != null)
                 _streamLog.Dispose();
 
@@ -155,9 +164,7 @@ namespace Midas.Core.Trade
                 if (_lastImg != null)
                 {
                     //Get a prediction
-                    RestPredictionClient predict = new RestPredictionClient();
-                    float restThreshould = (_params.ScoreThreshold < 0 ? _params.ScoreThreshold : 0.1f);  //Se estivermos testando sempre pede uma previsão de testes, se não manda o minimo de 0.1 para vir todas as previsões classificadas e estudarmos aqui e filtrar abaixo
-                    var predictions = predict.PredictAsync(_lastImg, restThreshould, recentClosedCandle.CloseValue, recentClosedCandle.OpenTime);
+                    var predictions = _forecaster.PredictAsync(_lastImg, 0.1f, recentClosedCandle.CloseValue, recentClosedCandle.OpenTime);
                     if (predictions.Wait(10000))
                     {
                         StorePrediction(_myName, predictions.Result);
@@ -215,6 +222,7 @@ namespace Midas.Core.Trade
         private Candle _lastCandle;
         private double _lastPrice;
         private double _lastAtr;
+        private bool _stopping;
 
         private void OnCandleUpdate_UpdateManager(string id, string message, Candle cc)
         {
@@ -307,8 +315,9 @@ namespace Midas.Core.Trade
 
         public string GetParametersReport()
         {
-            string configs = $"{this._asset.ToUpper()} - {this._candleType.ToString()} {_params.WindowSize.ToString()} period window\n";
-            configs += $"Score: {_params.ScoreThreshold.ToString("0.00")}% - WS: \n";
+            string configs = $"<b>== {this.Asset.ToUpper()} - {this._candleType.ToString()} = {_params.WindowSize.ToString()} W ==</b>\n";
+            configs += $"Score: {this.AssetParams.Score.ToString("0.00")}%\n";
+            configs += $"Fund: ${this._manager.Funds:0.0000}\n";
             configs += $"{_params.CardWidth} x {_params.CardHeight}\n";
             configs += $"Delay triggger {(_params.DelayedTriggerEnabled ? "ON" : "OFF")}";
 
@@ -328,10 +337,16 @@ namespace Midas.Core.Trade
             img.Save(fileName, System.Drawing.Imaging.ImageFormat.Png);
         }
 
-        private string GetIdentifier()
+        internal string GetIdentifier()
         {
-            return $"{_asset}-{_candleType.ToString()}";
+            return $"{Asset}-{_candleType.ToString()}";
         }
+
+        internal string GetShortIdentifier()
+        {
+            return $"{_asset.Substring(0,3)}{Convert.ToInt32(_candleType)}";
+        }
+
 
         internal Bitmap GetSnapShot(Candle cc)
         {
@@ -344,7 +359,7 @@ namespace Midas.Core.Trade
 
                 DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                var storedOperations = _manager.GetActiveStoredOperations(_asset, _candleType, _params.ExperimentName, range.End);
+                var storedOperations = _manager.GetActiveStoredOperations(Asset, _candleType, _params.ExperimentName, range.End);
                 if (storedOperations != null && storedOperations.Count > 0)
                 {
                     storedOperations = new List<TradeOperation> { storedOperations.Last() };
@@ -462,6 +477,7 @@ namespace Midas.Core.Trade
 
         private void NewInfo(string id, string message)
         {
+            _lastSocketUpdate = DateTime.Now;
             if (_params.IsTesting)
                 Console.WriteLine(id.ToUpper() + " - " + message);
 
@@ -472,10 +488,24 @@ namespace Midas.Core.Trade
             }
         }
 
+        private DateTime _lastSocketUpdate = DateTime.MinValue;
+        private void MonitoringRunner()
+        {
+            Task.Run(() => {
+                while(!_stopping)
+                {
+                    Thread.Sleep(100);
+                    var span = (DateTime.Now - _lastSocketUpdate);
+                    if(span.TotalSeconds > 30)
+                        TelegramBot.SendMessageBuffered("HearBeat Alert", $"{this.GetIdentifier()}:Atenção! Last heart beat was {span.TotalSeconds:0.00} seconds ago.");
+                }
+            });
+        }
+
 
         internal string GetReport()
         {
-            return _myService.GetReport(this._asset, CandleType.None);
+            return _myService.GetReport(this.Asset, CandleType.None);
         }
 
         internal Bitmap GetSnapshotForBot()
@@ -586,14 +616,16 @@ namespace Midas.Core.Trade
         {
             List<Candle> ret = new List<Candle>();
 
-            if (_params.ScoreThreshold >= -1)
+            if (_params.PreloadCandles)
             {
                 var periods = _params.WindowSize + 200;//200 é a maior média móvel
                 var begin = DateTime.UtcNow.AddMinutes(periods * Convert.ToInt32(_candleType) * -1);
 
+                var asset = this.Asset.Replace("USDT", "BUSD");
+
                 var lastCandles = CandlesGateway.MapCandles(
                     _params.DbConStringCandles,
-                    this._asset,
+                    asset,
                     this._candleType,
                     CandleType.MIN15,
                     new DateRange(begin, DateTime.UtcNow)
@@ -611,24 +643,34 @@ namespace Midas.Core.Trade
         {
             LiveAssetFeedStream ret;
 
-            if (_params.ScoreThreshold >= -1)
+            if (_params.FeedStreamType == "Live")
             {
                 BinanceWebSocket sock = new BinanceWebSocket(
-                    WEB_SOCKETURI, _timeOut, _asset, _candleType
+                    WEB_SOCKETURI, _timeOut, Asset, _candleType
                 );
 
                 ret = sock.OpenAndSubscribe();
             }
-            else
+            else if(_params.FeedStreamType == "Historical")
             {
                 ret = new HistoricalLiveAssetFeedStream(
-                    null, _asset, CandleType.MIN5, _candleType
+                    null, Asset, CandleType.MIN15, _candleType
                 );
 
                 ((HistoricalLiveAssetFeedStream)ret).DateRange = new DateRange(
                     _params.Range.Start,
                     _params.Range.End
                 );
+            }
+            else if(_params.FeedStreamType == "Test")
+            {
+                ret = new TestLiveAssetFeedStream(
+                    null, _params.Asset, _params.CandleType, _params.CandleType
+                    );
+            }
+            else
+            {
+                throw new NotImplementedException(_params.FeedStreamType + " - Not implemented");
             }
 
             return ret;

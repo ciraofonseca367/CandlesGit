@@ -90,9 +90,42 @@ namespace Midas.Core.Services
             TelegramBot.SendMessage("Iniciando Investor...");
         }
 
-        internal string GetReport()
+        internal string GetAllReport()
         {
-            return GetReport(null, CandleType.None);
+            StringBuilder sb = new StringBuilder();
+            List<double> days = new List<double>();
+            List<double> weeks = new List<double>();
+            List<double> months = new List<double>();
+
+            sb.Append("<code>");
+
+            sb.Append(String.Format("ASSET    D     W      M   \n"));
+            sb.Append(String.Format("---------------------------\n"));
+            foreach(var pair in _traders)
+            {
+                var allOps = SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
+                var lastDay = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
+                var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
+
+                var resultAll = allOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                var resultWeek = lastWeek.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                var resultDay = lastDay.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+
+                days.Add(resultDay);
+                weeks.Add(resultWeek);
+                months.Add(resultAll);
+
+                sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
+                    pair.Value.GetShortIdentifier(), resultDay,resultWeek,resultAll));
+                sb.AppendLine();
+            }
+            sb.Append(String.Format("---------------------------\n"));
+            sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
+            String.Empty,days.Average(),weeks.Average(),months.Average()
+            ));
+            sb.Append("</code>");
+
+            return sb.ToString();
         }
 
         internal string GetReport(string asset, CandleType candleType)
@@ -103,10 +136,10 @@ namespace Midas.Core.Services
 
             var resultLastDay = lastDayOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
             resultLastDay *= 100;
-            var taxesLastDay = lastDayOps.Count() * -0.06;
+            var taxesLastDay = lastDayOps.Count() * -0.0006;
             var resultWeek = ops.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
             resultWeek *= 100;
-            var taxesLastWeek = ops.Count() * -0.06;
+            var taxesLastWeek = ops.Count() * -0.0006;
 
             string message;
 

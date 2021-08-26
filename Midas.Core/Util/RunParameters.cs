@@ -111,12 +111,13 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Score", this.ScoreThreshold);
                 Console.WriteLine("{0,-20}: {1}", "Testing", this.IsTesting);
+                Console.WriteLine("{0,-20}: {1}", "Experiment", this.ExperimentName);
                 Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
                 Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());                
                 Console.WriteLine("{0,-20}: {1}", "DelayedTrigger", this.DelayedTriggerEnabled);
                 Console.WriteLine("");
-            }            
+            }
         }
 
         public int ForecastWindow
@@ -140,7 +141,7 @@ namespace Midas.Core
             get;
             private set;
         }
-
+        public bool PreloadCandles { get; private set; }
         public string OutputDirectory
         {
             get;
@@ -220,6 +221,11 @@ namespace Midas.Core
             get;
             set;
         }
+        public string BrokerName
+        {
+            get;
+            set;
+        }
 
         public int AllowedConsecutivePredictions
         {
@@ -253,6 +259,8 @@ namespace Midas.Core
         public string DbConStringCandles { get => _dbConStringCandles; }
         public string AverageToForecast { get; set; }
         public string TelegramBotCode { get; private set; }
+        public string Forecaster { get; internal set; }
+        public string FeedStreamType { get; internal set; }
 
         private string _dbConString;
         private string _dbConStringCandles;
@@ -293,12 +301,16 @@ namespace Midas.Core
 
             _dbConString = Convert.ToString(stuff.ConString);
             _dbConStringCandles = Convert.ToString(stuff.ConStringCandles);
+            Forecaster = Convert.ToString(stuff.Forecaster);
+            FeedStreamType = Convert.ToString(stuff.FeedStreamType);
+            BrokerName = Convert.ToString(stuff.BrokerName);
 
             CandleType = (CandleType)Enum.Parse(typeof(CandleType), stuff.CandleType.ToString(), true);
             start = Convert.ToDateTime(stuff.StartDate);
             end = Convert.ToDateTime(stuff.EndDate);
             Asset = Convert.ToString(stuff.Asset);
             ExperimentName = Convert.ToString(stuff.ExperimentName);
+            PreloadCandles = Convert.ToBoolean(stuff.PreloadCandles);
 
             FundName = Convert.ToString(stuff.FundName);
             BrokerParameters = stuff.BrokerParameters;

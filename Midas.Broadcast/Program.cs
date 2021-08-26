@@ -45,7 +45,7 @@ namespace Midas.Broadcast
 
             _mongoClient = new MongoClient(parans.DbConString);
 
-            _manager = TradeOperationManager.GetManager(null, parans.DbConString, parans.FundName, parans.BrokerParameters, parans.Asset, parans.CandleType, "Broadcast");
+            _manager = TradeOperationManager.GetManager(null, parans.DbConString, parans.FundName, _params.BrokerName, parans.BrokerParameters, parans.Asset, parans.CandleType, "Broadcast");
 
             _lastHourUpdate = DateTime.MinValue;
             _lastHourDifference = 0;
@@ -218,7 +218,7 @@ namespace Midas.Broadcast
                                 ExitValue = operation.StoredAverage,
                                 StopLossMark = operation.StopLossMark,
                                 Volume = 1,
-                                State = operation.State.ToString() + (operation.IsForceActive ? " FORCE" : String.Empty),
+                                State = operation.State.ToString(),
                                 PointInTime_Open = operation.EntryDate,
                                 PointInTime_Close = operation.ExitDate
                             };

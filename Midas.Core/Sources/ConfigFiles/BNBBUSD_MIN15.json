@@ -2,10 +2,11 @@
     "GroupLevel": "MIN15",
     "FileMapping": [
         {
-            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_MIN15/BNBBUSD-15m-2021-07.csv",
-            "DateStart": "2021-07-01 00:00:00",
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_MIN15/",
+            "Mask": "'BNBBUSD-15M-'yyyy-MM'.csv'",
+            "DateStart": "2021-01-01 00:00:00",
             "DateEnd": "2021-07-31 23:59:59"
-        },     
+        },
         {
             "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_MIN15/",
             "Mask": "'BNBBUSD-15m-'yyyy-MM-dd'.csv'",

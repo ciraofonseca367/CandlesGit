@@ -24,7 +24,6 @@ namespace Midas.FeedStream
     {
         protected BinanceWebSocket _socket;
         protected string _asset;
-
         protected CandleType _streamCandleType;
         protected CandleType _queryCandleType;
 
@@ -209,6 +208,7 @@ namespace Midas.FeedStream
         */
         public BinanceLiveAssetFeedStream(BinanceWebSocket socket, string asset, CandleType streamCandleType, CandleType queryCandleType) : base(socket, asset, streamCandleType, queryCandleType)
         {
+            Console.WriteLine("Stream: BinanceLiveAssetStream");
         }
 
         public override int BufferCount()

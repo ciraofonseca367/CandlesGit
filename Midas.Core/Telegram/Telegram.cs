@@ -99,6 +99,9 @@ namespace Midas.Core.Telegram
 
         public static void SendMessageBuffered(string threadName, string msg)
         {
+            if(threadName == null)
+                threadName = String.Empty;
+                
             if (!_buffers.ContainsKey(threadName))
                 _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
 
