@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Midas.Core.Services;
@@ -135,10 +136,13 @@ namespace Midas.Core.Telegram
                 case "hi":
                     await SendGeneralOptions(botClient, message);
                     break;
-                case "config":
+                case "Config":
+
+                    var msg = String.Concat(_myService.GetAssetsConfig());
+                    
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
-                                                                text: _myService.GetAssetsConfig(),
-                                                                replyMarkup: new ReplyKeyboardRemove());
+                                                                text: msg,
+                                                                replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);
 
                     break;
 
@@ -228,7 +232,7 @@ namespace Midas.Core.Telegram
                     string generalpl = String.Empty;
                     try
                     {
-                        generalpl = _myService.GetReport();
+                        generalpl = _myService.GetAllReport();
                     }
                     catch (Exception err)
                     {
@@ -237,7 +241,7 @@ namespace Midas.Core.Telegram
 
                     await botClient.SendTextMessageAsync(
                         chatId: message.Chat.Id,
-                        text: Truncate(generalpl, 200));
+                        text: generalpl, parseMode: ParseMode.Html);
 
                     break;
                 case "Balance":
@@ -339,6 +343,7 @@ namespace Midas.Core.Telegram
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
             buttonsLines.Add(new KeyboardButton[] { "Balance" });
+            buttonsLines.Add(new KeyboardButton[] { "Config" });
             buttonsLines.Add(new KeyboardButton[] { "Clear" });
 
             var assetButtons = buttonsLines.ToArray();

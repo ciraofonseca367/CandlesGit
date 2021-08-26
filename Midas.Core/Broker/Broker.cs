@@ -22,17 +22,13 @@ namespace Midas.Core.Broker
         {
             Broker ret = null;
             if (identification == "Binance")
-            {
-                if (RunParameters.GetInstance().ScoreThreshold >= -1)
-                    ret = new BinanceBroker();
-                else
-                    ret = new TestBroker();
-
-                ret.SetParameters(config);
-
-            }
+                ret = new BinanceBroker();
+            else if(identification == "TestBroker")
+                ret = new TestBroker();
             else
                 throw new ArgumentException("No such broker - " + identification);
+
+            ret.SetParameters(config);
 
             return ret;
         }
@@ -333,6 +329,11 @@ namespace Midas.Core.Broker
 
                     order.AverageValue = amounts.Average();
                 }
+                else if(status == "EXPIRED")
+                {
+                    order.InError = true;
+                    order.ErrorCode = "EXPIRED";
+                }
             }
 
             return order;
@@ -393,7 +394,7 @@ namespace Midas.Core.Broker
                 {
                     smartOrder = MarketOrder(orderId, asset, direction, qty, timeOut);
                     if (smartOrder.InError)
-                        throw new BrokerException("Error on LimitOrder first step - " + smartOrder.ErrorMsg, null);
+                        throw new BrokerException("Error on MarketOrder first step - " + smartOrder.ErrorMsg, null);
                 }
                 else
                 {

@@ -137,32 +137,7 @@ namespace Midas.Util
             }
             else
             {
-                previewTags = new List<PredictionResult>();
-                if (true || RestPredictionClient.DEBUG_firstcall) //In the debug mode we force the first prediction the rest will retorn blank
-                {
-                    Console.WriteLine("Generating test prediction in 10 seconds...");
-                    Thread.Sleep(10000);
-                    var testResult = new PredictionResult()
-                    {
-                        Tag = "LONG",
-                        FromAmount = currentValue,
-                        Score = 0.75f,
-                        CreationDate = currentTime,
-                        DateRange = new DateRange(currentTime, currentTime.AddHours(12)),
-                        RatioLowerBound = 0.75/100,
-                        RatioUpperBound = 1.25/100
-                    };
-                    
 
-                    testResult.LowerBound = currentValue * (1 + testResult.RatioLowerBound);
-                    testResult.UpperBound = currentValue * (1 + testResult.RatioUpperBound);
-
-                    previewTags.Add(testResult);
-
-                    RestPredictionClient.DEBUG_firstcall = false;
-
-                    Console.WriteLine("Here is a prediction...");
-                }
             }
 
             var tags = new List<PredictionResult>();
@@ -284,83 +259,6 @@ namespace Midas.Util
             catch { }
 
             return ret;
-        }
-
-        private string TransformImageToBase64(Bitmap image)
-        {
-            MemoryStream ms = new MemoryStream();
-            image.Save(ms, System.Drawing.Imaging.ImageFormat.Gif);
-            ms.Flush();
-            ms.Position = 0;
-
-            return Convert.ToBase64String(ms.ToArray());
-        }
-    }
-
-    public class PredictionResult
-    {
-        public double Score
-        {
-            get;
-            set;
-        }
-
-        public string Tag
-        {
-            get;
-            set;
-        }
-
-        public double RatioLowerBound
-        {
-            get;
-            set;
-        }
-
-        public double RatioUpperBound
-        {
-            get;
-            set;
-        }
-
-        public double LowerBound
-        {
-            get;
-            set;
-        }
-
-        public double UpperBound
-        {
-            get;
-            set;
-        }
-
-        public DateRange DateRange
-        {
-            get;
-            set;
-        }
-
-        public DateTime CreationDate
-        {
-            get;
-            set;
-        }
-
-        public double FromAmount
-        {
-            get;
-            set;
-        }
-
-        public TradeType GetTrend()
-        {
-            return (RatioLowerBound < 0 ? TradeType.Short : TradeType.Long);
-        }
-
-        public override string ToString()
-        {
-            return String.Format("{0} to {1} in the next {2} 5 minute candles, CurrentAmount: {3}", RatioLowerBound, RatioUpperBound, Convert.ToInt32(DateRange.GetSpan().TotalMinutes / 5), FromAmount);
         }
 
     }

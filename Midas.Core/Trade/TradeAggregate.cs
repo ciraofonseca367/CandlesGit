@@ -249,7 +249,7 @@ namespace Midas.Core.Trade
             var atr = GetAtr();
             var ratr = atr / currentPrice;
 
-            var equalRange = ratr * 0.1;
+            var equalRange = ratr * 0.05;
 
             var minBand = currentPrice * (1-equalRange);
             var maxBand = currentPrice * (1+equalRange);

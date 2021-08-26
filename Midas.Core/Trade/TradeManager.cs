@@ -7,6 +7,7 @@ using System.Timers;
 using Midas.Core.Broker;
 using Midas.Core.Common;
 using Midas.Core.Services;
+using Midas.Core.Telegram;
 using Midas.Core.Trade;
 using Midas.Core.Util;
 using MongoDB.Bson;
@@ -21,6 +22,7 @@ namespace Midas.Trading
     public class TradeOperationManager
     {
         private string _conString;
+        private string _brokerName;
         private Broker _broker;
         private System.Timers.Timer _fundRefresher;
         private double _fund;
@@ -50,7 +52,7 @@ namespace Midas.Trading
             _managers = new Dictionary<string, TradeOperationManager>(11);
         }
 
-        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
+        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName,string brokerName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
         {
             TradeOperationManager man = null;
 
@@ -64,7 +66,7 @@ namespace Midas.Trading
                     _managers.TryGetValue(key, out man);
                     if (man == null)
                     {
-                        man = new TradeOperationManager(trader, conString, fundAccountName, brokerConfig, asset, candleType, experiment);
+                        man = new TradeOperationManager(trader, conString, fundAccountName, brokerConfig, asset, candleType, experiment, brokerName);
                         _managers.Add(key, man);
                     }
                 }
@@ -73,11 +75,12 @@ namespace Midas.Trading
             return man;
         }
 
-        public TradeOperationManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
+        public TradeOperationManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment, string brokerName)
         {
             _currentOperation = null;
             _allOperations = new List<TradeOperation>();
             _conString = conString;
+            _brokerName = brokerName;
 
             _asset = asset;
             _candleType = candleType;
@@ -90,7 +93,7 @@ namespace Midas.Trading
 
             _lastAttempt = ANGEL_BIRTH;
 
-            GetFunds(fundAccountName);
+            _fundAccountName = fundAccountName;
 
             _logger = new TradeLogger();
 
@@ -99,8 +102,9 @@ namespace Midas.Trading
             _fundRefresher.AutoReset = true;
             _fundRefresher.Enabled = true;
 
-            _fundAccountName = fundAccountName;
             _brokerConfig = brokerConfig;
+
+            GetFunds();
         }
 
         public void RestoreState(bool isTesting)
@@ -144,14 +148,16 @@ namespace Midas.Trading
                     TraceAndLog.GetInstance().Log("Restore State", "Be aware, got more then one transaction in a IN State");
                 }
 
-                _currentOperation = new TradeOperation(ops.First(), _fund, this, _conString, _brokerConfig);
+                _currentOperation = new TradeOperation(ops.First(), _fund, this, _conString, _brokerName,  _brokerConfig);
                 _allOperations.Add(_currentOperation);
             }
+
+            GetFunds();
         }
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
-            GetFunds(_fundAccountName);
+            GetFunds();
         }
 
         public TradeLogger TradeLogger
@@ -178,10 +184,18 @@ namespace Midas.Trading
             return _logger.GetDirection(new TimeSpan(0,5,0));
         }
 
-        private void GetFunds(string fundAccountName)
+        internal void GetFunds()
         {
             var man = new FundsManager(_conString);
-            _fund = man.GetFunds(fundAccountName).Amount;
+            _fund = man.GetFunds(_fundAccountName).Amount;
+        }
+
+        public double Funds
+        {
+            get
+            {
+                return _fund;
+            }
         }
 
         public List<TradeOperationDto> GetOpenOperations()
@@ -222,7 +236,7 @@ namespace Midas.Trading
             localAllTransactions = new List<TradeOperation>();
             query.ForEach(o =>
             {
-                var op = new TradeOperation(o, _fund, this, _conString, _brokerConfig);
+                var op = new TradeOperation(o, _fund, this, _conString, _brokerName, _brokerConfig);
                 localAllTransactions.Add(op);
             });
 
@@ -234,7 +248,7 @@ namespace Midas.Trading
 
         internal void SendMessage(string thread, string message)
         {
-            
+            TelegramBot.SendMessageBuffered(thread,message);
         }
 
         public void LoadOperations()
@@ -284,14 +298,14 @@ namespace Midas.Trading
             {
                 if (_currentOperation == null)
                 {
-                    _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType);
+                    _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                     _allOperations.Add(_currentOperation);
                 }
                 else
                 {
                     if (_currentOperation.IsCompleted)
                     {
-                        _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType);
+                        _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                         _allOperations.Add(_currentOperation);
                     }
                 }
