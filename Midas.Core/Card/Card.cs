@@ -9,6 +9,7 @@ using Google.Cloud.AutoML.V1;
 using System.Linq;
 using Midas.Util;
 using Midas.Core;
+using Midas.Core.Forecast;
 
 namespace Midas.Core.Card
 {
@@ -350,9 +351,9 @@ namespace Midas.Core.Card
 
         public List<PredictionResult> GetPrediction(float scoreThreshold)
         {
-            RestPredictionClient client = new RestPredictionClient();
+            var client = ForecastFactory.GetDefaultForecaster();
 
-            return client.Predict(_img, scoreThreshold);
+            return client.Predict(_img, scoreThreshold,0, DateTime.Now);
         }
 
         public PredictionReportItem WritePrediction(StreamWriter output, float scoreThreshold, string fileName)
@@ -365,9 +366,9 @@ namespace Midas.Core.Card
             if (AboveAverage(GetFirstCandle().CloseValue, GetLastCandle().CloseValue))
             {
 
-                RestPredictionClient client = new RestPredictionClient();
+                var client = ForecastFactory.GetDefaultForecaster();
 
-                var response = client.Predict(_img, 0.1f, _params.TagFilter);
+                var response = client.Predict(_img, 0.1f, 0, DateTime.MinValue);
 
                 if (response != null)
                 {

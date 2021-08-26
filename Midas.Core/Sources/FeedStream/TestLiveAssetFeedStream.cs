@@ -41,6 +41,8 @@ namespace Midas.FeedStream
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.3, Volume = 1},
             };
 
+            Console.WriteLine("Stream: TestLiveAssetStream");
+
             _logger = new TradeLogger();
         }
 
