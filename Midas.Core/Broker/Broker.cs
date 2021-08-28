@@ -394,7 +394,7 @@ namespace Midas.Core.Broker
                 {
                     smartOrder = MarketOrder(orderId, asset, direction, qty, timeOut);
                     if (smartOrder.InError)
-                        throw new BrokerException("Error on MarketOrder first step - " + smartOrder.ErrorMsg, null);
+                        throw new BrokerException("Error on MarketOrder first step - " + smartOrder.Status + " - " + smartOrder.ErrorMsg, null);
                 }
                 else
                 {

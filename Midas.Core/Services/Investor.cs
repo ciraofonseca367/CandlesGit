@@ -90,6 +90,8 @@ namespace Midas.Core.Services
             TelegramBot.SendMessage("Iniciando Investor...");
         }
 
+
+
         internal string GetAllReport()
         {
             StringBuilder sb = new StringBuilder();
@@ -108,8 +110,11 @@ namespace Midas.Core.Services
                 var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
 
                 var resultAll = allOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                resultAll *= 100;
                 var resultWeek = lastWeek.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                resultWeek *= 100;
                 var resultDay = lastDay.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                resultDay *= 100;
 
                 days.Add(resultDay);
                 weeks.Add(resultWeek);
@@ -209,6 +214,20 @@ namespace Midas.Core.Services
                 return _running;
             }
         }
+        public string GetAllTradersStatus()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            foreach(var pair in _traders)
+            {
+                sb.Append(pair.Value.GetState());
+                sb.AppendLine();
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
 
         public string GetBalanceReport()
         {

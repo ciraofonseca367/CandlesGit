@@ -2,6 +2,21 @@
     "GroupLevel": "HOUR1",
     "FileMapping": [
         {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-01.csv",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-01-31 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-02.csv",
+            "DateStart": "2021-02-01 00:00:00",
+            "DateEnd": "2021-02-28 23:59:59"
+        },     
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-03.csv",
+            "DateStart": "2021-03-01 00:00:00",
+            "DateEnd": "2021-03-31 23:59:59"
+        },     
+        {
             "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBBUSD_HOUR1/BNBBUSD-1h-2021-04.csv",
             "DateStart": "2021-04-01 00:00:00",
             "DateEnd": "2021-04-30 23:59:59"

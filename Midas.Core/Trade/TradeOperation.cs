@@ -312,16 +312,15 @@ namespace Midas.Trading
 
             var maIndicator = ma12;
 
-            if(OperationDurationInPeriods <= 6 && LastMaxGain > ratr * 3) //Para quando o aumento é muito alto logo no inivio
-            {
-                maIndicator = _myMan.Trader.Indicators.Where(i => i.Name == "MA6").FirstOrDefault();
-                shouldStop = true;
-            }
+            // if(OperationDurationInPeriods <= 6 && LastValue > 0 && LastMaxGain > ratr * 3) //Para quando o aumento é muito alto logo no inivio
+            // {
+            //     maIndicator = _myMan.Trader.Indicators.Where(i => i.Name == "MA6").FirstOrDefault();
+            //     shouldStop = trueBengaLonga2021
+            // }
 
             if (LastLongSignalDurationInPeriods >= 12) //Timeout da operação, desde o inicio ou último sinal de long
             {
-                if(LastValue > ma12Val)
-                    shouldStop = true;
+                shouldStop = true;
             }
 
             if (shouldStop)

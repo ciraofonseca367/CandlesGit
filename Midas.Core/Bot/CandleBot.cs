@@ -206,6 +206,16 @@ namespace Midas.Core.Telegram
                     }
 
                     break;
+
+                case "State All":
+                    var stateAll = _myService.GetAllTradersStatus();
+
+
+                    await botClient.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: stateAll);
+
+                    break;                    
                 case "P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -340,6 +350,7 @@ namespace Midas.Core.Telegram
         {
             List<KeyboardButton[]> buttonsLines = new List<KeyboardButton[]>();
             buttonsLines.Add(new KeyboardButton[] { "General P&L" });
+            buttonsLines.Add(new KeyboardButton[] { "State All" });
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
             buttonsLines.Add(new KeyboardButton[] { "Balance" });

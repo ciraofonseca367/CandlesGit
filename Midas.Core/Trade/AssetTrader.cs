@@ -54,7 +54,7 @@ namespace Midas.Core.Trade
             _timeOut = timeOut;
             _myName = String.Format("AssetTrader_{0}_{1}", Asset, _candleType);
             _indicators = _params.GetIndicators();
-            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName,_params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
+            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
 
             _forecaster = ForecastFactory.GetForecaster(_params.Forecaster);
         }
@@ -119,8 +119,8 @@ namespace Midas.Core.Trade
         }
 
         public AssetParameters AssetParams { get => _assetParams; }
-        public string Asset { get => _asset;  }
-        public CandleType CandleType { get => _candleType;  }
+        public string Asset { get => _asset; }
+        public CandleType CandleType { get => _candleType; }
 
         public void Stop()
         {
@@ -141,7 +141,7 @@ namespace Midas.Core.Trade
 
             try
             {
-                string currentTrend = "None";
+                string currentTrend = "ZERO";
 
                 //THE ESSENSE OF THIS PROCEDURE
                 _candleThatPredicted = null;
@@ -191,6 +191,8 @@ namespace Midas.Core.Trade
 
                             if (rankLong == 1 && scoreLong >= AssetParams.Score)
                             {
+                                currentTrend = "LONG";
+                                
                                 if (rankShort == 2 || rankShort == 1) //Neste caso temos LONG com score para entrar, mas temos Short maior que Long, ou maior que o ND.
                                 {
                                     TelegramBot.SendMessageBuffered("AVISO", "Double Conflict LONG & SHORT");
@@ -344,7 +346,7 @@ namespace Midas.Core.Trade
 
         internal string GetShortIdentifier()
         {
-            return $"{_asset.Substring(0,3)}{Convert.ToInt32(_candleType)}";
+            return $"{_asset.Substring(0, 3)}{Convert.ToInt32(_candleType)}";
         }
 
 
@@ -477,26 +479,34 @@ namespace Midas.Core.Trade
 
         private void NewInfo(string id, string message)
         {
-            _lastSocketUpdate = DateTime.Now;
-            if (_params.IsTesting)
-                Console.WriteLine(id.ToUpper() + " - " + message);
-
-            if (_streamLog != null)
+            try
             {
-                _streamLog.WriteLine(message);
-                _streamLog.Flush();
+                _lastSocketUpdate = DateTime.Now;
+                if (_params.IsTesting)
+                    Console.WriteLine(id.ToUpper() + " - " + message);
+
+                if (_streamLog != null)
+                {
+                    _streamLog.WriteLine(message);
+                    _streamLog.Flush();
+                }
+            }
+            catch (Exception err)
+            {
+                TraceAndLog.StaticLog("NewInfo",err.ToString());
             }
         }
 
         private DateTime _lastSocketUpdate = DateTime.MinValue;
         private void MonitoringRunner()
         {
-            Task.Run(() => {
-                while(!_stopping)
+            Task.Run(() =>
+            {
+                while (!_stopping)
                 {
                     Thread.Sleep(100);
                     var span = (DateTime.Now - _lastSocketUpdate);
-                    if(span.TotalSeconds > 30)
+                    if (span.TotalSeconds > 30)
                         TelegramBot.SendMessageBuffered("HearBeat Alert", $"{this.GetIdentifier()}:Atenção! Last heart beat was {span.TotalSeconds:0.00} seconds ago.");
                 }
             });
@@ -651,7 +661,7 @@ namespace Midas.Core.Trade
 
                 ret = sock.OpenAndSubscribe();
             }
-            else if(_params.FeedStreamType == "Historical")
+            else if (_params.FeedStreamType == "Historical")
             {
                 ret = new HistoricalLiveAssetFeedStream(
                     null, Asset, CandleType.MIN15, _candleType
@@ -662,7 +672,7 @@ namespace Midas.Core.Trade
                     _params.Range.End
                 );
             }
-            else if(_params.FeedStreamType == "Test")
+            else if (_params.FeedStreamType == "Test")
             {
                 ret = new TestLiveAssetFeedStream(
                     null, _params.Asset, _params.CandleType, _params.CandleType

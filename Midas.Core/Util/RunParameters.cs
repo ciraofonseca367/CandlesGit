@@ -384,12 +384,6 @@ namespace Midas.Core
                     throw new ArgumentException("Missing arguments for RunMode Gather");
             }
 
-            if (RunMode == RunModeType.Invest)
-            {
-                if (String.IsNullOrEmpty(Asset) || String.IsNullOrEmpty(_dbConString) || String.IsNullOrEmpty(FundName) || BrokerParameters == null)
-                    throw new ArgumentException("Missing arguments for RunMode Invest");
-            }
-
             AllowedConsecutivePredictions = 1;
             Target1 = 1;
             Target2 = 1;
@@ -404,8 +398,6 @@ namespace Midas.Core
                 Range.End = Range.End.AddHours(23);
                 Range.End = Range.End.AddMinutes(59);
                 DelayedTriggerEnabled = Convert.ToBoolean(ps[5]);
-                Asset = Convert.ToString(ps[6]);
-                CandleType = (CandleType)Enum.Parse(typeof(CandleType), ps[7], true);
 
                 //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
             }
