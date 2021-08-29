@@ -24,23 +24,15 @@
 
     "Assets": [
         {
-            "Asset": "BTCBUSD",
+            "Asset": "ADABUSD",
             "CandleType": "MIN15",
             "ScoreThreshold": 0.42,
-            "FundName": "BTCBUSD_HOUR1",
-            "AtrStopLoss": 1.5,
-            "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.2
-        },
-        {
-            "Asset": "BNBBUSD",
-            "CandleType": "MIN15",
-            "ScoreThreshold": 0.42,
-            "FundName": "BNBBUSD_HOUR1",
-            "AtrStopLoss": 1.5,
+            "FundName": "ADABUSD_MIN15",
+            "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
             "AvgCompSoftness": 0.2
         }
+
     ],    
     
     "Indicators": [

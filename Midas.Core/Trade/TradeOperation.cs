@@ -32,6 +32,7 @@ namespace Midas.Trading
         private double _priceExitReal;
 
         private double _stopLossMarker;
+        private double _softStopLossMarker;
 
         private double _lastMaxValue;
 
@@ -320,7 +321,8 @@ namespace Midas.Trading
 
             if (LastLongSignalDurationInPeriods >= 12) //Timeout da operação, desde o inicio ou último sinal de long
             {
-                shouldStop = true;
+                if(LastValue > _priceEntryReal)
+                    shouldStop = true;
             }
 
             if (shouldStop)
@@ -496,11 +498,16 @@ namespace Midas.Trading
                     _lastMaxValue = newCandle.CloseValue;
                 }
 
+                if(LastMaxGain > 0.75)
+                    _softStopLossMarker = _priceEntryReal * (1 + (0.5/100));
+
                 // if ((_lastMaxValue != -1 && _priceEntryReal > 0) && _lastMaxValue > GetAbsoluteHalfwayBound())
                 //     _stopLossMarker = _priceEntryReal * (1 + (_lowerBound * 0.8));
 
                 var mustStop = ShouldStopByStrengh();
-                if (_myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan || mustStop)
+                if (_myMan.TradeLogger.SoftCompare(_softStopLossMarker, newCandle.CloseValue, 0.1) == CompareType.LessThan ||
+                    _myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan ||
+                    mustStop)
                 {
                     bool hardStop = true;
                     if (mustStop)

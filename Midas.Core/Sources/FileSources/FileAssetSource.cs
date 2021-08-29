@@ -17,7 +17,7 @@ namespace Midas.Sources
             //Recebendo um range de datas pega os arquivos mapeados, inicia pelo primeiro
             //abre o stream e vai até o ponto de inicio da data para retornar o stream.
 
-            var configMapper = new ConfigFileMapper("/Users/cironola/Documents/CandlesFace Projects/CandlesStaging/Midas.Core/Sources/ConfigFiles");
+            var configMapper = new ConfigFileMapper("/Users/cironola/Documents/CandlesFace Projects/CandlesGit/Midas.Core/Sources/ConfigFiles");
             var mapper = new DateToFileMapper(configMapper.GetConfigMapper(asset, type));
             var files = mapper.GetFiles(range);
 
