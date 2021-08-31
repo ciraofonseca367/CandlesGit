@@ -101,9 +101,12 @@ namespace Midas.Core.Telegram
         {
             if(threadName == null)
                 threadName = String.Empty;
-                
-            if (!_buffers.ContainsKey(threadName))
-                _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
+            
+            lock(_buffers)
+            {
+                if (!_buffers.ContainsKey(threadName))
+                    _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
+            }
 
             DateTime last = _buffers[threadName];
             if ((DateTime.Now - last).TotalSeconds > 60)

@@ -294,8 +294,8 @@ namespace Midas.Trading
         {
             TradeOperation ret = null;
 
-            if (GetLastOperationPeriodSpan(pointInTime).TotalHours > 3)
-            {
+            //if (GetLastOperationPeriodSpan(pointInTime).TotalHours > 3)
+            //{
                 if (_currentOperation == null)
                 {
                     _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
@@ -309,7 +309,7 @@ namespace Midas.Trading
                         _allOperations.Add(_currentOperation);
                     }
                 }
-            }
+            //}
 
             if (_currentOperation != null)
             {

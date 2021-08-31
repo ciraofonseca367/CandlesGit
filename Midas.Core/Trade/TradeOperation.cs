@@ -301,7 +301,7 @@ namespace Midas.Trading
 
         internal bool ShouldStopByStrengh()
         {
-             bool shouldStop = false;
+            bool shouldStop = false;
             bool mustStop = false;
 
             var atr = _myMan.Trader.Indicators.Where(i => i.Name == "ATR").FirstOrDefault();
@@ -499,7 +499,7 @@ namespace Midas.Trading
                 }
 
                 if(LastMaxGain > 0.75)
-                    _softStopLossMarker = _priceEntryReal * (1 + (0.5/100));
+                    _softStopLossMarker = _priceEntryReal * (1 + (0.3/100));
 
                 // if ((_lastMaxValue != -1 && _priceEntryReal > 0) && _lastMaxValue > GetAbsoluteHalfwayBound())
                 //     _stopLossMarker = _priceEntryReal * (1 + (_lowerBound * 0.8));
