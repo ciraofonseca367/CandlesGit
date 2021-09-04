@@ -8,6 +8,12 @@ using Midas.Core.Util;
 
 namespace Midas.Core.Telegram
 {
+    public class TelegramEmojis
+    {
+        public static string MoneyBag = "\U0001F4B0";
+        public static string MeanSmirking = "\U0001F612";
+        public static string GreenCheckBox = "\U00002705";
+    }
     public class TelegramBot
     {
         private static string BOT_API = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";

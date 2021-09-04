@@ -249,6 +249,9 @@ namespace Midas.Core.Chart
             Pen slp = new Pen(Color.Red, 5);
             slp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
+            Pen sslp = new Pen(Color.LightBlue, 5);
+            sslp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
+
             var gain = opc.Gain;
             Color gainColor = (gain >= 0 ? Color.YellowGreen : Color.Red);
             Pen stlp = new Pen(gainColor, 5);
@@ -267,6 +270,9 @@ namespace Midas.Core.Chart
 
             var stopLine = Translate(timeStampOpen, opc.StopLossMark);
             _painter.DrawLine(slp, c1.x + 1, stopLine.y, c2.x, stopLine.y);
+
+            var softStopLine = Translate(timeStampOpen, opc.SoftStopMark);
+            _painter.DrawLine(sslp, c1.x + 1, softStopLine.y, c2.x, softStopLine.y);
 
             var centerPointX = c2.x;
 

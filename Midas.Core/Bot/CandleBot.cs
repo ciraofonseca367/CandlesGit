@@ -41,6 +41,8 @@ namespace Midas.Core.Telegram
             _traders = traders;
 
             _sessions = new Dictionary<long, TelegramSession>(11);
+
+            _lastShutDown = DateTime.MinValue;
         }
 
         private TelegramSession GetSession(long id)
@@ -119,6 +121,8 @@ namespace Midas.Core.Telegram
             }
         }
 
+        private DateTime _lastShutDown;
+
         private async Task BotOnMessageReceived(ITelegramBotClient botClient, Message message)
         {
             var command = (message.Text.Split(' ').First());
@@ -143,6 +147,52 @@ namespace Midas.Core.Telegram
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: msg,
                                                                 replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);
+
+                    break;
+
+                case "Stop":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    currentTrader = null;
+                    session.Data["Trader"] = null;
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Stop requested...");   
+
+                    _myService.StopTraders();
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());   
+
+                    break;
+
+                case "Restart":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    currentTrader = null;
+                    session.Data["Trader"] = null;                    
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Restart requested...");   
+
+                    _myService.RestartTraders();
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());
+
+                    break;
+
+                case "Shutdown":
+                    currentTrader = null;
+                    session.Data["Trader"] = null;
+
+                    if((DateTime.Now - _lastShutDown).TotalSeconds < 60)
+                    {
+                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Bye!", replyMarkup: new ReplyKeyboardRemove()); 
+                        _myService.Stop();
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Are you sure? You have 60s to send Shutdown again otherwise I will reset I didn't hear you..."); 
+                    }
+
+                    _lastShutDown = DateTime.Now;
 
                     break;
 
@@ -207,7 +257,7 @@ namespace Midas.Core.Telegram
 
                     break;
 
-                case "State All":
+                case "Open Positions":
                     var stateAll = _myService.GetAllTradersStatus();
 
 
@@ -273,13 +323,27 @@ namespace Midas.Core.Telegram
                         text: Truncate(allCoins, 1000));
 
                     break;
-                case "ForceSell":
+                case "Force Sell":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     var ret = currentTrader.ForceMaketOrder();
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: ret);
+
+                    break;
+                case "Close Position":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                                text: "It can take a a couple of minutes to close the operations, wait...");
+
+                    var op = await currentTrader.CloseOperationIfAny();
+
+                    var text = op != null ? $"Done!\n{op.ToString()}" : "No operation to close here";
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                                text: text);
 
                     break;
                 case "Clear":
@@ -306,14 +370,12 @@ namespace Midas.Core.Telegram
                     string asset = split[0];
                     string candleType = split[1];
 
-                    currentTrader = null;
-
-                    _traders.TryGetValue(command, out currentTrader);
+                    currentTrader = _myService.GetAssetTrader(command);
 
                     if (currentTrader == null)
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
-                            text: "Unknown Asset");
+                            text: "Unknown Asset or Service is stopped");
                     else
                     {
                         session.Data["Trader"] = currentTrader;
@@ -333,7 +395,8 @@ namespace Midas.Core.Telegram
                 new KeyboardButton[][]
                 {
                     new KeyboardButton[] { "Snapshot","State" },
-                    new KeyboardButton[] { "P&L", "ForceSell" },
+                    new KeyboardButton[] { "Close Position", "Force Sell" },
+                    new KeyboardButton[] { "P&L"},
                     new KeyboardButton[] { "Back"}
                 })
             {
@@ -350,12 +413,12 @@ namespace Midas.Core.Telegram
         {
             List<KeyboardButton[]> buttonsLines = new List<KeyboardButton[]>();
             buttonsLines.Add(new KeyboardButton[] { "General P&L" });
-            buttonsLines.Add(new KeyboardButton[] { "State All" });
+            buttonsLines.Add(new KeyboardButton[] { "Open Positions" });
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
-            buttonsLines.Add(new KeyboardButton[] { "Balance" });
-            buttonsLines.Add(new KeyboardButton[] { "Config" });
-            buttonsLines.Add(new KeyboardButton[] { "Clear" });
+            buttonsLines.Add(new KeyboardButton[] { "Balance", "Config" });
+            buttonsLines.Add(new KeyboardButton[] { "Stop", "Restart", "Shutdown"  });
+            buttonsLines.Add(new KeyboardButton[] { "Clear" });            
 
             var assetButtons = buttonsLines.ToArray();
 

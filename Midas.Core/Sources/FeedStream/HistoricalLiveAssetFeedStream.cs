@@ -74,6 +74,12 @@ namespace Midas.FeedStream
             _running = false;
         }
 
+        public override void Dispose()
+        {
+            _running = false;
+            base.Dispose();
+        }
+
         protected override void SocketRunner()
         {
             TraceAndLog.StaticLog("Historical", "Starting historical runner in 10s");

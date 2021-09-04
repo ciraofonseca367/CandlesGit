@@ -34,7 +34,7 @@ namespace Midas.Core.NewTests
             config.STOP_LOSS = 0.0099;
             config.MSI_WINDOW_SIZE_SECONDS = 900;
 
-            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config);
+            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config, null);
             DateTime start = DateTime.Now;
 
             double currentPrice = broker.GetPriceQuote("BTCUSDT");            
@@ -93,7 +93,7 @@ namespace Midas.Core.NewTests
             config.STOP_LOSS = 0.0099;
             config.MSI_WINDOW_SIZE_SECONDS = 900;
 
-            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config);
+            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config, null);
             DateTime start = DateTime.Now;
 
             double currentPrice = broker.GetPriceQuote("BTCUSDT");            
@@ -155,7 +155,7 @@ namespace Midas.Core.NewTests
             config.STOP_LOSS = 0.0099;
             config.MSI_WINDOW_SIZE_SECONDS = 900;
 
-            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config);
+            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config, null);
             DateTime start = DateTime.Now;
 
             double currentPrice = broker.GetPriceQuote(asset);            
@@ -196,7 +196,7 @@ namespace Midas.Core.NewTests
             config.STOP_LOSS = 0.0099;
             config.MSI_WINDOW_SIZE_SECONDS = 900;
 
-            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config);
+            Broker.Broker broker = Broker.Broker.GetBroker("Binance",config, null);
             DateTime start = DateTime.Now;
 
             double currentPrice = broker.GetPriceQuote(asset);            

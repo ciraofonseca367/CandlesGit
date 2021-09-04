@@ -308,7 +308,7 @@ namespace Midas.Core.Common
 
         public string GetCompareStamp()
         {
-            return OpenValue.ToString("yyyy-MM-dd hh:MM");
+            return OpenTime.ToString("yyyy-MM-dd HH:mm");
         }
 
         public bool Compare(Candle compareCandle)
@@ -541,6 +541,7 @@ namespace Midas.Core.Common
         public string State { get => _state; set => _state = value; }
         public CandleDirection Direction
         { get; set; }
+        public double SoftStopMark { get; internal set; }
 
         public IStockPointInTime Clone()
         {

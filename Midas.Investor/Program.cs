@@ -25,8 +25,6 @@ namespace Midas.InVestor
 
            while(_investor.Running)
                 Thread.Sleep(1000);
-            
-            _investor.Stop();
         }
     }
 

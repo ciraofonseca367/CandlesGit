@@ -17,8 +17,9 @@ namespace Midas.Core.Broker
     public abstract class Broker
     {
         protected string _baseUrl;
+        protected ILogger _logger;
 
-        public static Broker GetBroker(string identification, dynamic config)
+        public static Broker GetBroker(string identification, dynamic config, ILogger logger)
         {
             Broker ret = null;
             if (identification == "Binance")
@@ -28,12 +29,18 @@ namespace Midas.Core.Broker
             else
                 throw new ArgumentException("No such broker - " + identification);
 
+            ret.SetLogger(logger);
             ret.SetParameters(config);
 
             return ret;
         }
 
         public abstract void SetParameters(dynamic config);
+
+        public void SetLogger(ILogger logger)
+        {
+            _logger = logger;
+        }
 
 
         internal virtual dynamic Post(string url, string queryString, string body, int timeOut)
@@ -66,7 +73,7 @@ namespace Midas.Core.Broker
                 if (jsonResponse.Wait(timeOut))
                 {
                     parsedResponse = JsonConvert.DeserializeObject(jsonResponse.Result);
-                    TraceAndLog.GetInstance().LogTraceHttpAction("Broker", action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
+                    _logger.LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
                 }
                 else
                 {
@@ -415,7 +422,7 @@ namespace Midas.Core.Broker
 
                         while (!status && (DateTime.Now - startWaiting).TotalMilliseconds < timeOut)
                         {
-                            Thread.Sleep(300);
+                            Thread.Sleep(500);
 
                             BrokerOrder statusOrder = null;
 
@@ -425,7 +432,7 @@ namespace Midas.Core.Broker
                             }
                             catch (Exception err)
                             {
-                                TraceAndLog.StaticLog("Order", "Error in the status order, it will not be propagated: "+ err.Message);
+                                _logger.LogMessage("Order", "Error in the status order, it will not be propagated: "+ err.Message);
                             }
 
                             if (statusOrder != null)
@@ -443,19 +450,19 @@ namespace Midas.Core.Broker
                         if (!status)
                         {
 
-                            TraceAndLog.StaticLog("Broker","Cancelling all orders for -" + asset);
+                            _logger.LogMessage("Broker","Cancelling all orders for -" + asset);
                             //Cancel the prevous limit order
                             CancelAllOpenOrders(asset, timeOut);
 
                             //If we were trying to sell desperately send a market order
                             if (direction == OrderDirection.SELL)
                             {
-                                TraceAndLog.StaticLog("Broker","Sending market order -" + asset);
+                                _logger.LogMessage("Broker","Sending market order -" + asset);
                                 lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut);
                                 smartOrder = lastOrder;
                                 if (lastOrder.InError)
                                 {
-                                    TraceAndLog.StaticLog("Broker","Error in the market order final: "+lastOrder.ErrorMsg);
+                                    _logger.LogMessage("Broker","Error in the market order final: "+lastOrder.ErrorMsg);
                                 }
                             }
                         }
@@ -480,7 +487,7 @@ namespace Midas.Core.Broker
             var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
 
             queryString += "&timestamp=" + Convert.ToInt64(timeSpanStamp.TotalMilliseconds).ToString();
-            queryString += "&recvWindow=20000";
+            queryString += "&recvWindow=30000";
 
             string signature = Midas.Core.Util.HmacSHA256Helper.HashHMACHex(_apiSecret, queryString);
             headers.Add("X-MBX-APIKEY", _apiKey);
@@ -620,6 +627,8 @@ namespace Midas.Core.Broker
             order.Status = "FILLED";
             order.InError = true;
 
+            base._logger.LogMessage("Test Broker", "Limit Order - "+price+" - "+direction);
+
             return order;
         }
 
@@ -631,6 +640,8 @@ namespace Midas.Core.Broker
             order.Status = "FILLED";
             order.InError = false;
             order.ErrorMsg = "This is the test broker!";
+
+            base._logger.LogMessage("Test Broker", "Market Order - "+direction);
 
             return order;
         }
@@ -658,6 +669,8 @@ namespace Midas.Core.Broker
             order.AverageValue = price;
             order.Status = "FILLED";
             order.InError = false;
+
+            base._logger.LogMessage("Test Broker", "Smart Order - "+direction+" - "+bias);
 
             Random r = new Random();
             var t = Task<BrokerOrder>.Run(() =>

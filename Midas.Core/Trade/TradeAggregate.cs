@@ -238,7 +238,7 @@ namespace Midas.Core.Trade
             return grouped;
         }
 
-        public PriceDirection GetDirection(TimeSpan comparePeriod)
+        public PriceDirection GetDirection(TimeSpan comparePeriod, float ratrPercentage = 0.05f)
         {
             var rawBuffer = _pureTrades.GetList();
             var buffer = rawBuffer
@@ -249,7 +249,7 @@ namespace Midas.Core.Trade
             var atr = GetAtr();
             var ratr = atr / currentPrice;
 
-            var equalRange = ratr * 0.05;
+            var equalRange = ratr * ratrPercentage;
 
             var minBand = currentPrice * (1-equalRange);
             var maxBand = currentPrice * (1+equalRange);

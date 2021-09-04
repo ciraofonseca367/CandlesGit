@@ -72,7 +72,11 @@ namespace Midas.Core.Services
 
         public AssetTrader GetAssetTrader(string asset)
         {
-            return _traders[asset];
+            AssetTrader trader = null;
+
+            _traders.TryGetValue(asset, out trader);
+
+            return trader;
         }
 
         public void Start()
@@ -180,7 +184,48 @@ namespace Midas.Core.Services
             var query = dbCol.Find(filter).ToList();
 
             return query.ToList();
-        }      
+        }     
+
+        public static List<OperationsSummary> GetOperationsSummary(string conString, DateTime utcStart)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<OperationsSummary>("TradeOperations");
+
+            var filterBuilder1 = Builders<OperationsSummary>.Filter;
+            var filterDefinition = new List<FilterDefinition<OperationsSummary>>();
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.ToList();
+        }                
+
+
+        public static List<TradeOperationDto> GetOperationToRestore(string conString, string asset, CandleType candle,string experiment, DateTime relativeNow)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
+
+            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
+            var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
+            filterDefinition.Add(filterBuilder1.Gte(item => item.LastUpdate, relativeNow.AddHours(-1)));
+            filterDefinition.Add(filterBuilder1.Eq(item => item.State, TradeOperationState.In));
+            if(asset != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
+            if(candle != CandleType.None)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
+            if(experiment != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.ToList();
+        }        
 
 
         public static List<TradeOperationDto> SearchActiveOperations(string conString, string asset, CandleType candle,string experiment, DateTime relativeNow)
@@ -236,6 +281,7 @@ namespace Midas.Core.Services
             var priceBTC = b.GetPriceQuote("BTCBUSD");
             var priceBNB = b.GetPriceQuote("BNBBUSD");
             var priceADA = b.GetPriceQuote("ADABUSD");
+            var priceETH = b.GetPriceQuote("ETHBUSD");
 
             string emoticon = "\U00002705";
             string balanceReport = "BALANCE REPORT " + emoticon + "\n\n";
@@ -255,6 +301,8 @@ namespace Midas.Core.Services
                         b.TotalUSDAmount = b.TotalQuantity * priceBNB;
                     else if (b.Asset == "ADA")
                         b.TotalUSDAmount = b.TotalQuantity * priceADA;
+                    else if (b.Asset == "ETH")
+                        b.TotalUSDAmount = b.TotalQuantity * priceETH;
 
                     balanceReport += String.Format("{0}: {1:0.0000} = ${2:0.00}\n", b.Asset, b.TotalQuantity, b.TotalUSDAmount);
                 }
@@ -280,12 +328,39 @@ namespace Midas.Core.Services
         {
             Console.WriteLine("Saindo...");
 
+            StopTraders();
+
+            _candleBot.Stop();            
+
+            TraceAndLog.GetInstance().Dispose();
+        }
+
+        private void StartTraders()
+        {
+            foreach(var pair in _traders)
+                pair.Value.Start();            
+        }
+
+        public void StopTraders()
+        {
             foreach(var pair in _traders)
                 pair.Value.Stop();
 
-            TraceAndLog.GetInstance().Dispose();
+            _traders = null;
+        }        
 
-            _candleBot.Stop();
+        public void RestartTraders()
+        {
+            if(_traders != null)
+            {
+                foreach(var pair in _traders)
+                    pair.Value.Stop();
+            }
+
+            _traders = _params.GetAssetTraders(this);
+
+            foreach(var pair in _traders)
+                pair.Value.Start();
         }
 
         private void LoadTraders()
@@ -295,14 +370,27 @@ namespace Midas.Core.Services
 
         public void Runner()
         {
-            foreach(var pair in _traders)
-                pair.Value.Start();
+            StartTraders();
 
             while (_running)
                 Thread.Sleep(1000);
 
             DisposeResources();
         }
+    }
+
+    public class OperationsSummary
+    {
+        private int _operationsCount;
+        private double _pAndL;
+
+        private double _operationAvg;
+        private double _sucessRate;
+
+        public int OperationsCount { get => _operationsCount; set => _operationsCount = value; }
+        public double PAndL { get => _pAndL; set => _pAndL = value; }
+        public double OperationAvg { get => _operationAvg; set => _operationAvg = value; }
+        public double SucessRate { get => _sucessRate; set => _sucessRate = value; }
     }
 
 }

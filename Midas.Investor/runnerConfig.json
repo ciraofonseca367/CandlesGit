@@ -2,10 +2,10 @@
     "RunMode": "Invest",
     "ExperimentName": "Generic",
     "Asset": "BTCUSDT",
-    "StartDate": "2021-01-01 00:00:00",
+    "StartDate": "2021-07-01 00:00:00",
     "EndDate": "2021-08-20 23:59:59",
     "CandleType": "MIN15",
-    "ScoreThreshold": -1,
+    "ScoreThreshold": -2,
     "WindowSize": 30,
     "CardWidth": 1200,
     "CardHeight": 800,
@@ -30,7 +30,7 @@
             "FundName": "ADABUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.2
+            "AvgCompSoftness": 0.1
         },
         {
             "Asset": "ADABUSD",
@@ -39,7 +39,7 @@
             "FundName": "ADABUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.2
+            "AvgCompSoftness": 0.1
         },
         {
             "Asset": "BNBBUSD",
@@ -48,8 +48,17 @@
             "FundName": "ADABUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.2
-        }
+            "AvgCompSoftness": 0.1
+        },
+        {
+            "Asset": "ETHBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.42,
+            "FundName": "ADABUSD_MIN15",
+            "AtrStopLoss": 0.7,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.1
+        }        
     ],    
     
     "Indicators": [

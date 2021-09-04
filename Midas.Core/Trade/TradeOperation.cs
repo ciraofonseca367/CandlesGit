@@ -13,10 +13,13 @@ using Midas.Core.Util;
 using MongoDB.Bson.Serialization.Attributes;
 using Midas.Core.Trade;
 using System.Linq;
+using Midas.Core.Telegram;
+using System.Collections.Generic;
+using System.Net.Http.Headers;
 
 namespace Midas.Trading
 {
-    public class TradeOperation
+    public class TradeOperation : ILogger
     {
         private double STOP_LOSS = 0.99 / 100;
 
@@ -33,6 +36,7 @@ namespace Midas.Trading
 
         private double _stopLossMarker;
         private double _softStopLossMarker;
+        private DateTime _softStopTime;
 
         private double _lastMaxValue;
 
@@ -61,18 +65,36 @@ namespace Midas.Trading
 
         private double _lastMA;
 
+        private List<TraceEntry> _logs;
+
+        private double _firstStopLossRate;
+
         public TradeOperation(TradeOperationManager man, string connectionString, string brokerType, dynamic config)
         {
             _myMan = man;
             _dbClient = new MongoClient(connectionString);
 
-            _broker = Broker.GetBroker(brokerType, config);
+            _broker = Broker.GetBroker(brokerType, config, this);
 
             STOP_LOSS = Convert.ToDouble(config.STOP_LOSS);
             MIN_TARGET_PROFIT = Convert.ToDouble(config.MIN_TARGET_PROFIT);
             TIMEOUT_BUY = Convert.ToInt32(config.TIMEOUT_BUY);
             TIMEOUT_SELL = Convert.ToInt32(config.TIMEOUT_SELL);
+
+            _logs = new List<TraceEntry>();
         }
+        private void Log(string module, string description)
+        {
+            DateTime now = DateTime.UtcNow;
+
+            _logs.Add(new TraceEntry()
+            {
+                Title = module,
+                Description = description
+            });
+            
+            TraceAndLog.StaticLog(module, description);
+        }        
 
         public TradeOperation(TradeOperationManager man, double fund, double lowerBound, double upperBound, DateTime forecastPeriod, string connectionString, dynamic config,
         string asset, CandleType candleType, string brokerType) : this(man, connectionString, brokerType, (JObject)config)
@@ -139,7 +161,11 @@ namespace Midas.Trading
             if (trend == TradeType.Long && _lastCandle != null)
             {
                 if (GetCurrentMaxGain() < 0.4)
+                {
                     _lastLongPrediction = _lastCandle.OpenTime;
+                    if(LastValue < _priceEntryReal)
+                        _stopLossMarker = GetInitialStopLoss(_lastCandle.AmountValue, _firstStopLossRate);
+                }
             }
         }
 
@@ -150,12 +176,13 @@ namespace Midas.Trading
                 while (this.IsIn || this.State == TradeOperationState.Initial)
                 {
                     this.Persist();
-                    Thread.Sleep(1000);
+                    Thread.Sleep(10000);
 
-                    if((DateTime.Now - _lastUpdate).TotalSeconds > 30)
+                    if((DateTime.UtcNow - _lastUpdate).TotalSeconds > 30)
                     {
                         Console.WriteLine("Leaving operation by timeout");
-                        this.CloseOperation();
+                        var t = this.CloseOperation();
+                        t.Wait(1000);
                     }
                 }
             });
@@ -168,6 +195,7 @@ namespace Midas.Trading
             {
                 var stopLossAtr = (atr / desiredEntryPrice);
                 var stopLoss = stopLossAtr * _myMan.Trader.AssetParams.AtrStopLoss;
+                _firstStopLossRate = stopLoss;
 
                 _entryDate = point;
                 _priceEntryDesired = desiredEntryPrice;
@@ -183,7 +211,7 @@ namespace Midas.Trading
                             bias = PriceBias.Normal;
                             break;
                         case PriceDirection.SomeWhatSteady:
-                            bias = PriceBias.Urgent;
+                            bias = PriceBias.Normal;
                             break;
                         case PriceDirection.GoingUp:
                             bias = PriceBias.Urgent;
@@ -221,31 +249,7 @@ namespace Midas.Trading
             return ret;
         }
 
-        public async void CloseOperation()
-        {
-            if (_state == TradeOperationState.In)
-            {
-                var changeLock = ChangeState(TradeOperationState.WaitingOut);
-                if (changeLock)
-                {
-                    var resSell = await MarketSellAsync(_priceExitDesired, PriceBias.Urgent);
-                    if (resSell)
-                    {
-                        _exitDate = _lastCandle.CloseTime;                        
-
-                        if (_priceExitReal > _priceEntryReal)
-                            ChangeState(TradeOperationState.Profit);
-                        else
-                            ChangeState(TradeOperationState.Stopped);
-
-                        _myMan.OperationFinished(_lastCandle);
-
-                        TraceAndLog.StaticLog("TradeOperation", $"\nOperation: {this.ToString()}\n");                        
-                    }
-                }
-            }
-        }
-        public async Task<bool> ExitAsync(bool hardStopped)
+        public async Task<bool> CloseOperation(bool hardStopped = true)
         {
             bool ret = false;
             _priceExitDesired = _lastCandle.CloseValue;
@@ -254,7 +258,7 @@ namespace Midas.Trading
                 var changeLock = ChangeState(TradeOperationState.WaitingOut);
                 if (changeLock)
                 {
-                    var resSell = await MarketSellAsync(_priceExitDesired, (hardStopped ? PriceBias.Urgent : PriceBias.Optmistic));
+                    var resSell = await MarketSellAsync(_priceExitDesired, (hardStopped ? PriceBias.Urgent : PriceBias.Normal));
                     if (resSell)
                     {
                         ret = true;
@@ -270,7 +274,7 @@ namespace Midas.Trading
 
                         TraceAndLog.StaticLog("TradeOperation", $"\nOperation: {this.ToString()}\n");
 
-                        string prefix = _state == TradeOperationState.Profit ? "\U0001F4B0" : "\nU0001F612";
+                        string prefix = _state == TradeOperationState.Profit ? TelegramEmojis.MoneyBag : TelegramEmojis.MeanSmirking;
 
                         if (_myMan != null)
                             _myMan.SendMessage(null, prefix + " - Concluindo operação - " + this.ToString());
@@ -284,6 +288,10 @@ namespace Midas.Trading
             }
 
             return ret;
+        }
+        public async Task<bool> ExitAsync(bool hardStopped)
+        {
+            return await CloseOperation(hardStopped);
         }
 
         private double GetInitialStopLoss(double price, double stopLoss)
@@ -299,7 +307,7 @@ namespace Midas.Trading
             }
         }
 
-        internal bool ShouldStopByStrengh()
+        internal bool ShouldStopByMovingAverage()
         {
             bool shouldStop = false;
             bool mustStop = false;
@@ -316,7 +324,7 @@ namespace Midas.Trading
             // if(OperationDurationInPeriods <= 6 && LastValue > 0 && LastMaxGain > ratr * 3) //Para quando o aumento é muito alto logo no inivio
             // {
             //     maIndicator = _myMan.Trader.Indicators.Where(i => i.Name == "MA6").FirstOrDefault();
-            //     shouldStop = trueBengaLonga2021
+            //     shouldStop = true
             // }
 
             if (LastLongSignalDurationInPeriods >= 12) //Timeout da operação, desde o inicio ou último sinal de long
@@ -486,7 +494,7 @@ namespace Midas.Trading
         public async void OnCandleUpdateAsync(Candle newCandle)
         {
             _lastCandle = newCandle;
-            _lastUpdate = DateTime.Now;
+            _lastUpdate = DateTime.UtcNow;
 
             if (_state == TradeOperationState.In)
             {
@@ -499,18 +507,25 @@ namespace Midas.Trading
                 }
 
                 if(LastMaxGain > 0.75)
+                {
+                    _softStopTime = newCandle.OpenTime;
                     _softStopLossMarker = _priceEntryReal * (1 + (0.3/100));
+                }
 
                 // if ((_lastMaxValue != -1 && _priceEntryReal > 0) && _lastMaxValue > GetAbsoluteHalfwayBound())
                 //     _stopLossMarker = _priceEntryReal * (1 + (_lowerBound * 0.8));
 
-                var mustStop = ShouldStopByStrengh();
-                if (_myMan.TradeLogger.SoftCompare(_softStopLossMarker, newCandle.CloseValue, 0.1) == CompareType.LessThan ||
+                var mustStopByAvg = ShouldStopByMovingAverage();
+                if (
+                        (//Trigger condition for the SoftStopLoss
+                            _myMan.TradeLogger.SoftCompare(_softStopLossMarker, newCandle.CloseValue, 0.1) == CompareType.LessThan &&
+                            (newCandle.OpenTime - _softStopTime).TotalMinutes >= Convert.ToInt32(_candleType) //We trigger the SoftStop only after the candletype size in minutes, that the condition was triggered
+                        )||
                     _myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan ||
-                    mustStop)
+                    mustStopByAvg)
                 {
                     bool hardStop = true;
-                    if (mustStop)
+                    if (mustStopByAvg)
                     {
                         hardStop = false;
                     }
@@ -634,23 +649,23 @@ namespace Midas.Trading
             }
         }
 
-        private TradeOperationDto GetMyDto()
+        private TradeOperationDto GetMyDto(bool withLogs)
         {
-            return new TradeOperationDto()
+            var ret = new TradeOperationDto()
             {
                 Asset = _asset,
                 Experiment = _myMan.Experiment,
+                LastUpdate = _lastUpdate,
                 CandleType = _candleType,
                 ExitDate = this.ExitDate.ToUniversalTime(),
                 EntryDate = this.EntryDate.ToUniversalTime(),
                 ForecastDate = this._forecastDate.ToUniversalTime(),
-                Average = this.GetStrengh(),
                 LowerBound = this.LowerBound,
                 UpperBound = this.UpperBound,
                 AbsoluteLowerBound = this.GetAbsolutLowerBound(),
                 AbsoluteUpperBound = this.GetAbsolutUpperBound(),
-                StopLossMarker = _stopLossMarker,
-                SoftStopLossMarker = 0,
+                StopLossMarker = this._stopLossMarker,
+                SoftStopLossMarker = this._softStopLossMarker,
                 PriceEntryDesired = this._priceEntryDesired,
                 PriceEntryReal = this._priceEntryReal,
                 PriceExitDesired = this._priceExitDesired,
@@ -661,6 +676,11 @@ namespace Midas.Trading
                 _id = this._myId,
                 State = this.State
             };
+
+            if(withLogs)
+                ret.Logs = this._logs;
+
+            return ret;
         }
 
         public bool IsIn
@@ -687,11 +707,13 @@ namespace Midas.Trading
             }
         }
 
-        public void Persist()
+        public double SoftStopLossMarker { get => _softStopLossMarker;  }
+
+        public void Persist(bool withLogs=true)
         {
             try
             {
-                var myDto = this.GetMyDto();
+                var myDto = this.GetMyDto(withLogs);
 
                 var database = _dbClient.GetDatabase("CandlesFaces");
 
@@ -701,6 +723,7 @@ namespace Midas.Trading
                     item => item._id == myDto._id,
                     myDto,
                     new ReplaceOptions { IsUpsert = true });
+
             }
             catch (Exception err)
             {
@@ -708,12 +731,40 @@ namespace Midas.Trading
             }
         }
 
+        public void LogHttpCall(string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body)
+        {
+            TraceAndLog.GetInstance().LogTraceHttpAction("TradeOperation", action, headers, respHeaders, completeUrl, body);
+
+            _logs.Add(new TraceEntry()
+            {
+                Title = String.Concat(action," ", completeUrl),
+                Description = body
+            });
+        }
+
+        public void LogMessage(string module, string message)
+        {
+            _logs.Add(new TraceEntry()
+            {
+                Title = module,
+                Description = message
+            });
+
+
+            TraceAndLog.StaticLog(module, message);
+        }
     }
 
 
     public class TradeOperationDto
     {
         public object _id
+        {
+            get;
+            set;
+        }
+
+        public List<TraceEntry> Logs
         {
             get;
             set;
@@ -748,6 +799,7 @@ namespace Midas.Trading
         public string Asset { get; internal set; }
         public CandleType CandleType { get; internal set; }
         public string Experiment { get; internal set; }
+        public DateTime LastUpdate { get; internal set; }
     }
 
     public enum TradeOperationState

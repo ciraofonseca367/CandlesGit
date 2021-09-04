@@ -89,7 +89,7 @@ namespace Midas.Trading
 
             _lastTrade = DateTime.MinValue;
 
-            _broker = Broker.GetBroker("Binance", brokerConfig);
+            _broker = Broker.GetBroker("Binance", brokerConfig, null);
 
             _lastAttempt = ANGEL_BIRTH;
 

@@ -21,6 +21,7 @@ using Midas.Core.Broker;
 using System.Text;
 using Midas.Core.Services;
 using Midas.Core.Forecast;
+using System.Collections.Concurrent;
 
 namespace Midas.Core.Trade
 {
@@ -41,12 +42,14 @@ namespace Midas.Core.Trade
         private string _myName;
         private InvestorService _myService;
 
+        private ConcurrentDictionary<string, Task<TradeOperation>> _operationMap;
+
         private IForecast _forecaster;
 
         public AssetTrader(InvestorService service, string asset, CandleType candleType, RunParameters @params, int timeOut, AssetParameters assetParams)
         {
             _assetParams = assetParams;
-            _stopping = false;
+            _running = false;
             _myService = service;
             _asset = asset;
             _candleType = candleType;
@@ -57,10 +60,13 @@ namespace Midas.Core.Trade
             _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
 
             _forecaster = ForecastFactory.GetForecaster(_params.Forecaster);
+            _operationMap = new ConcurrentDictionary<string, Task<TradeOperation>>();
         }
 
         public void Start()
         {
+            _running = true;
+
             //Open the streamlog for this trader
             _streamLog = new StreamWriter(
                 File.Open(
@@ -124,12 +130,23 @@ namespace Midas.Core.Trade
 
         public void Stop()
         {
-            _stopping = true;
-            if (_streamLog != null)
-                _streamLog.Dispose();
+            if(_running)
+            {
+                var currentOp = _manager.GetOneActiveOperation();
+                if(currentOp != null)
+                {
+                    var closeTask = currentOp.CloseOperation();
+                    closeTask.Wait(60000);
+                }
 
-            if (_stream != null)
-                _stream.Dispose();
+                _running = false;
+
+                if (_stream != null)
+                    _stream.Dispose();                
+
+                if (_streamLog != null)
+                    _streamLog.Dispose();
+            }
         }
 
         Bitmap _lastImg = null;
@@ -224,7 +241,7 @@ namespace Midas.Core.Trade
         private Candle _lastCandle;
         private double _lastPrice;
         private double _lastAtr;
-        private bool _stopping;
+        private bool _running;
 
         private void OnCandleUpdate_UpdateManager(string id, string message, Candle cc)
         {
@@ -251,7 +268,7 @@ namespace Midas.Core.Trade
 
                     bool delayedTriggerCheck = CheckDelayedTrigger(_candleThatPredicted, currentCandle);
 
-                    if (delayedTriggerCheck)
+                    if (delayedTriggerCheck && !_operationMap.ContainsKey(_candleThatPredicted.GetCompareStamp()))
                     {
                         try
                         {
@@ -272,7 +289,7 @@ namespace Midas.Core.Trade
                                 atr
                                 );
 
-                            TelegramBot.SendMessageBuffered("Entrada", _myName + " - Operação ativa! Veja ao vivo em: https://www.twitch.tv/cirofns");
+                            _operationMap[_candleThatPredicted.GetCompareStamp()] = op;
 
                             op.Wait(500);
                         }
@@ -379,6 +396,7 @@ namespace Midas.Core.Trade
                             Gain = operation.GetGain(cc.CloseValue),
                             ExitValue = operation.ExitValue,
                             StopLossMark = operation.StopLossMark,
+                            SoftStopMark = operation.SoftStopLossMarker,
                             Volume = 1,
                             State = operation.State.ToString(),
                             PointInTime_Open = operation.EntryDate,
@@ -502,7 +520,7 @@ namespace Midas.Core.Trade
         {
             Task.Run(() =>
             {
-                while (!_stopping)
+                while (_running)
                 {
                     Thread.Sleep(100);
                     var span = (DateTime.Now - _lastSocketUpdate);
@@ -581,11 +599,21 @@ namespace Midas.Core.Trade
             return ret;
         }
 
+        public async Task<TradeOperation> CloseOperationIfAny()
+        {
+            TradeOperation op = _manager.GetOneActiveOperation();
+            if(op != null)
+                await op.CloseOperation(); 
+
+            return op;
+        }
+
+
         internal string GetState()
         {
             var op = _manager.GetOneActiveOperation();
 
-            return (op != null ? op.ToString() : "No active operation");
+            return (op != null ? op.ToString() : $"{this.GetIdentifier()} has no operation");
         }
 
         private void FeedIndicators(IStockPointInTime point, string source)

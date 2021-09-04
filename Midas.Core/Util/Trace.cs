@@ -113,8 +113,20 @@ namespace Midas.Core.Util
 
     public class TraceEntry
     {
+        public TraceEntry()
+        {
+            Entry = DateTime.UtcNow;
+        }
+
         public DateTime Entry { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
+    }
+
+    public interface ILogger
+    {
+        void LogHttpCall(string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body);
+
+        void LogMessage(string module, string message);
     }
 }
