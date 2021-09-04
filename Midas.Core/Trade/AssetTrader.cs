@@ -363,7 +363,12 @@ namespace Midas.Core.Trade
 
         internal string GetShortIdentifier()
         {
-            return $"{_asset.Substring(0, 3)}{Convert.ToInt32(_candleType)}";
+            return AssetTrader.GetShortIdentifier(this.Asset, this._candleType);
+        }
+
+        public static string GetShortIdentifier(string asset, CandleType candle)
+        {
+            return $"{asset.Substring(0, 3)}{Convert.ToInt32(candle)}";
         }
 
 

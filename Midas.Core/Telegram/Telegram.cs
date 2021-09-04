@@ -13,6 +13,15 @@ namespace Midas.Core.Telegram
         public static string MoneyBag = "\U0001F4B0";
         public static string MeanSmirking = "\U0001F612";
         public static string GreenCheckBox = "\U00002705";
+
+        public static string PlusSign = "\U00002795";
+
+        public static string MinusSign = "\U00002796";
+
+        public static string GreenCheck = "\U00002705";
+
+        public static string RedX = "\U0000274C";
+
     }
     public class TelegramBot
     {

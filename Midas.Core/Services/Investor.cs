@@ -52,7 +52,7 @@ namespace Midas.Core.Services
         {
             StringBuilder configs = new StringBuilder();
 
-            foreach(var pair in _traders)
+            foreach (var pair in _traders)
             {
                 configs.Append(pair.Value.GetParametersReport());
                 configs.AppendLine();
@@ -103,36 +103,43 @@ namespace Midas.Core.Services
             List<double> weeks = new List<double>();
             List<double> months = new List<double>();
 
-            sb.Append("<code>");
-
-            sb.Append(String.Format("ASSET    D     W      M   \n"));
-            sb.Append(String.Format("---------------------------\n"));
-            foreach(var pair in _traders)
+            if (_traders.Count() > 0)
             {
-                var allOps = SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
-                var lastDay = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
-                var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
+                sb.Append("<code>");
 
-                var resultAll = allOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
-                resultAll *= 100;
-                var resultWeek = lastWeek.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
-                resultWeek *= 100;
-                var resultDay = lastDay.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
-                resultDay *= 100;
+                sb.Append(String.Format("ASSET    D     W      M   \n"));
+                sb.Append(String.Format("---------------------------\n"));
+                foreach (var pair in _traders)
+                {
+                    var allOps = SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
+                    var lastDay = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
+                    var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
 
-                days.Add(resultDay);
-                weeks.Add(resultWeek);
-                months.Add(resultAll);
+                    var resultAll = allOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultAll *= 100;
+                    var resultWeek = lastWeek.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultWeek *= 100;
+                    var resultDay = lastDay.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultDay *= 100;
 
+                    days.Add(resultDay);
+                    weeks.Add(resultWeek);
+                    months.Add(resultAll);
+
+                    sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
+                        pair.Value.GetShortIdentifier(), resultDay, resultWeek, resultAll));
+                    sb.AppendLine();
+                }
+
+                sb.Append(String.Format("---------------------------\n"));
                 sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
-                    pair.Value.GetShortIdentifier(), resultDay,resultWeek,resultAll));
-                sb.AppendLine();
+                String.Empty, days.Average(), weeks.Average(), months.Average()
+                ));
+                sb.Append("</code>");
             }
-            sb.Append(String.Format("---------------------------\n"));
-            sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
-            String.Empty,days.Average(),weeks.Average(),months.Average()
-            ));
-            sb.Append("</code>");
+            else
+                sb.Append("NO TRANDERS ON");
+
 
             return sb.ToString();
         }
@@ -161,10 +168,10 @@ namespace Midas.Core.Services
         public List<TradeOperationDto> SearchOperations(string asset, CandleType candle, DateTime min)
         {
 
-            return InvestorService.SearchOperations(_params.DbConString,asset, candle, min);
-        }  
+            return InvestorService.SearchOperations(_params.DbConString, null, asset, candle, min);
+        }
 
-        public static List<TradeOperationDto> SearchOperations(string conString, string asset, CandleType candle, DateTime min)
+        public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
         {
             var client = new MongoClient(conString);
             var database = client.GetDatabase("CandlesFaces");
@@ -174,9 +181,11 @@ namespace Midas.Core.Services
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
             filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, min));
             filterDefinition.Add(filterBuilder1.Ne(item => item.PriceExitReal, 0));
-            if(asset != null)
+            if (experiment != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
+            if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
-            if(candle != CandleType.None)
+            if (candle != CandleType.None)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
 
             var filter = filterBuilder1.And(filterDefinition.ToArray());
@@ -184,26 +193,86 @@ namespace Midas.Core.Services
             var query = dbCol.Find(filter).ToList();
 
             return query.ToList();
-        }     
+        }
 
-        public static List<OperationsSummary> GetOperationsSummary(string conString, DateTime utcStart)
+        public static List<OperationsSummary> SummariseResult(List<TradeOperationDto> allOperations)
         {
-            var client = new MongoClient(conString);
-            var database = client.GetDatabase("CandlesFaces");
-            var dbCol = database.GetCollection<OperationsSummary>("TradeOperations");
+            var summary = allOperations
+            .GroupBy(op => op.Asset + ":" + op.CandleType)
+            .Select(group => new OperationsSummary
+            {
+                Asset = group.Max(i => i.Asset),
+                CandleType = group.Max(i => i.CandleType),
+                OperationsCount = group.Count(),
+                PAndL = group.Sum(i => i.Gain),
+                OperationAvg = group.Sum(i => i.Gain)  / Convert.ToDouble(group.Count()),
+                SuccessRate = Convert.ToDouble(group.Count(i => i.State == TradeOperationState.Profit)) /
+                       Convert.ToDouble(group.Count())
+            });
 
-            var filterBuilder1 = Builders<OperationsSummary>.Filter;
-            var filterDefinition = new List<FilterDefinition<OperationsSummary>>();
+            return summary.ToList();
+        }
+ 
+        public string GetOperationsSummary(int days)
+        {
+            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
+            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
+            StringBuilder sb = new StringBuilder(500);
 
-            var filter = filterBuilder1.And(filterDefinition.ToArray());
+            var summary = SummariseResult(allOperations);
 
-            var query = dbCol.Find(filter).ToList();
+            int allCount = 0;
+            double allAvgPAndL = 0, allAvgPerTrans = 0, allRate = 0;
 
-            return query.ToList();
-        }                
+            sb.Append("<code>");
+
+            sb.Append(String.Format("{0,6}{1,3}{2,7}{3,6}{4,4}\n", "ASSET", "E", "P&L", "Avg", "R"));
+            sb.Append(String.Format("-------------------------------\n"));
+            summary.ForEach(s =>
+            {
+                sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n",
+                    AssetTrader.GetShortIdentifier(s.Asset, s.CandleType),
+                    s.OperationsCount,
+                    s.PAndL,
+                    s.OperationAvg,
+                    s.SuccessRate
+                ));
+            });
+
+            allCount = summary.Sum(s => s.OperationsCount);
+            allAvgPAndL = summary.Average(s => s.PAndL);
+            allAvgPerTrans = summary.Average(s => s.OperationAvg);
+            allRate = summary.Average(s => s.SuccessRate);
+            sb.Append(String.Format("-------------------------------\n"));
+            sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n", "", allCount, allAvgPAndL, allAvgPerTrans, allRate));
+
+            sb.Append("</code>");
+
+            return sb.ToString();
+        }
+
+        public string GetLastOperations(int number)
+        {
+            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(-2));
+            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
+
+            StringBuilder sb = new StringBuilder(500);
+
+            allOperationsReverse.Take(number).ToList().ForEach(op =>
+            {
+                var emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
+                var duration = (op.ExitDate - op.EntryDate);
+
+                sb.Append($"{op.EntryDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
+                sb.Append($"IN: {op.PriceEntryReal:0.00} OUT: {op.PriceExitReal:0.00}\n");
+                sb.Append($"{duration.Hours}hr(s), {duration.Minutes}m(s)\n\n");
+            });
+
+            return sb.ToString();
+        }
 
 
-        public static List<TradeOperationDto> GetOperationToRestore(string conString, string asset, CandleType candle,string experiment, DateTime relativeNow)
+        public static List<TradeOperationDto> GetOperationToRestore(string conString, string asset, CandleType candle, string experiment, DateTime relativeNow)
         {
             var client = new MongoClient(conString);
             var database = client.GetDatabase("CandlesFaces");
@@ -213,11 +282,11 @@ namespace Midas.Core.Services
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
             filterDefinition.Add(filterBuilder1.Gte(item => item.LastUpdate, relativeNow.AddHours(-1)));
             filterDefinition.Add(filterBuilder1.Eq(item => item.State, TradeOperationState.In));
-            if(asset != null)
+            if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
-            if(candle != CandleType.None)
+            if (candle != CandleType.None)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
-            if(experiment != null)
+            if (experiment != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
 
             var filter = filterBuilder1.And(filterDefinition.ToArray());
@@ -225,10 +294,10 @@ namespace Midas.Core.Services
             var query = dbCol.Find(filter).ToList();
 
             return query.ToList();
-        }        
+        }
 
 
-        public static List<TradeOperationDto> SearchActiveOperations(string conString, string asset, CandleType candle,string experiment, DateTime relativeNow)
+        public static List<TradeOperationDto> SearchActiveOperations(string conString, string asset, CandleType candle, string experiment, DateTime relativeNow)
         {
             var client = new MongoClient(conString);
             var database = client.GetDatabase("CandlesFaces");
@@ -237,11 +306,11 @@ namespace Midas.Core.Services
             var filterBuilder1 = Builders<TradeOperationDto>.Filter;
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
             filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddHours(-14)));
-            if(asset != null)
+            if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
-            if(candle != CandleType.None)
+            if (candle != CandleType.None)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
-            if(experiment != null)
+            if (experiment != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
 
             var filter = filterBuilder1.And(filterDefinition.ToArray());
@@ -263,7 +332,7 @@ namespace Midas.Core.Services
         {
             StringBuilder sb = new StringBuilder();
 
-            foreach(var pair in _traders)
+            foreach (var pair in _traders)
             {
                 sb.Append(pair.Value.GetState());
                 sb.AppendLine();
@@ -312,7 +381,7 @@ namespace Midas.Core.Services
             balanceReport += $"Total: ${balances.Sum(b => b.TotalUSDAmount).ToString("0.00")}";
 
             return balanceReport;
-        }        
+        }
 
         public void Stop()
         {
@@ -330,36 +399,36 @@ namespace Midas.Core.Services
 
             StopTraders();
 
-            _candleBot.Stop();            
+            _candleBot.Stop();
 
             TraceAndLog.GetInstance().Dispose();
         }
 
         private void StartTraders()
         {
-            foreach(var pair in _traders)
-                pair.Value.Start();            
+            foreach (var pair in _traders)
+                pair.Value.Start();
         }
 
         public void StopTraders()
         {
-            foreach(var pair in _traders)
+            foreach (var pair in _traders)
                 pair.Value.Stop();
 
             _traders = null;
-        }        
+        }
 
         public void RestartTraders()
         {
-            if(_traders != null)
+            if (_traders != null)
             {
-                foreach(var pair in _traders)
+                foreach (var pair in _traders)
                     pair.Value.Stop();
             }
 
             _traders = _params.GetAssetTraders(this);
 
-            foreach(var pair in _traders)
+            foreach (var pair in _traders)
                 pair.Value.Start();
         }
 
@@ -386,11 +455,14 @@ namespace Midas.Core.Services
 
         private double _operationAvg;
         private double _sucessRate;
+        private string _asset;
 
         public int OperationsCount { get => _operationsCount; set => _operationsCount = value; }
         public double PAndL { get => _pAndL; set => _pAndL = value; }
         public double OperationAvg { get => _operationAvg; set => _operationAvg = value; }
-        public double SucessRate { get => _sucessRate; set => _sucessRate = value; }
+        public double SuccessRate { get => _sucessRate; set => _sucessRate = value; }
+        public string Asset { get => _asset; set => _asset = value; }
+        public CandleType CandleType { get; set; }
     }
 
 }

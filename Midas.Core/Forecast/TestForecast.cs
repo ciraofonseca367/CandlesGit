@@ -26,7 +26,7 @@ namespace Midas.Core.Forecast
                 FromAmount = currentValue,
                 Score = 0.75f,
                 CreationDate = currentTime,
-                DateRange = new DateRange(currentTime, currentTime.AddHours(12)),
+                DateRange = new DateRange(currentTime, currentTime.AddHours(3)),
                 RatioLowerBound = 0.75/100,
                 RatioUpperBound = 1.25/100
             };

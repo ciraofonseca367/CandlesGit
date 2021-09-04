@@ -406,7 +406,7 @@ namespace Midas.Core.Broker
                 else
                 {
                     double newPrice = price;
-                    if (bias == PriceBias.Optmistic)
+                    if (bias == PriceBias.Normal)
                     {
                         var factor = (direction == OrderDirection.BUY ? BIAS_DIFF_FORBUY : BIAS_DIFF_FORSELL);
                         newPrice *= factor;
@@ -446,24 +446,20 @@ namespace Midas.Core.Broker
                             }
                         }
 
-                        //If the LIMIT ORDER hasn't pan out and we are selling, send market order
+                        //If the LIMIT ORDER hasn't pan out send market order
                         if (!status)
                         {
-
                             _logger.LogMessage("Broker","Cancelling all orders for -" + asset);
                             //Cancel the prevous limit order
                             CancelAllOpenOrders(asset, timeOut);
 
                             //If we were trying to sell desperately send a market order
-                            if (direction == OrderDirection.SELL)
+                            _logger.LogMessage("Broker","Sending market order -" + asset);
+                            lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut);
+                            smartOrder = lastOrder;
+                            if (lastOrder.InError)
                             {
-                                _logger.LogMessage("Broker","Sending market order -" + asset);
-                                lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut);
-                                smartOrder = lastOrder;
-                                if (lastOrder.InError)
-                                {
-                                    _logger.LogMessage("Broker","Error in the market order final: "+lastOrder.ErrorMsg);
-                                }
+                                _logger.LogMessage("Broker","Error in the market order final: "+lastOrder.ErrorMsg);
                             }
                         }
                         else

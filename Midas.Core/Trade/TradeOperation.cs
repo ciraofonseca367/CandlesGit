@@ -205,18 +205,18 @@ namespace Midas.Trading
                 if (changeLock)
                 {
                     PriceBias bias = PriceBias.Urgent;
-                    switch (_myMan.GetPriceDirection())
-                    {
-                        case PriceDirection.GoingDown:
-                            bias = PriceBias.Normal;
-                            break;
-                        case PriceDirection.SomeWhatSteady:
-                            bias = PriceBias.Normal;
-                            break;
-                        case PriceDirection.GoingUp:
-                            bias = PriceBias.Urgent;
-                            break;
-                    }
+                    // switch (_myMan.GetPriceDirection())
+                    // {
+                    //     case PriceDirection.GoingDown:
+                    //         bias = PriceBias.Normal;
+                    //         break;
+                    //     case PriceDirection.SomeWhatSteady:
+                    //         bias = PriceBias.Normal;
+                    //         break;
+                    //     case PriceDirection.GoingUp:
+                    //         bias = PriceBias.Urgent;
+                    //         break;
+                    // }
 
                     Console.WriteLine("Feeling: "+bias.ToString());
 
@@ -525,10 +525,10 @@ namespace Midas.Trading
                     mustStopByAvg)
                 {
                     bool hardStop = true;
-                    if (mustStopByAvg)
-                    {
-                        hardStop = false;
-                    }
+                    // if (mustStopByAvg)
+                    // {
+                    //     hardStop = false;
+                    // }
 
                     await ExitAsync(hardStop);
                 }

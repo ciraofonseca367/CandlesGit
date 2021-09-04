@@ -284,7 +284,7 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "No asset selected");
                     }
-                    break;
+                    break;                  
 
                 case "General P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -304,6 +304,48 @@ namespace Midas.Core.Telegram
                         text: generalpl, parseMode: ParseMode.Html);
 
                     break;
+
+                case "Full Report":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    string fullReport = String.Empty;
+                    try
+                    {
+                        fullReport = "<b>MONTH</b>:\n\n";
+                        fullReport += _myService.GetOperationsSummary(30);
+                        fullReport += "\n\n";
+                        fullReport += "<b>WEEK</b>:\n\n";
+                        fullReport += _myService.GetOperationsSummary(7);
+                    }
+                    catch (Exception err)
+                    {
+                        fullReport = "Error: " + err.Message;
+                    }
+
+                    await botClient.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: fullReport, parseMode: ParseMode.Html);
+
+                    break;     
+
+                case "Last Transactions":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    string lastTrans = String.Empty;
+                    try
+                    {
+                        lastTrans = _myService.GetLastOperations(10);
+                    }
+                    catch (Exception err)
+                    {
+                        lastTrans = "Error: " + err.Message;
+                    }
+
+                    await botClient.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: lastTrans, parseMode: ParseMode.Html);
+
+                    break;                                        
                 case "Balance":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -412,7 +454,7 @@ namespace Midas.Core.Telegram
         private async Task<Message> SendGeneralOptions(ITelegramBotClient botClient, Message message)
         {
             List<KeyboardButton[]> buttonsLines = new List<KeyboardButton[]>();
-            buttonsLines.Add(new KeyboardButton[] { "General P&L" });
+            buttonsLines.Add(new KeyboardButton[] { "General P&L", "Full Report", "Last Transactions" });
             buttonsLines.Add(new KeyboardButton[] { "Open Positions" });
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
