@@ -29,7 +29,7 @@ namespace Midas.FeedStream
 
             _timeline = new List<TestPoint>()
             {
-                new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.1, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,0,1), Variation = 0.25, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.3, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.6, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.2, Volume = 1},
@@ -43,7 +43,7 @@ namespace Midas.FeedStream
 
             Console.WriteLine("Stream: TestLiveAssetStream");
 
-            _logger = new TradeLogger(base._queryCandleType);
+            _logger = new TradeLogger();
         }
 
         public override void InitPrice(double initialPrice)
@@ -58,7 +58,7 @@ namespace Midas.FeedStream
             var utcNow = DateTime.UtcNow;
             DateTime now = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute, utcNow.Second, DateTimeKind.Utc);
 
-            DateTime start = now;
+            DateTime start = now.AddSeconds(30);
 
             double acumVariation = 0;
             _timeline[0].Previous = new TestPoint()
@@ -143,7 +143,7 @@ namespace Midas.FeedStream
 
         protected override void SocketRunner()
         {
-            Thread.Sleep(5000);
+            Thread.Sleep(10000);
 
             Expand();
             

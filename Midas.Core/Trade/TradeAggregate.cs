@@ -14,9 +14,7 @@ namespace Midas.Core.Trade
         private Trade _lowest;
         private double _volume;
 
-        private CandleType _candleType;
-
-        public TradeAggregation(CandleType candleType)
+        public TradeAggregation()
         {
             _first = Trade.GetNull();
             _last = Trade.GetNull();
@@ -25,7 +23,6 @@ namespace Midas.Core.Trade
             _lowest = Trade.GetNull();
             _lowest.Amount = Double.MaxValue;
             _volume = 0;
-            _candleType = candleType;
         }
 
         public void AddTrade(Trade d)
@@ -48,7 +45,7 @@ namespace Midas.Core.Trade
 
         public Candle GetCandle()
         {
-            var range = GetRange(_first.Date);
+            var range = Get5MinuteRange(_first.Date);
             return new Candle()
             {
                 OpenValue = _first.Amount,
@@ -60,44 +57,51 @@ namespace Midas.Core.Trade
                 Volume = _volume
             };
         }
-        private Tuple<DateTime,DateTime, string> GetRange(DateTime now)
+        public static Tuple<DateTime,DateTime, string> Get5MinuteRange(DateTime time)
         {
-            return GetRange(now, _candleType);
-        }
-
-        public static Tuple<DateTime,DateTime, string> GetRange(DateTime now, CandleType candleType)
-        {
-            var candleMinutes = Convert.ToDouble(candleType);
-            var span = (now - DateTime.MinValue);
-
-            double div = Convert.ToDouble(Convert.ToInt32(span.TotalMinutes)) / candleMinutes;
-            double remainder = div - Convert.ToInt32(div);
-
-            DateTime minDate;
-            DateTime maxDate;
-
-            if(remainder == 0)
-            {
-                minDate = now.AddMinutes(candleMinutes*-1);
-                maxDate = now.AddSeconds(-1);
-            }
-            else
-            {
-                minDate = now.AddMinutes(Convert.ToInt32(remainder * candleMinutes) * -1);
-                maxDate = minDate.AddSeconds((candleMinutes*60)-1);
-            }
-
-            minDate = new DateTime(minDate.Year,minDate.Month, minDate.Day, minDate.Hour, minDate.Minute,0,DateTimeKind.Utc);
-            maxDate = new DateTime(maxDate.Year,maxDate.Month, maxDate.Day, maxDate.Hour, maxDate.Minute,0,DateTimeKind.Utc);
-
+            int minMinute = GetMin5MinuteFrame(time.Minute);
+            DateTime minDate = new DateTime(time.Year,time.Month, time.Day, time.Hour, minMinute,0);
+            DateTime maxDate = minDate.Add(new TimeSpan(0,4,59));
             string hash = minDate.ToString("yyyyMMddhhmmss");
 
             return new Tuple<DateTime,DateTime, string>(
                 minDate,
                 maxDate,
                 hash
-            );            
-        }  
+            );
+        }
+
+        private static int GetMin5MinuteFrame(double minute)
+        {
+            int min = 0;
+
+            if (minute / 5 <= 1)
+                min = 0;
+            else if (minute / 10 <= 1)
+                min = 5;
+            else if (minute / 15 <= 1)
+                min = 5;
+            else if (minute / 20 <= 1)
+                min =10;
+            else if (minute / 25 <= 1)
+                min = 15;
+            else if (minute / 30 <= 1)
+                min = 20;
+            else if (minute / 35 <= 1)
+                min = 25;
+            else if (minute / 40 <= 1)
+                min = 35;
+            else if (minute / 45 <= 1)
+                min = 40;
+            else if (minute / 50 <= 1)
+                min = 45;
+            else if (minute / 55 <= 1)
+                min = 50;
+            else if (minute / 60 <= 1)
+                min = 55;
+
+            return min;
+        }        
     }
 
     public class TradeLogger
@@ -108,17 +112,10 @@ namespace Midas.Core.Trade
 
         private FixedSizedQueue<Trade> _pureTrades;
 
-        private CandleType _candleType;
-
-        public TradeLogger(CandleType candleType)
+        public TradeLogger()
         {
             _trades = new Dictionary<string, TradeAggregation>(11);
             _pureTrades = new FixedSizedQueue<Trade>(3000);
-            _candleType = candleType;
-        }
-
-        public TradeLogger() : this(CandleType.MIN5)
-        {
         }
 
         public void AddTrade(DateTime time, double amount)
@@ -133,12 +130,12 @@ namespace Midas.Core.Trade
         public void AddTrade(Trade d)
         {
             TradeAggregation current = null;
-            var range = TradeAggregation.GetRange(d.Date,_candleType);
+            var range = TradeAggregation.Get5MinuteRange(d.Date);
 
             _trades.TryGetValue(range.Item3, out current);
             if(current == null)
             {
-                current = new TradeAggregation(_candleType);
+                current = new TradeAggregation();
                 _trades.Add(range.Item3, current);
             }
 

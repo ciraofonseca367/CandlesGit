@@ -78,19 +78,16 @@ namespace Midas.DataGather
             var sockBNBBUSD = new BinanceWebSocket(streamUrl, 120000, "BNBBUSD", Midas.Core.Common.CandleType.MIN15);
             var sockADABUSD = new BinanceWebSocket(streamUrl, 120000, "ADABUSD", Midas.Core.Common.CandleType.MIN15);
             var sockETHBUSD = new BinanceWebSocket(streamUrl, 120000, "ETHBUSD", Midas.Core.Common.CandleType.MIN15);
-            var sockLTCBUSD = new BinanceWebSocket(streamUrl, 120000, "LTCBUSD", Midas.Core.Common.CandleType.MIN15);
 
             var btcTBtream = sockBTCBUSD.OpenAndSubscribe();
             var bnbStream = sockBNBBUSD.OpenAndSubscribe();
             var adaStream = sockADABUSD.OpenAndSubscribe();
             var ethStream = sockETHBUSD.OpenAndSubscribe();
-            var ltcStream = sockLTCBUSD.OpenAndSubscribe();
 
             btcTBtream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             bnbStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             adaStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
             ethStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
-            ltcStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
 
             while (_running)
             {

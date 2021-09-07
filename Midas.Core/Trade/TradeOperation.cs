@@ -81,8 +81,6 @@ namespace Midas.Trading
             TIMEOUT_BUY = Convert.ToInt32(config.TIMEOUT_BUY);
             TIMEOUT_SELL = Convert.ToInt32(config.TIMEOUT_SELL);
 
-            _softStopTime = DateTime.MinValue;
-
             _logs = new List<TraceEntry>();
         }
         private void Log(string module, string description)
@@ -133,7 +131,6 @@ namespace Midas.Trading
             _priceExitDesired = state.PriceExitDesired;
             _priceExitReal = state.PriceExitReal;
             _stopLossMarker = state.StopLossMarker;
-            _softStopLossMarker = state.SoftStopLossMarker;
             _state = state.State;
             _lowerBound = state.LowerBound;
             _upperBound = state.UpperBound;
@@ -511,9 +508,7 @@ namespace Midas.Trading
 
                 if(LastMaxGain > 0.75)
                 {
-                    if(_softStopTime == DateTime.MinValue)
-                        _softStopTime = newCandle.OpenTime;
-
+                    _softStopTime = newCandle.OpenTime;
                     _softStopLossMarker = _priceEntryReal * (1 + (0.3/100));
                 }
 
@@ -523,7 +518,7 @@ namespace Midas.Trading
                 var mustStopByAvg = ShouldStopByMovingAverage();
                 if (
                         (//Trigger condition for the SoftStopLoss
-                            newCandle.CloseValue < _softStopLossMarker &&
+                            _myMan.TradeLogger.SoftCompare(_softStopLossMarker, newCandle.CloseValue, 0.1) == CompareType.LessThan &&
                             (newCandle.OpenTime - _softStopTime).TotalMinutes >= Convert.ToInt32(_candleType) //We trigger the SoftStop only after the candletype size in minutes, that the condition was triggered
                         )||
                     _myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan ||
@@ -787,8 +782,6 @@ namespace Midas.Trading
 
         public double StopLossMarker { get; set; }
 
-        public double Average { get; set; }
-
         public double PriceEntryReal { get; set; }
         public double PriceEntryDesired { get; set; }
 
@@ -801,6 +794,7 @@ namespace Midas.Trading
         public DateTime ForecastDate { get; internal set; }
         public double LastValue { get; internal set; }
         public double MaxValue { get; internal set; }
+        public double Average { get; internal set; }
         public double SoftStopLossMarker { get; internal set; }
         public string Asset { get; internal set; }
         public CandleType CandleType { get; internal set; }
