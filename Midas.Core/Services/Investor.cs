@@ -204,7 +204,7 @@ namespace Midas.Core.Services
                 Asset = group.Max(i => i.Asset),
                 CandleType = group.Max(i => i.CandleType),
                 OperationsCount = group.Count(),
-                PAndL = group.Sum(i => i.Gain),
+                PAndL = group.Sum(op => ((op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal) * 100),
                 OperationAvg = group.Sum(i => i.Gain)  / Convert.ToDouble(group.Count()),
                 SuccessRate = Convert.ToDouble(group.Count(i => i.State == TradeOperationState.Profit)) /
                        Convert.ToDouble(group.Count())
@@ -216,7 +216,6 @@ namespace Midas.Core.Services
         public string GetOperationsSummary(int days)
         {
             var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
-            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
             StringBuilder sb = new StringBuilder(500);
 
             var summary = SummariseResult(allOperations);
@@ -346,7 +345,7 @@ namespace Midas.Core.Services
         public string GetBalanceReport()
         {
             BinanceBroker b = new BinanceBroker();
-            b.SetParameters(_params.BrokerParameters);
+            b.SetParameters(_params.BrokerParameters, null);
             var priceBTC = b.GetPriceQuote("BTCBUSD");
             var priceBNB = b.GetPriceQuote("BNBBUSD");
             var priceADA = b.GetPriceQuote("ADABUSD");

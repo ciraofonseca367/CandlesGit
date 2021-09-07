@@ -1,0 +1,11 @@
+{
+    "GroupLevel": "MIN15",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/LTCBUSD_MIN15/",
+            "Mask": "'LTCBUSD-15M-'yyyy-MM'.csv'",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-08-31 23:59:59"
+        }
+    ]
+}

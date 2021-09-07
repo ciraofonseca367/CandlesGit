@@ -17,15 +17,15 @@
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
-    "Forecaster": "TestForecast",
-    "FeedStreamType": "Test",
-    "BrokerName": "Binance",
-    "PreloadCandles": true,
+    "Forecaster": "ThirtyPeriodForecast",
+    "FeedStreamType": "Historical",
+    "BrokerName": "TestBroker",
+    "PreloadCandles": false,
 
     "Assets": [
         {
-            "Asset": "BTCUSDT",
-            "CandleType": "MIN15",
+            "Asset": "BTCBUSD",
+            "CandleType": "MIN5",
             "ScoreThreshold": 0.42,
             "FundName": "BTCBUSD_MIN15",
             "AtrStopLoss": 0.7,
