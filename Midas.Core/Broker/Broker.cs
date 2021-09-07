@@ -613,11 +613,29 @@ namespace Midas.Core.Broker
 
         public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price)
         {
+<<<<<<< Updated upstream
             var order = new BinanceBrokerOrder(this, direction, OrderType.LIMIT, orderId, asset);
             order.Price = price;
             order.AverageValue = price;
             order.Status = "FILLED";
             order.InError = true;
+=======
+            BrokerOrder order = null;
+            var currentPrice = (_lastCandle == null ? 0 : _lastCandle.AmountValue);
+            if(currentPrice == 0)
+                throw new ArgumentException("Wait for the first Candle!");
+            else
+            {
+                order = new BinanceBrokerOrder(this, direction, OrderType.LIMIT, orderId, asset);
+                order.Price = price;
+                order.AverageValue = price;
+                order.Status = "NEW";
+                order.InError = false;
+
+                _pendingOrders.Add(orderId, order);
+                base.LogMessage("Test Broker", "Limit Order - "+price+" - "+direction);
+            }
+>>>>>>> Stashed changes
 
             return order;
         }
