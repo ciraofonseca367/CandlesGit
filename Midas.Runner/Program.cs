@@ -129,7 +129,7 @@ namespace Midas
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
                                     var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
-                                    if (tag != "IGNORED")
+                                    if (tag != "IIIIGNORED")
                                     {
                                         DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
                                         var fileName = c.SaveToFile(dirInfo.FullName, tag);
@@ -226,8 +226,8 @@ namespace Midas
             DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            //frameMap.Add("Blanck", dv.AddChartFrame(5));
-            frameMap.Add("Main", dv.AddChartFrame(70));
+            frameMap.Add("Blanck", dv.AddChartFrame(30));
+            frameMap.Add("Main", dv.AddChartFrame(40));
             frameMap.Add("Volume", dv.AddChartFrame(30));
 
             frameMap["Main"].AddSerie(new Serie()
@@ -265,7 +265,7 @@ namespace Midas
                         else if (s.Name == "MA50")
                             s.RelativeXPos = 0.75;
 
-                        if (s.Name != "MA Volume Meio Dia")
+                        if (s.Name != "MAVol144" && s.Name != "MMaxVol144" && s.Name != "MMinVol144")
                             s.Frameble = false;
 
                         frameMap[group.Key].AddSerie(s);

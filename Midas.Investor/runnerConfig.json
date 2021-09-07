@@ -1,6 +1,6 @@
 {
     "RunMode": "Invest",
-    "ExperimentName": "Generic",
+    "ExperimentName": "Model100",
     "Asset": "BTCUSDT",
     "StartDate": "2021-01-01 00:00:00",
     "EndDate": "2021-08-20 23:59:59",
@@ -104,7 +104,7 @@
             "Color": "Pink"
         },
         {
-            "Name": "MA Volume Meio Dia",
+            "Name": "MAVol144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [144],

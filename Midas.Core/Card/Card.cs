@@ -210,39 +210,30 @@ namespace Midas.Core.Card
         private string GetForecastOnAnAverage(double currentValue, DateTime presentTime, string averageName)
         {
             string status = "";
-            double limitToPredictLong = 1;
-            double limitToPredictShort = -1;
+            float limitToPredictLong = 0.75f;
+            float limitToPredictShort = -0.75f;
 
-            double limitToPredictZero = 0.5;
+            double limitToPredictZero = 0.75;
 
 
-            int halfWindow = Convert.ToInt32(_params.ForecastWindow/2);
-
-            status = "MEIO_TERMO";
+            status = "ND";
 
             var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
 
             if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < limitToPredictZero &&
             forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > limitToPredictZero*-1)
                 status = "ZERO";
-            else
-            {
-                status = "IGNORED";
-            }
 
-            if(forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) < limitToPredictShort &&
+            if(forecastOnAverage.ConfirmTrend(limitToPredictShort, 12) &&
                 forecastOnAverage.GetHighestDifference(1,_params.ForecastWindow) < 0)
             {
                 status = "SHORT";
             }
 
-            if(forecastOnAverage.GetHighestDifference(halfWindow, _params.ForecastWindow) > limitToPredictLong &&
+            if(forecastOnAverage.ConfirmTrend(limitToPredictLong,12) &&
                 forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0)
             {
-                if(status != "SHORT")
-                    status = "LONG";
-                else
-                    status = "CONFUSED";
+                status = "LONG";
             }
 
 
@@ -902,6 +893,33 @@ namespace Midas.Core.Card
             }
 
             //_allCandles.ToList().GetRange(comparePeriod + 3, periodsInTheFuture - 3);
+        }
+
+        public bool ConfirmTrend(float target, int numberOfPeriods)
+        {
+            var startValue = StartValue;
+            int count = 0;
+            double lastDiff = 0;
+
+            DateTime start = ClippedCandles.First().PointInTime_Open;
+
+            for(int i=0;i<PureCandles.Count();i++)
+            {
+                var candle = PureCandles[i];
+                var avg = ClippedCandles[i];
+                var value = avg.AmountValue; 
+                var diff = ((value - startValue) / startValue) * 100;
+
+                if(lastDiff < target)
+                    count = 0;
+
+                if(diff >= target)
+                    count++;
+
+                lastDiff = diff;
+            }
+
+            return count >= numberOfPeriods;
         }
     }
 

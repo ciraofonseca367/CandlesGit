@@ -1,7 +1,7 @@
 {
-    "RunMode": "Predict",
-    "ExperimentName": "run60_15min_2",
-    "Asset": "BTCUSDT",
+    "RunMode": "Create",
+    "ExperimentName": "run100",
+    "Asset": "BTCBUSD",
     "StartDate": "2021-01-01 00:00:00",
     "EndDate": "2021-07-15 23:59:59",
     "CandleType": "MIN15",
@@ -11,7 +11,7 @@
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "OutputFileResults": "Comparativo1.csv",
     "CardWidth": 1200,
-    "CardHeight": 800,
+    "CardHeight": 1600,
     "OutputMode": "All",
 
     "StopLoss": -1,
@@ -80,14 +80,24 @@
             "Color": "Pink"
         },
         {
-            "Name": "MA Volume Meio Dia",
+            "Name": "MAVol144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [144],
             "Source": "Volume",
-            "Color": "Black",
+            "Color": "Gray",
             "ChartType": "Line",
-            "Size": 4
+            "Size": 7
+        },
+        {
+            "Name": "MMax300",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingMaxIndicator",
+            "Params": [300],
+            "Source": "Volume",
+            "Color": "White",
+            "ChartType": "Line",
+            "Size": 1
         }
     ]
 }
