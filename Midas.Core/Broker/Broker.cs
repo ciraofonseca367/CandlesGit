@@ -11,6 +11,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using Midas.Core.Util;
+using Midas.FeedStream;
+using Midas.Core.Common;
 
 namespace Midas.Core.Broker
 {
@@ -19,27 +21,57 @@ namespace Midas.Core.Broker
         protected string _baseUrl;
         protected ILogger _logger;
 
+
+        public static Broker GetBroker(string identification)
+        {
+            return GetBroker(identification, null, null,  null);
+        }
+        public static Broker GetBroker(string identification, dynamic config)
+        {
+            return GetBroker(identification, config, null,  null);
+        }
         public static Broker GetBroker(string identification, dynamic config, ILogger logger)
+        {
+            return GetBroker(identification, config, logger,  null);
+        }
+
+        public static Broker GetBroker(string identification, dynamic config, ILogger logger, LiveAssetFeedStream stream)
         {
             Broker ret = null;
             if (identification == "Binance")
                 ret = new BinanceBroker();
-            else if(identification == "TestBroker")
+            else if (identification == "TestBroker")
                 ret = new TestBroker();
             else
                 throw new ArgumentException("No such broker - " + identification);
 
             ret.SetLogger(logger);
-            ret.SetParameters(config);
+            ret.SetParameters(config, stream);
 
             return ret;
         }
 
         public abstract void SetParameters(dynamic config);
+        public abstract void SetParameters(dynamic config, LiveAssetFeedStream liveStream);
 
         public void SetLogger(ILogger logger)
         {
             _logger = logger;
+        }
+
+        protected void LogHttpCall(string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body)
+        {
+            if (_logger != null)
+            {
+                _logger.LogHttpCall(action, headers, respHeaders, completeUrl, body);
+            }
+        }
+        protected void LogMessage(string module, string message)
+        {
+            if (_logger != null)
+            {
+                _logger.LogMessage(module, message);
+            }
         }
 
 
@@ -182,6 +214,11 @@ namespace Midas.Core.Broker
         private string _apiKey, _apiSecret;
 
         public override void SetParameters(dynamic config)
+        {
+            SetParameters(config, null);
+        }
+
+        public override void SetParameters(dynamic config, LiveAssetFeedStream stream)
         {
             _baseUrl = config.EndPoint;
             _apiKey = config.ApiKey;
@@ -336,7 +373,7 @@ namespace Midas.Core.Broker
 
                     order.AverageValue = amounts.Average();
                 }
-                else if(status == "EXPIRED")
+                else if (status == "EXPIRED")
                 {
                     order.InError = true;
                     order.ErrorCode = "EXPIRED";
@@ -384,7 +421,7 @@ namespace Midas.Core.Broker
                 order.Status = status;
                 order.BrokerOrderId = Convert.ToString(res.orderId);
                 order.Price = Convert.ToDouble(res.price);
-                order.AverageValue = Convert.ToDouble(res.price);                
+                order.AverageValue = Convert.ToDouble(res.price);
             }
 
 
@@ -432,7 +469,7 @@ namespace Midas.Core.Broker
                             }
                             catch (Exception err)
                             {
-                                _logger.LogMessage("Order", "Error in the status order, it will not be propagated: "+ err.Message);
+                                _logger.LogMessage("Order", "Error in the status order, it will not be propagated: " + err.Message);
                             }
 
                             if (statusOrder != null)
@@ -449,17 +486,17 @@ namespace Midas.Core.Broker
                         //If the LIMIT ORDER hasn't pan out send market order
                         if (!status)
                         {
-                            _logger.LogMessage("Broker","Cancelling all orders for -" + asset);
+                            _logger.LogMessage("Broker", "Cancelling all orders for -" + asset);
                             //Cancel the prevous limit order
                             CancelAllOpenOrders(asset, timeOut);
 
                             //If we were trying to sell desperately send a market order
-                            _logger.LogMessage("Broker","Sending market order -" + asset);
+                            _logger.LogMessage("Broker", "Sending market order -" + asset);
                             lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut);
                             smartOrder = lastOrder;
                             if (lastOrder.InError)
                             {
-                                _logger.LogMessage("Broker","Error in the market order final: "+lastOrder.ErrorMsg);
+                                _logger.LogMessage("Broker", "Error in the market order final: " + lastOrder.ErrorMsg);
                             }
                         }
                         else
@@ -526,7 +563,7 @@ namespace Midas.Core.Broker
             var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
 
             string separator = "";
-            if(!String.IsNullOrEmpty(queryString))
+            if (!String.IsNullOrEmpty(queryString))
                 separator = "&";
 
             string addString = String.Empty;
@@ -543,7 +580,7 @@ namespace Midas.Core.Broker
             headers.Add("User-Agent", "CandlesFaces");
 
             var finalQueryString = queryString;
-            if(addString.Length > 0)
+            if (addString.Length > 0)
                 finalQueryString += separator + addString;
 
             if (secure)
@@ -572,7 +609,7 @@ namespace Midas.Core.Broker
             }
             else
             {
-                foreach(var balance in res.balances)
+                foreach (var balance in res.balances)
                 {
                     var record = new BalanceRecord();
                     record.Asset = Convert.ToString(balance.asset);
@@ -590,26 +627,27 @@ namespace Midas.Core.Broker
 
     public class TestBroker : Broker
     {
+        private Dictionary<string, BrokerOrder> _pendingOrders;
+        public TestBroker() : base()
+        {
+            _pendingOrders = new Dictionary<string, BrokerOrder>();
+        }
         public override List<BalanceRecord> AccountBalance(int timeOut)
         {
             throw new NotImplementedException();
         }
-
         public override void CancelAllOpenOrders(string asset, int timeOut)
         {
             throw new NotImplementedException();
         }
-
         public override void CancelAllOpenOrdersAsync(string asset, int timeOut)
         {
             throw new NotImplementedException();
         }
-
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
             throw new NotImplementedException();
         }
-
         public override double GetPriceQuote(string asset)
         {
             throw new NotImplementedException();
@@ -617,17 +655,22 @@ namespace Midas.Core.Broker
 
         public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price)
         {
-            var order = new BinanceBrokerOrder(this, direction, OrderType.LIMIT, orderId, asset);
-            order.Price = price;
-            order.AverageValue = price;
-            order.Status = "FILLED";
-            order.InError = true;
-
-            base._logger.LogMessage("Test Broker", "Limit Order - "+price+" - "+direction);
-
+            BrokerOrder order = null;
+            var currentPrice = (_lastCandle == null ? 0 : _lastCandle.AmountValue);
+            if (currentPrice == 0)
+                throw new ArgumentException("Wait fot the first Candle!");
+            else
+            {
+                order = new BinanceBrokerOrder(this, direction, OrderType.LIMIT, orderId, asset);
+                order.Price = price;
+                order.AverageValue = price;
+                order.Status = "NEW";
+                order.InError = false;
+                _pendingOrders.Add(orderId, order);
+                base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
+            }
             return order;
         }
-
         public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut)
         {
             var order = new BinanceBrokerOrder(this, direction, OrderType.MARKET, orderId, asset);
@@ -636,26 +679,51 @@ namespace Midas.Core.Broker
             order.Status = "FILLED";
             order.InError = false;
             order.ErrorMsg = "This is the test broker!";
-
-            base._logger.LogMessage("Test Broker", "Market Order - "+direction);
-
+            base.LogMessage("Test Broker", "Market Order - " + direction);
             return order;
         }
 
         public override BrokerOrder OrderStatus(string orderId, string asset, int timeOut)
         {
-            var order = new BinanceBrokerOrder(this, orderId, asset);
-            order.Price = 30000;
-            order.AverageValue = 30000;
-            order.Status = "FILLED";
-            order.InError = false;
-
+            BrokerOrder order = null;
+            _pendingOrders.TryGetValue(orderId, out order);
+            if (order == null)
+            {
+                throw new ArgumentException($"Order {orderId} does not exist");
+            }
+            else
+            {
+                var currentValue = (_lastCandle == null ? 0 : _lastCandle.AmountValue);
+                if (currentValue == 0)
+                    throw new ArgumentException("Wait for the first Candle");
+                else
+                {
+                    if (order.Price >= currentValue)
+                    {
+                        order.AverageValue = currentValue;
+                        order.Status = "FILLED";
+                        order.InError = false;
+                    }
+                }
+            }
             return order;
         }
 
         public override void SetParameters(dynamic config)
         {
+            throw new NotSupportedException();
+        }
 
+        public override void SetParameters(dynamic config, LiveAssetFeedStream stream)
+        {
+            stream.OnUpdate(new SocketEvent(this.CandleUpdate));
+        }
+        
+        private Candle _lastCandle;
+
+        private void CandleUpdate(string info, string message, Candle newCandle)
+        {
+            _lastCandle = newCandle;
         }
 
         public override async Task<BrokerOrder> SmartOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, PriceBias bias)
@@ -665,20 +733,15 @@ namespace Midas.Core.Broker
             order.AverageValue = price;
             order.Status = "FILLED";
             order.InError = false;
-
-            base._logger.LogMessage("Test Broker", "Smart Order - "+direction+" - "+bias);
-
+            base.LogMessage("Test Broker", "Smart Order - " + direction + " - " + bias);
             Random r = new Random();
             var t = Task<BrokerOrder>.Run(() =>
             {
                 Thread.Sleep(1);
             });
-
             await t;
-
             return order;
         }
-
     }
 
     public class BalanceRecord
@@ -687,7 +750,7 @@ namespace Midas.Core.Broker
         public double TotalQuantity { get; internal set; }
         public double FreeQuantity { get; internal set; }
 
-        public double TotalUSDAmount {get; set;}
+        public double TotalUSDAmount { get; set; }
     }
 
     public enum OrderDirection

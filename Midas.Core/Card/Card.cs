@@ -207,39 +207,43 @@ namespace Midas.Core.Card
 
         }
 
-        private string GetForecastOnAnAverage(double currentValue, DateTime presentTime, string averageName)
+       private string GetForecastOnAnAverage(double currentValue, DateTime presentTime, string averageName)
         {
             string status = "";
-            double limitToPredictLong = 1;
-            double limitToPredictShort = -1;
+            double limitToPredictLong = 0.5;
+            double limitToPredictShort = -0.5;
+            double limitToPredictZero = 0.5;
 
-            var halfForecastWindow = Convert.ToInt32(_params.ForecastWindow/2);
+            status = "IGNORED";
 
-            // var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
-            // var range = new DateRange(_beginWindow, _endWindow);
-            // var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
-            // var stopLossLong = stopLossShort *-1;
+            var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
+            var range = new DateRange(_beginWindow, _endWindow);
+            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
+            var stopLossLong = stopLossShort *-1;
 
             var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
 
-            status = "ND";
+            var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
 
-            if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) <= limitToPredictLong &&
-            forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) >= limitToPredictShort)
+            if(forecastOnAverage.GetHighestDifference(1,_params.ForecastWindow) <= limitToPredictZero &&
+                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) >= limitToPredictZero*-1)
                 status = "ZERO";
-            
 
-            if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) > limitToPredictLong &&
-                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) > 0)
+
+            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
             {
-                status = "LONG";
-            }
-            if(forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) < limitToPredictShort &&
-                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) < 0)
-            {
-                status = "SHORT";
+                if(forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0 &&
+                    forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow/2)) > stopLossLong)
+                    status = "LONG";
             }
 
+
+            if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
+            {
+                if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < 0 && 
+                    forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow/2)) < stopLossShort)
+                    status = "SHORT";
+            }
 
             return status;
         }

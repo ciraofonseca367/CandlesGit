@@ -85,6 +85,10 @@ namespace Midas.Core.Services
 
             LoadTraders();
 
+            Console.WriteLine("Starting with traders:");
+            foreach(var t in _traders)
+                Console.WriteLine(t.ToString());
+
             this._runner.Start();
 
             //Set up the Bot
@@ -204,7 +208,7 @@ namespace Midas.Core.Services
                 Asset = group.Max(i => i.Asset),
                 CandleType = group.Max(i => i.CandleType),
                 OperationsCount = group.Count(),
-                PAndL = group.Sum(i => i.Gain),
+                PAndL = group.Sum(op => ((op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal) * 100),
                 OperationAvg = group.Sum(i => i.Gain)  / Convert.ToDouble(group.Count()),
                 SuccessRate = Convert.ToDouble(group.Count(i => i.State == TradeOperationState.Profit)) /
                        Convert.ToDouble(group.Count())

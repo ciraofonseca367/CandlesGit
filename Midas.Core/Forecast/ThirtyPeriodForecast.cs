@@ -27,7 +27,7 @@ namespace Midas.Core.Forecast
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "ya29.c.Kp8BBQgiwKQ8DKdsgDT-Hu0oQe53uz9WFI3ZchggizJpeVRuvIj5CGNNhpPZgJaW7fklPqM7Zwr2yTem7H2uSm2XGsn63fTtgnYfPnk55hCVubfXGkykmHQ6J8wC6LOZE9I1EbVg7qXOp8ey5DFbNBXrHiOBrohm7MZ0Q646hIxszo1ouegyqgPXskitBxdqzLzZys-k-YquFqlKOLxeP0qJ");
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            Console.WriteLine("ThiryPeriodForecast active");
+            Console.WriteLine("ThiryPeriodForecast active - "+predictionServer);
         }
 
         private string TransformImageToBase64(Bitmap image)

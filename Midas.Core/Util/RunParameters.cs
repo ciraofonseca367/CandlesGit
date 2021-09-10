@@ -75,6 +75,7 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Forecast Window", String.Join(',', _forecastWindow));
+                Console.WriteLine("{0,-20}: {1}", "Predict Average", AverageToForecast);
                 Console.WriteLine("");
             }
 
@@ -279,8 +280,6 @@ namespace Midas.Core
 
             TelegramBotCode = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
 
-            AverageToForecast = "MA6";
-
             CandleType = CandleType.MIN5;
             DateTime start = DateTime.MinValue;
             DateTime end = DateTime.MinValue;
@@ -304,6 +303,7 @@ namespace Midas.Core
             Forecaster = Convert.ToString(stuff.Forecaster);
             FeedStreamType = Convert.ToString(stuff.FeedStreamType);
             BrokerName = Convert.ToString(stuff.BrokerName);
+            AverageToForecast = Convert.ToString(stuff.AverageToForecast);
 
             CandleType = (CandleType)Enum.Parse(typeof(CandleType), stuff.CandleType.ToString(), true);
             start = Convert.ToDateTime(stuff.StartDate);
@@ -517,5 +517,10 @@ namespace Midas.Core
         public float AtrStopLoss { get; internal set; }
         public float AvgCompSoftness { get; internal set; }
         public float StopLossCompSoftness { get; internal set; }
+
+        public override string ToString()
+        {
+            return $"Score: {Score:0.00}, SL:{AtrStopLoss:0.00}";
+        }
     }
 }

@@ -90,4 +90,34 @@ namespace Midas.Core.Indicators
 
         }
     }
+
+    public class MaxAverageIndicator : CalculatedIndicator
+    {
+
+        public MaxAverageIndicator(string bufferSize, string windowSize) : base(bufferSize, windowSize)
+        { }
+
+        public MaxAverageIndicator(object[] args) : base(args)
+        { }
+
+        public override void AddFramePoint(IStockPointInTime point)
+        {
+            var buffer = base._historical.GetList();
+            var ma = buffer.Max(p => p.CloseValue);
+
+            var newPoint = new Indicator()
+            {
+                AmountValue = ma,
+                PointInTime_Open = point.PointInTime_Open,
+                PointInTime_Close = point.PointInTime_Close
+            };
+
+            base._currentWindow.Enqueue(newPoint);
+        }
+
+        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
+        {
+
+        }
+    }        
 }

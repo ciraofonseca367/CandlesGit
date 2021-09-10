@@ -1,33 +1,32 @@
 {
     "RunMode": "Invest",
-    "ExperimentName": "Investing",
-    "Asset": "BTCUSDT",
-    "StartDate": "2021-08-01 00:00:00",
-    "EndDate": "2021-08-20 23:59:59",
+    "ExperimentName": "Investing_100",
+    "Asset": "BTCBUSD",
+    "ScoreThreshold": "0.42",
     "CandleType": "MIN15",
-    "ScoreThreshold": -2,
     "WindowSize": 30,
     "CardWidth": 1600,
     "CardHeight": 1600,
     "DrawPrediction": true,
+    "OutputDirectory": "/root/cfi",
     "DelayedTriggerEnabled": false,
-    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
-    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
+
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
 
-    "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
+    "TelegramBotCode": "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4",
 
     "Forecaster": "ThirtyPeriodForecast",
-    "FeedStreamType": "Historical",
-    "BrokerName": "TestBroker",
-    "PreloadCandles": false,
+    "FeedStreamType": "Live",
+    "BrokerName": "Binance",
+    "PreloadCandles": true,
 
     "Assets": [
         {
             "Asset": "BTCBUSD",
             "CandleType": "MIN15",
             "ScoreThreshold": 0.9,
-            "FundName": "ADABUSD_MIN15",
+            "FundName": "BTCBUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
             "AvgCompSoftness": 0.1
@@ -36,12 +35,12 @@
             "Asset": "ETHBUSD",
             "CandleType": "MIN15",
             "ScoreThreshold": 0.9,
-            "FundName": "ADABUSD_MIN15",
+            "FundName": "ETHBUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
             "AvgCompSoftness": 0.1
-        }  
-    ],
+        }
+    ],    
 
     "Indicators": [
         {
@@ -126,23 +125,16 @@
         }
     ],
 
-    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
-    "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
-    "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
-
-    "FundName": "TestFund",
-
     "BrokerParameters": {
-        "ApiKey": "Egocw2priEukckugyrsEzlb0z6KFo1MNFM0SxEdBlT5RUh4rN6PYL9z9kWX9nqh2",
-        "ApiSecret": "rIoZfJYGmo0lIZ2l8P26T9udYWPG0f7NDL3VR098TCGVk3woMzkfFDioDR0Fl5nG",
-        "EndPoint": "https://testnet.binance.vision",
-        "Host": "testnet.binance.vision",
-        "BIAS_DIFF_FORBUY": 1.0003,
-        "BIAS_DIFF_FORSELL": 0.9997,
-        "TIMEOUT_BUY": 200000,
+        "ApiSecret": "QCbY0JH4EYbOqbrOtAtC3KTMnhmsqH4scnUxC1AlOfvwgRGnTLkqTY4UBZdT0FlB",
+        "EndPoint": "https://api.binance.com",
+	    "Host": "api.binance.com",
+        "BIAS_DIFF_FORBUY": 1.0001,
+        "BIAS_DIFF_FORSELL": 1.0000,
+        "TIMEOUT_BUY": 290000,
         "TIMEOUT_SELL": 60000,
-        "STOP_LOSS": 0.009,
-        "MSI_WINDOW_SIZE_SECONDS": 900,
+        "STOP_LOSS": 0.004,
+        "MSI_WINDOW_SIZE_SECONDS": 1600,
         "MIN_TARGET_PROFIT": 0.007
     }
 }

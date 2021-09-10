@@ -226,8 +226,8 @@ namespace Midas
             DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            //frameMap.Add("Blanck", dv.AddChartFrame(5));
-            frameMap.Add("Main", dv.AddChartFrame(70));
+            frameMap.Add("Blank", dv.AddChartFrame(30));
+            frameMap.Add("Main", dv.AddChartFrame(40));
             frameMap.Add("Volume", dv.AddChartFrame(30));
 
             frameMap["Main"].AddSerie(new Serie()
@@ -265,7 +265,7 @@ namespace Midas
                         else if (s.Name == "MA50")
                             s.RelativeXPos = 0.75;
 
-                        if (s.Name != "MA Volume Meio Dia")
+                        if (s.Name != "MA144" && s.Name != "MA309")
                             s.Frameble = false;
 
                         frameMap[group.Key].AddSerie(s);

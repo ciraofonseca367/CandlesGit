@@ -63,6 +63,11 @@ namespace Midas.Core.Trade
             _operationMap = new ConcurrentDictionary<string, Task<TradeOperation>>();
         }
 
+        public override string ToString()
+        {
+            return $"{_asset}:{_candleType} - {_assetParams}";
+        }
+
         public void Start()
         {
             _running = true;
@@ -130,10 +135,10 @@ namespace Midas.Core.Trade
 
         public void Stop()
         {
-            if(_running)
+            if (_running)
             {
                 var currentOp = _manager.GetOneActiveOperation();
-                if(currentOp != null)
+                if (currentOp != null)
                 {
                     var closeTask = currentOp.CloseOperation();
                     closeTask.Wait(60000);
@@ -142,7 +147,7 @@ namespace Midas.Core.Trade
                 _running = false;
 
                 if (_stream != null)
-                    _stream.Dispose();                
+                    _stream.Dispose();
 
                 if (_streamLog != null)
                     _streamLog.Dispose();
@@ -180,6 +185,11 @@ namespace Midas.Core.Trade
 
                 if (_lastImg != null)
                 {
+                    _lastImg.Save(
+                        Path.Combine(_params.OutputDirectory, _myName + "_LiveInvestor.png"),
+                        System.Drawing.Imaging.ImageFormat.Png
+                        );
+
                     //Get a prediction
                     var predictions = _forecaster.PredictAsync(_lastImg, 0.1f, recentClosedCandle.CloseValue, recentClosedCandle.OpenTime);
                     if (predictions.Wait(10000))
@@ -209,7 +219,7 @@ namespace Midas.Core.Trade
                             if (rankLong == 1 && scoreLong >= AssetParams.Score)
                             {
                                 currentTrend = "LONG";
-                                
+
                                 if (rankShort == 2 || rankShort == 1) //Neste caso temos LONG com score para entrar, mas temos Short maior que Long, ou maior que o ND.
                                 {
                                     TelegramBot.SendMessageBuffered("AVISO", "Double Conflict LONG & SHORT");
@@ -324,7 +334,7 @@ namespace Midas.Core.Trade
             else
             {
                 if (candleThatPredicted.Direction == CandleDirection.Down &&
-                    currentCandle.CandleAge.TotalMinutes > 4 && currentCandle.GetIndecisionThreshold() > 0.3)
+                    currentCandle.CandleAge.TotalMinutes > 13 && currentCandle.GetIndecisionThreshold() > 0.2)
                     ret = true;
                 else if (candleThatPredicted.Direction == CandleDirection.Up)
                     ret = true;
@@ -441,7 +451,8 @@ namespace Midas.Core.Trade
             DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            frameMap.Add("Main", dv.AddChartFrame(70));
+            frameMap.Add("Blank", dv.AddChartFrame(30));
+            frameMap.Add("Main", dv.AddChartFrame(40));
             frameMap.Add("Volume", dv.AddChartFrame(30));
 
             frameMap["Main"].AddSerie(new Serie()
@@ -450,8 +461,8 @@ namespace Midas.Core.Trade
                 Name = "Main",
             });
 
-            if (prediction != null)
-                frameMap["Main"].AddSerie(prediction);
+            // if (prediction != null)
+            //     frameMap["Main"].AddSerie(prediction);
 
             frameMap["Volume"].AddSerie(new Serie()
             {
@@ -482,7 +493,7 @@ namespace Midas.Core.Trade
                         else if (s.Name == "MA50")
                             s.RelativeXPos = 0.75;
 
-                        if (s.Name != "MA Volume Meio Dia")
+                        if (s.Name != "MA144" && s.Name != "MA309")
                             s.Frameble = false;
 
                         frameMap[group.Key].AddSerie(s);
@@ -516,7 +527,7 @@ namespace Midas.Core.Trade
             }
             catch (Exception err)
             {
-                TraceAndLog.StaticLog("NewInfo",err.ToString());
+                TraceAndLog.StaticLog("NewInfo", err.ToString());
             }
         }
 
@@ -607,8 +618,8 @@ namespace Midas.Core.Trade
         public async Task<TradeOperation> CloseOperationIfAny()
         {
             TradeOperation op = _manager.GetOneActiveOperation();
-            if(op != null)
-                await op.CloseOperation(); 
+            if (op != null)
+                await op.CloseOperation();
 
             return op;
         }
