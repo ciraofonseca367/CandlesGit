@@ -57,7 +57,7 @@ namespace Midas.Core.Indicators
             {
                 _historical.Enqueue(point);
 
-                if(_historical.GetList().Length > (_bufferSize*0.95))
+                if(_historical.GetList().Length > (_bufferSize*0.05))
                 {
                     AddFramePoint(point);
                 }

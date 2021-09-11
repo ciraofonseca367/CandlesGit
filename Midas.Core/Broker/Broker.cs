@@ -105,7 +105,7 @@ namespace Midas.Core.Broker
                 if (jsonResponse.Wait(timeOut))
                 {
                     parsedResponse = JsonConvert.DeserializeObject(jsonResponse.Result);
-                    _logger.LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
+                    LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
                 }
                 else
                 {
@@ -469,7 +469,7 @@ namespace Midas.Core.Broker
                             }
                             catch (Exception err)
                             {
-                                _logger.LogMessage("Order", "Error in the status order, it will not be propagated: " + err.Message);
+                                base.LogMessage("Order", "Error in the status order, it will not be propagated: " + err.Message);
                             }
 
                             if (statusOrder != null)
@@ -486,17 +486,17 @@ namespace Midas.Core.Broker
                         //If the LIMIT ORDER hasn't pan out send market order
                         if (!status)
                         {
-                            _logger.LogMessage("Broker", "Cancelling all orders for -" + asset);
+                            base.LogMessage("Broker", "Cancelling all orders for -" + asset);
                             //Cancel the prevous limit order
                             CancelAllOpenOrders(asset, timeOut);
 
                             //If we were trying to sell desperately send a market order
-                            _logger.LogMessage("Broker", "Sending market order -" + asset);
+                            base.LogMessage("Broker", "Sending market order -" + asset);
                             lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut);
                             smartOrder = lastOrder;
                             if (lastOrder.InError)
                             {
-                                _logger.LogMessage("Broker", "Error in the market order final: " + lastOrder.ErrorMsg);
+                                base.LogMessage("Broker", "Error in the market order final: " + lastOrder.ErrorMsg);
                             }
                         }
                         else
@@ -716,7 +716,7 @@ namespace Midas.Core.Broker
 
         public override void SetParameters(dynamic config, LiveAssetFeedStream stream)
         {
-            stream.OnUpdate(new SocketEvent(this.CandleUpdate));
+            //stream.OnUpdate(new SocketEvent(this.CandleUpdate));
         }
         
         private Candle _lastCandle;

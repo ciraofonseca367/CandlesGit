@@ -423,6 +423,7 @@ namespace Midas.Core
                     assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
                     assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
                     assetParams.StopLossCompSoftness = Convert.ToSingle(metaAsset.StopLossCompSoftness);
+                    assetParams.FollowPricePerc = Convert.ToSingle(metaAsset.FollowPricePerc);
 
                     var trader = new AssetTrader(service, asset, candleType, this, 120000, assetParams);
 
@@ -517,6 +518,7 @@ namespace Midas.Core
         public float AtrStopLoss { get; internal set; }
         public float AvgCompSoftness { get; internal set; }
         public float StopLossCompSoftness { get; internal set; }
+        public float FollowPricePerc { get; internal set; }
 
         public override string ToString()
         {

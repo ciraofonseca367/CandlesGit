@@ -30,16 +30,28 @@
             "FundName": "ADABUSD_MIN15",
             "AtrStopLoss": 0.7,
             "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.1
+            "AvgCompSoftness": 0.1,
+            "FollowPricePerc": 0.5
+        },
+        {
+            "Asset": "BNBBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.9,
+            "FundName": "ADABUSD_MIN15",
+            "AtrStopLoss": 1.5,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.1,
+            "FollowPricePerc": 0.1
         },
         {
             "Asset": "ETHBUSD",
             "CandleType": "MIN15",
             "ScoreThreshold": 0.9,
             "FundName": "ADABUSD_MIN15",
-            "AtrStopLoss": 0.7,
+            "AtrStopLoss": 1.5,
             "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.1
+            "AvgCompSoftness": 0.1,
+            "FollowPricePerc": 0.1
         }  
     ],
 
@@ -123,7 +135,7 @@
             "Color": "Gray",
             "ChartType": "Line",
             "Size": 3
-        }
+        }        
     ],
 
     "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",

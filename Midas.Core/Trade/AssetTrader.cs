@@ -68,6 +68,14 @@ namespace Midas.Core.Trade
             return $"{_asset}:{_candleType} - {_assetParams}";
         }
 
+        public double GetMAValue(string maName)
+        {
+            var maSeries = _indicators.Where(i => i.Name == maName).FirstOrDefault();;
+            var maValue = maSeries.TakeSnapShot().Last().AmountValue;
+
+            return maValue;            
+        }
+
         public void Start()
         {
             _running = true;
@@ -461,8 +469,8 @@ namespace Midas.Core.Trade
                 Name = "Main",
             });
 
-            // if (prediction != null)
-            //     frameMap["Main"].AddSerie(prediction);
+            if (prediction != null)
+                frameMap["Main"].AddSerie(prediction);
 
             frameMap["Volume"].AddSerie(new Serie()
             {
