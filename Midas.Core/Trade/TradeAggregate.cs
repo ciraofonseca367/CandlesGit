@@ -83,7 +83,7 @@ namespace Midas.Core.Trade
             }
             else
             {
-                minDate = now.AddMinutes(Convert.ToInt32(remainder * candleMinutes) * -1);
+                minDate = now.AddMinutes(Convert.ToInt32(remainder * candleMinutes) * -1).AddMinutes(1);
                 maxDate = minDate.AddSeconds((candleMinutes*60)-1);
             }
 

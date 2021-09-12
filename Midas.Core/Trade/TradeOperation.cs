@@ -323,33 +323,41 @@ namespace Midas.Trading
             //         shouldStop = true;                
             // }
 
-            if (LastLongSignalDurationInPeriods >= 12) //Timeout da operação, desde o inicio ou último sinal de long
-            {
-                if (LastValue > _priceEntryReal)
-                    shouldStop = true;
-            }
+            var ma12 = _myMan.Trader.GetMAValue("MA12");
+            if(_lastMaxValue > ma12 * (1 + (0.2/100)) &&
+                LastValue > _priceEntryReal
+            )
+                shouldStop = true;
+
+
+            // if (LastLongSignalDurationInPeriods >= 12) //Timeout da operação, desde o inicio ou último sinal de long
+            // {
+            //     if (LastValue > _priceEntryReal)
+            //         shouldStop = true;
+            // }
 
             if (shouldStop)
             {
-                var ma = _myMan.Trader.GetMAValue("MA12");
+                var ma = ma12;
                 _lastMA = ma;
 
                 if (shouldStop && LastValue != -1 && _myMan.TradeLogger.SoftCompare(ma, LastValue, _myMan.Trader.AssetParams.AvgCompSoftness) == CompareType.LessThan)
                     mustStop = true;
             }
 
-            if (LastLongSignalDurationInPeriods >= 6 && LastMaxGain < 0.1)
-            {
-                var maValue = _myMan.Trader.GetMAValue("MA6");
+            //Tentativa de código para um StopLoss inteligente que até agora não deu certo
+            // if (LastLongSignalDurationInPeriods >= 6 && LastMaxGain < 0.1)
+            // {
+            //     var maValue = _myMan.Trader.GetMAValue("MA6");
 
-                var diff = ((_priceEntryReal - maValue) / _priceEntryReal) * 100;
+            //     var diff = ((_priceEntryReal - maValue) / _priceEntryReal) * 100;
 
-                if (diff > 0.5)
-                {
-                    if (maValue < _priceEntryReal)
-                        mustStop = true;
-                }
-            }
+            //     if (diff > 0.5)
+            //     {
+            //         if (maValue < _priceEntryReal)
+            //             mustStop = true;
+            //     }
+            // }
 
 
             return mustStop;
@@ -515,7 +523,7 @@ namespace Midas.Trading
                     _lastMaxValue = newCandle.CloseValue;
                 }
 
-                if (LastMaxGain > 0.5)
+                if (LastMaxGain > _myMan.Trader.AssetParams.GainSoftStopTrigger)
                 {
                     if (_softStopTime == DateTime.MinValue)
                         _softStopTime = newCandle.OpenTime;
@@ -527,18 +535,20 @@ namespace Midas.Trading
                 //     _stopLossMarker = _priceEntryReal * (1 + (_lowerBound * 0.8));
 
                 var mustStopByAvg = ShouldStopByMovingAverage();
-                if (
-                        (//Trigger condition for the SoftStopLoss
+
+                var mustStopBySoftStop = (//Trigger condition for the SoftStopLoss
                             newCandle.CloseValue < _softStopLossMarker &&
                             (newCandle.OpenTime - _softStopTime).TotalMinutes >= Convert.ToInt32(_candleType) //We trigger the SoftStop only after the candletype size in minutes, that the condition was triggered
-                        ) ||
-                    _myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan ||
+                        );
+
+                if (mustStopBySoftStop ||
+                    _myMan.TradeLogger.SoftCompare(_stopLossMarker, newCandle.CloseValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan || //StopLoss
                     mustStopByAvg)
                 {
                     bool hardStop = true;
                     // if (mustStopByAvg)
                     // {
-                    //     hardStop = false;
+                    //      hardStop = false;
                     // }
 
                     await ExitAsync(hardStop);

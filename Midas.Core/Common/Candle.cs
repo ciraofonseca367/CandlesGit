@@ -303,7 +303,8 @@ namespace Midas.Core.Common
 
         public override string ToString()
         {
-            return String.Format("OpenTime: {0:dd/MM/yyyy HH:mm}, LastAmount: ${1:0.00}, Volume: {2:0.00}", this.OpenTime, this.CloseValue, this.Volume);
+            return String.Format("{0:dd/MM/yyyy HH:mm} - {1:dd/MM/yyyy HH:mm} - OpenAmount:${2:0.00} => LastAmount: ${3:0.00}, Volume: {4:0.00}", this.OpenTime, this.CloseTime,
+             this.OpenValue, this.CloseValue, this.Volume);
         }
 
         public string GetCompareStamp()

@@ -387,6 +387,38 @@ namespace Midas.Core.Services
             return balanceReport;
         }
 
+        public double GetAccountBalance()
+        {
+            BinanceBroker b = new BinanceBroker();
+            b.SetParameters(_params.BrokerParameters);
+            var priceBTC = b.GetPriceQuote("BTCBUSD");
+            var priceBNB = b.GetPriceQuote("BNBBUSD");
+            var priceADA = b.GetPriceQuote("ADABUSD");
+            var priceETH = b.GetPriceQuote("ETHBUSD");
+
+            var balances = b.AccountBalance(60000);
+            balances.ForEach(b =>
+            {
+                if (b.TotalQuantity > 0.0001)
+                {
+                    if (b.Asset == "BTC")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBTC;
+                    else if (b.Asset == "USDT")
+                        b.TotalUSDAmount = b.TotalQuantity;
+                    else if (b.Asset == "BUSD")
+                        b.TotalUSDAmount = b.TotalQuantity;
+                    else if (b.Asset == "BNB")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
+                    else if (b.Asset == "ADA")
+                        b.TotalUSDAmount = b.TotalQuantity * priceADA;
+                    else if (b.Asset == "ETH")
+                        b.TotalUSDAmount = b.TotalQuantity * priceETH;
+                }
+            });
+
+            return balances.Sum(b => b.TotalUSDAmount);
+        }
+
         public void Stop()
         {
             _running = false;
@@ -446,7 +478,26 @@ namespace Midas.Core.Services
             StartTraders();
 
             while (_running)
-                Thread.Sleep(1000);
+            {
+                Thread.Sleep(60000);
+
+                try
+                {
+                    if(DateTime.UtcNow.Hour == 0)
+                    {
+                        double balance = GetAccountBalance();
+                        var br = new BalanceReport(balance);
+                        br.SaveOrUpdate(_params.DbConString);
+
+                        TelegramBot.SendMessage($"Balance for the {DateTime.Now:yyyy-MM-dd} is $ {balance:0.000}");
+                        TraceAndLog.StaticLog("Investor","Daily balance updated");
+                    }
+                }
+                catch(Exception err)
+                {
+                    TraceAndLog.StaticLog("Investor","Error updating daily balance - "+err.ToString());
+                }
+            }
 
             DisposeResources();
         }
@@ -467,6 +518,47 @@ namespace Midas.Core.Services
         public double SuccessRate { get => _sucessRate; set => _sucessRate = value; }
         public string Asset { get => _asset; set => _asset = value; }
         public CandleType CandleType { get; set; }
+    }
+
+    public class BalanceReport
+    {
+        public double Balance { get; set; }
+        public DateTime Date { get; set; }
+        private string _dateKey;
+
+        public BalanceReport(double balance)
+        {
+            Date = DateTime.UtcNow;
+            _dateKey = Date.ToString("yyyy-MM-dd HH");
+            Balance = balance;
+        }
+
+        public string DateKey
+        {
+            get
+            {
+                return _dateKey;
+            }
+            set
+            {
+                _dateKey = value;
+            }
+        }
+
+        public void SaveOrUpdate(string conString)
+        {
+            var mongoClient = new MongoClient(conString);
+
+            var database = mongoClient.GetDatabase("CandlesFaces");
+
+            var dbCol = database.GetCollection<BalanceReport>("DailyBalances");
+
+            var result = dbCol.ReplaceOne(
+                item => item.DateKey == _dateKey,
+                this,
+                new ReplaceOptions { IsUpsert = true });
+        }
+
     }
 
 }

@@ -235,6 +235,7 @@ namespace Midas.Core.Broker
 
         public override double GetPriceQuote(string asset)
         {
+            asset = asset.Replace("BTCBUSD", "BTCUSDT");
             var ret = Get(
                 _priceTickerUri,
                 String.Format(_symbolPriceTicker, asset),
@@ -650,7 +651,7 @@ namespace Midas.Core.Broker
         }
         public override double GetPriceQuote(string asset)
         {
-            throw new NotImplementedException();
+            return 0;
         }
 
         public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price)

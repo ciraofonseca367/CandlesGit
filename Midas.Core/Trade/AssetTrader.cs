@@ -89,6 +89,7 @@ namespace Midas.Core.Trade
                 );
 
             _candleMovieRoll = new FixedSizedQueue<Candle>(_params.WindowSize);
+            
 
             //Init the previous candles from DB in the movieroll and indicators
             var cacheCandles = GetCachedCandles();
@@ -105,6 +106,11 @@ namespace Midas.Core.Trade
 
             //Start the websocket thread
             _stream = GetLiveStream();
+            if(_params.IsTesting)
+            {
+                Broker.Broker broker = Broker.Broker.GetBroker(_params.BrokerName,_params.BrokerParameters, null);
+                _stream.InitPrice(broker.GetPriceQuote(this.Asset));
+            }            
 
             //Subscripbe to the candles events
             _stream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
@@ -112,17 +118,17 @@ namespace Midas.Core.Trade
             _stream.OnUpdate(new SocketEvent(this.OnCandleUpdate_UpdateManager));
             _stream.OnNewInfo(this.NewInfo);
 
-            if (_params.ScoreThreshold >= -1)
+            if (_params.IsTesting)
             {
-                _stream.OnUpdate((id, message, cc) =>
-                {
-                    var img = GetSnapShot(cc);
+                // _stream.OnUpdate((id, message, cc) =>
+                // {
+                //     var img = GetSnapShot(cc);
 
-                    img.Save(
-                        Path.Combine(_params.OutputDirectory, _myName + "_LiveInvestor.png"),
-                        System.Drawing.Imaging.ImageFormat.Png
-                        );
-                });
+                //     img.Save(
+                //         Path.Combine(_params.OutputDirectory, _myName + "_LiveInvestor.png"),
+                //         System.Drawing.Imaging.ImageFormat.Png
+                //         );
+                // });
             }
 
 
@@ -401,44 +407,38 @@ namespace Midas.Core.Trade
 
                 DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                var storedOperations = _manager.GetActiveStoredOperations(Asset, _candleType, _params.ExperimentName, range.End);
-                if (storedOperations != null && storedOperations.Count > 0)
+                var currentOperation = _manager.GetOneActiveOperation();
+                if (currentOperation != null)
                 {
-                    storedOperations = new List<TradeOperation> { storedOperations.Last() };
                     List<VolumeIndicator> newVolumes = volumes.ToList();
 
+                    var operation = currentOperation;
                     var predictionSerie = new Serie();
-                    foreach (var operation in storedOperations)
+                    var forecastPoint = new TradeOperationCandle()
                     {
-                        var forecastPoint = new TradeOperationCandle()
-                        {
 
-                            AmountValue = operation.PriceEntry,
-                            LowerBound = operation.GetAbsolutLowerBound(),
-                            UpperBound = operation.GetAbsolutUpperBound(),
-                            Gain = operation.GetGain(cc.CloseValue),
-                            ExitValue = operation.ExitValue,
-                            StopLossMark = operation.StopLossMark,
-                            SoftStopMark = operation.SoftStopLossMarker,
-                            Volume = 1,
-                            State = operation.State.ToString(),
-                            PointInTime_Open = operation.EntryDate,
-                            PointInTime_Close = operation.ExitDate
-                        };
-                        if (!operation.IsIn)
-                            forecastPoint.Gain = operation.GetGain();
+                        AmountValue = operation.PriceEntry,
+                        LowerBound = operation.GetAbsolutLowerBound(),
+                        UpperBound = operation.GetAbsolutUpperBound(),
+                        Gain = operation.GetGain(cc.CloseValue),
+                        ExitValue = operation.ExitValue,
+                        StopLossMark = operation.StopLossMark,
+                        SoftStopMark = operation.SoftStopLossMarker,
+                        Volume = 1,
+                        State = operation.State.ToString(),
+                        PointInTime_Open = operation.EntryDate,
+                        PointInTime_Close = operation.ExitDate
+                    };
+                    if (!operation.IsIn)
+                        forecastPoint.Gain = operation.GetGain();
 
-                        predictionSerie.PointsInTime.Add(forecastPoint);
+                    predictionSerie.PointsInTime.Add(forecastPoint);
 
-                        //We need to add a corresponding volume point o keep the proporcion right
-                        newVolumes.Add(new VolumeIndicator(forecastPoint));
-                    }
+                    newVolumes.Add(new VolumeIndicator(forecastPoint));
 
                     predictionSerie.Name = "Predictions";
                     predictionSerie.Color = Color.LightBlue;
                     predictionSerie.Type = SeriesType.Forecast;
-
-                    var theOperation = storedOperations.Last();
 
                     imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
                 }

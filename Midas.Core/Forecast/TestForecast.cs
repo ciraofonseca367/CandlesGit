@@ -16,7 +16,7 @@ namespace Midas.Core.Forecast
         public List<PredictionResult> Predict(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime)
         {
             var previewTags = new List<PredictionResult>();
-            Console.WriteLine("Generating test prediction in 10 seconds...");
+            Console.WriteLine("Generating test prediction in 5 seconds...");
             
             Thread.Sleep(5000);
 
@@ -24,7 +24,7 @@ namespace Midas.Core.Forecast
             {
                 Tag = "LONG",
                 FromAmount = currentValue,
-                Score = 0.75f,
+                Score = 0.99f,
                 CreationDate = currentTime,
                 DateRange = new DateRange(currentTime, currentTime.AddHours(3)),
                 RatioLowerBound = 0.75/100,

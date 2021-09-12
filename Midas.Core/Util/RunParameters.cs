@@ -423,7 +423,10 @@ namespace Midas.Core
                     assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
                     assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
                     assetParams.StopLossCompSoftness = Convert.ToSingle(metaAsset.StopLossCompSoftness);
-                    assetParams.FollowPricePerc = Convert.ToSingle(metaAsset.FollowPricePerc);
+                    if(metaAsset.GainSoftStopTrigger != null)
+                        assetParams.FollowPricePerc = Convert.ToSingle(metaAsset.FollowPricePerc);
+                    if(metaAsset.GainSoftStopTrigger != null)
+                        assetParams.GainSoftStopTrigger = Convert.ToSingle(metaAsset.GainSoftStopTrigger);
 
                     var trader = new AssetTrader(service, asset, candleType, this, 120000, assetParams);
 
@@ -519,10 +522,18 @@ namespace Midas.Core
         public float AvgCompSoftness { get; internal set; }
         public float StopLossCompSoftness { get; internal set; }
         public float FollowPricePerc { get; internal set; }
+        public double GainSoftStopTrigger { get; internal set; }
 
         public override string ToString()
         {
             return $"Score: {Score:0.00}, SL:{AtrStopLoss:0.00}";
+        }
+
+        public AssetParameters()
+        {
+            FollowPricePerc = 0.4f;
+            GainSoftStopTrigger = 0.75;
+            AvgCompSoftness = 0.1f;
         }
     }
 }
