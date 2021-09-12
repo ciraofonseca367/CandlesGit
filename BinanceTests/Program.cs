@@ -12,7 +12,7 @@ namespace BinanceTests
     {
         static void Main(string[] args)
         {
-            BinanceWebSocket socket = new BinanceWebSocket();
+            //BinanceWebSocket socket = new BinanceWebSocket();
         }
 
         private static void Chat()
