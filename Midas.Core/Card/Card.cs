@@ -9,6 +9,7 @@ using Google.Cloud.AutoML.V1;
 using System.Linq;
 using Midas.Util;
 using Midas.Core;
+using Midas.Core.Forecast;
 
 namespace Midas.Core.Card
 {
@@ -206,13 +207,14 @@ namespace Midas.Core.Card
 
         }
 
-        private string GetForecastOnAnAverage(double currentValue, DateTime presentTime, string averageName)
+       private string GetForecastOnAnAverage(double currentValue, DateTime presentTime, string averageName)
         {
             string status = "";
-            double limitToPredictLong = 1;
-            double limitToPredictShort = -1;
+            double limitToPredictLong = 0.5;
+            double limitToPredictShort = -0.5;
+            double limitToPredictZero = 0.5;
 
-            status = "ND";
+            status = "IGNORED";
 
             var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
             var range = new DateRange(_beginWindow, _endWindow);
@@ -223,19 +225,24 @@ namespace Midas.Core.Card
 
             var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
 
+            if(forecastOnAverage.GetHighestDifference(1,_params.ForecastWindow) <= limitToPredictZero &&
+                forecastOnAverage.GetLowestDifferente(1,_params.ForecastWindow) >= limitToPredictZero*-1)
+                status = "ZERO";
+
+
             if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
             {
-                if(forecastOnPrice.GetLowestDifferente(1, _params.ForecastWindow) > stopLossLong)
+                if(forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0 &&
+                    forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow/2)) > stopLossLong)
                     status = "LONG";
-                else
-                    status = "LONG,LONG_STOP";
             }
-            else if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
+
+
+            if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= limitToPredictShort)
             {
-                if(forecastOnPrice.GetHighestDifference(1, _params.ForecastWindow) < stopLossShort)
+                if(forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < 0 && 
+                    forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow/2)) < stopLossShort)
                     status = "SHORT";
-                else
-                    status = "SHORT,SHORT_STOP";
             }
 
             return status;
@@ -343,9 +350,9 @@ namespace Midas.Core.Card
 
         public List<PredictionResult> GetPrediction(float scoreThreshold)
         {
-            RestPredictionClient client = new RestPredictionClient();
+            var client = ForecastFactory.GetDefaultForecaster();
 
-            return client.Predict(_img, scoreThreshold);
+            return client.Predict(_img, scoreThreshold,0, DateTime.Now);
         }
 
         public PredictionReportItem WritePrediction(StreamWriter output, float scoreThreshold, string fileName)
@@ -358,9 +365,9 @@ namespace Midas.Core.Card
             if (AboveAverage(GetFirstCandle().CloseValue, GetLastCandle().CloseValue))
             {
 
-                RestPredictionClient client = new RestPredictionClient();
+                var client = ForecastFactory.GetDefaultForecaster();
 
-                var response = client.Predict(_img, 0.1f, _params.TagFilter);
+                var response = client.Predict(_img, 0.1f, 0, DateTime.MinValue);
 
                 if (response != null)
                 {
@@ -372,15 +379,36 @@ namespace Midas.Core.Card
 
                     PredictionResult first = null;
                     if(response.Count() > 0)
+                    {
                         first = response.First();
+                    }
 
-                    if (first != null && first.Tag.StartsWith("LONG") && first.Score > _params.ScoreThreshold)
+                    var predictionLong = response.Where(p => p.Tag == "LONG").FirstOrDefault();
+                    var predictionShort = response.Where(p => p.Tag == "SHORT").FirstOrDefault();
+                    var predictionZero = response.Where(p => p.Tag == "ZERO").FirstOrDefault();
+
+                    int rankShort=0;
+                    int rankLong = 0;
+                    double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
+                    double scoreZero = predictionZero == null ? 0 : predictionZero.Score;
+                    for(int i=0;i<response.Count;i++)
+                    {
+                        if(response[i].Tag == "SHORT")
+                            rankShort = i+1;
+
+                        if(response[i].Tag == "LONG")
+                            rankLong = i+1;
+                    }     
+
+                    var diffLONG_ZERO = (Math.Abs(scoreLong - scoreZero) / 1)*100;
+
+                    if (rankLong == 1 && predictionLong.Score >= _params.ScoreThreshold)
                     {
                         localTarget = response.Max(r => r.RatioUpperBound) * 0.75;
 
                         var lastCandlePlusOne = GetLastCandlePlusOne();
                         var lastCandle = GetLastCandle();
-                        var hourAverageValue = GetAverageValue("MAHora");
+                        var hourAverageValue = GetAverageValue("MA12");
 
                         PredictionResult result2 = null;
                         double score2 = 0;
@@ -394,7 +422,7 @@ namespace Midas.Core.Card
 
                         var stopLossAtr = (stopLossAtrAbs / lastCandle.CloseValue) * 100;
 
-                        double stopLoss = stopLossAtr * -1.3;
+                        double stopLoss = stopLossAtr * -0.5;
 
                         // if (
                         //     !_params.DelayedTriggerEnabled ||
@@ -431,8 +459,9 @@ namespace Midas.Core.Card
                             if (_lastPrediction != null)
                                 lastPredictionDistance = Convert.ToInt32((GetFirstCandle().PointInTime_Close - _lastPrediction.PointInTime_Close).TotalMinutes);
 
-                            if (//tag2 != "SHORT" &&
-                                lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
+                            if ((score2 < 0.5) &&
+                                (lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
+                                )
                             {
                                 lowerBoundToPredict = 0.5f;
                                 upperBoundToPredict = 1.0f;
@@ -462,7 +491,7 @@ namespace Midas.Core.Card
                                 double result = 0;
                                 TimeSpan operationDuration;
 
-                                var forecastInfoAvg = this.GetCompleteForecastOnAnAverage(lastCandle.OpenTime, "MAHora");
+                                var forecastInfoAvg = this.GetCompleteForecastOnAnAverage(lastCandle.OpenTime, "MA12");
                                 var forecastInfo = this.GetCompleteForecast(lastCandle.CloseValue,lastCandle.OpenTime);
 
                                 var maxAvg = forecastInfoAvg.ForecastLong;
@@ -499,10 +528,10 @@ namespace Midas.Core.Card
                                 };
 
                                 var line = String.Format(
-                                    "{0};{1:0.0000000};{2:0.0000000};{3:0.0000000};{4};{5}; {6:0.0000000};{7:0.0000000}; {8}; {9: 0.0000000}; {10}; {11}; {12:0.00}; {13}; {14}, {15:0.000}, {16:0.000}, {17}",
+                                    "{0};{1:0.0000000};{2:0.0000000};{3:0.0000000};{4};{5}; {6:0.0000000};{7:0.0000000}; {8}; {9: 0.0000000}; {10}; {11}; {12:0.00}; {13}; {14}, {15:0.000}, {16:0.000}, {17}, {18:0.000}",
                                     first.Tag, lowerBoundToPredict, upperBoundToPredict, result, status, statusTarget, forecastInfo.HighestDifference,
                                     forecastInfo.LowestDifFerence, 0, lastPredictionLastThreshold, fileName, _params.DelayedTriggerEnabled, _params.IndecisionThreshold, forecastInfo.TimeToGetHigh,
-                                    forecastInfo.AllValues, stopLoss, score2, tag2);
+                                    forecastInfo.AllValues, stopLoss, score2, tag2, diffLONG_ZERO);
 
                                 output.WriteLine(line);
                                 output.Flush();
@@ -795,7 +824,10 @@ namespace Midas.Core.Card
             }
 
             if(ret == 0)
+            {
                 ret = this.FinalClosing;
+                duration = new TimeSpan(3,0,0);
+            }
 
             return new Tuple<TimeSpan, double>(duration, ret);
         }        

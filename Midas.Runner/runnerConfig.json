@@ -1,18 +1,19 @@
 {
     "RunMode": "Create",
-    "ExperimentName": "run57",
-    "Asset": "BTCUSDT",
+    "ExperimentName": "run100",
+    "Asset": "BTCBUSD",
     "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-07-15 23:59:59",
-    "CandleType": "MIN5",
+    "EndDate": "2021-07-31 23:59:59",
+    "CandleType": "MIN15",
     "ScoreThreshold": 0.35,
-    "WindowSize": 60,
+    "WindowSize": 30,
     "ForecastWindow": 30,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "OutputFileResults": "Comparativo1.csv",
     "CardWidth": 1600,
-    "CardHeight": 800,
+    "CardHeight": 1600,
     "OutputMode": "All",
+    "AverageToForecast": "MA12",
 
     "StopLoss": -1,
     "AverageVerification": "MA 200 periodos",
@@ -27,7 +28,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 4
+            "Size": 7
         },
         {
             "Name": "MA100",
@@ -37,7 +38,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 4 
+            "Size": 7 
         },
         {
             "Name": "MA50",
@@ -47,17 +48,17 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 4  
+            "Size": 7  
         },
         {
-            "Name": "MAHora",
+            "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [12],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 4         
+            "Size": 7         
         },
         {
             "Name": "MA6",
@@ -67,7 +68,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 6
+            "Size": 7
         },
         {
             "Name": "ATR",
@@ -80,14 +81,24 @@
             "Color": "Pink"
         },
         {
-            "Name": "MA Volume Meio Dia",
+            "Name": "MA144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [144],
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 4
+            "Size": 7
+        },
+        {
+            "Name": "MA309",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MaxAverageIndicator",
+            "Params": [144],
+            "Source": "Volume",
+            "Color": "Gray",
+            "ChartType": "Line",
+            "Size": 3
         }
     ]
 }

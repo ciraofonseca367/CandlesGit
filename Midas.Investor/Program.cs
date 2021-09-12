@@ -23,10 +23,8 @@ namespace Midas.InVestor
 
             _investor.Start();
 
-            while(_investor.Running)
-                Thread.Sleep(100);
-            
-            _investor.Stop();
+           while(_investor.Running)
+                Thread.Sleep(1000);
         }
     }
 

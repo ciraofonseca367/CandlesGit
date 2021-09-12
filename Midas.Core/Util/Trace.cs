@@ -19,12 +19,15 @@ namespace Midas.Core.Util
         {
             var parans = RunParameters.GetInstance();
 
-            if (_singleTrace == null)
+            if (parans != null)
             {
-                lock (_lockSinc)
+                if (_singleTrace == null)
                 {
-                    if (_singleTrace == null)
-                        _singleTrace = new TraceAndLog(parans);
+                    lock (_lockSinc)
+                    {
+                        if (_singleTrace == null)
+                            _singleTrace = new TraceAndLog(parans);
+                    }
                 }
             }
 
@@ -36,14 +39,14 @@ namespace Midas.Core.Util
             _parans = parans;
             string filePrefix = String.Format("{0:yyyyMMdd}", DateTime.Now);
 
-            _logFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory,filePrefix + ".log"), FileMode.Append, FileAccess.Write, FileShare.Read));
-            _traceFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory,filePrefix + ".trace"), FileMode.Append, FileAccess.Write, FileShare.Read));
+            _logFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory, filePrefix + ".log"), FileMode.Append, FileAccess.Write, FileShare.Read));
+            _traceFile = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory, filePrefix + ".trace"), FileMode.Append, FileAccess.Write, FileShare.Read));
         }
 
         public static void StaticLog(string module, string description)
         {
             var logger = GetInstance();
-            if(logger != null)
+            if (logger != null)
                 logger.Log(module, description);
         }
 
@@ -51,17 +54,23 @@ namespace Midas.Core.Util
         {
             string entry = String.Format("{0:yyyy-MM-dd hh:mm:ss} - {1,30}:{2}", DateTime.Now, module, description);
             Console.WriteLine(entry);
-            _logFile.WriteLine(entry);
-            _logFile.Flush();
+            lock (_logFile)
+            {
+                _logFile.WriteLine(entry);
+                _logFile.Flush();
+            }
         }
 
         public void LogTrace(string module, string title, string description)
         {
             string entry = String.Format("{0:yyyy-MM-dd hh:mm:ss} - {1} - {2}", DateTime.Now, module, title);
-            _traceFile.WriteLine(entry);
-            _traceFile.WriteLine("");
-            _traceFile.WriteLine(description);
-            _traceFile.Flush();
+            lock (_traceFile)
+            {
+                _traceFile.WriteLine(entry);
+                _traceFile.WriteLine("");
+                _traceFile.WriteLine(description);
+                _traceFile.Flush();
+            }
         }
 
         public void LogTraceHttpAction(string module, string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body)
@@ -104,8 +113,20 @@ namespace Midas.Core.Util
 
     public class TraceEntry
     {
+        public TraceEntry()
+        {
+            Entry = DateTime.UtcNow;
+        }
+
         public DateTime Entry { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
+    }
+
+    public interface ILogger
+    {
+        void LogHttpCall(string action, HttpRequestHeaders headers, HttpResponseHeaders respHeaders, string completeUrl, string body);
+
+        void LogMessage(string module, string message);
     }
 }

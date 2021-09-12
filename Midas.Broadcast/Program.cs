@@ -45,7 +45,7 @@ namespace Midas.Broadcast
 
             _mongoClient = new MongoClient(parans.DbConString);
 
-            _manager = TradeOperationManager.GetManager(parans.DbConString, parans.FundName, parans.BrokerParameters);
+            _manager = TradeOperationManager.GetManager(null, parans.DbConString, parans.FundName, _params.BrokerName, parans.BrokerParameters, parans.Asset, parans.CandleType, "Broadcast");
 
             _lastHourUpdate = DateTime.MinValue;
             _lastHourDifference = 0;
@@ -94,8 +94,6 @@ namespace Midas.Broadcast
         public void Start()
         {
             _running = true;
-
-            _manager.SetKlineRunner(this);
 
             this._runner.Start();
         }
@@ -149,9 +147,9 @@ namespace Midas.Broadcast
             try
             {
                 liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
-                    "BTCUSDT",
+                    "BTCBUSD",
                     DateRange.GetInfiniteRange(),
-                    CandleType.MIN5
+                    runParams.CandleType
                 );
             }
             catch (Exception err)
@@ -182,7 +180,7 @@ namespace Midas.Broadcast
 
                 TraceAndLog.GetInstance().Log("Broadcast", String.Format("Starting broadcast with {0} cached candles", cacheCandles.Count));
 
-                liveStream.OnNewCandle((previewsC, cc) =>
+                liveStream.OnNewCandle((id,previewsC, cc) =>
                 {
                     var recentClosedCandle = previewsC;
 
@@ -192,7 +190,7 @@ namespace Midas.Broadcast
                     FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
                 });
 
-                liveStream.OnUpdate((message, cc) =>
+                liveStream.OnUpdate((id,message, cc) =>
                 {
                     _lastCandle = cc;
 
@@ -201,7 +199,7 @@ namespace Midas.Broadcast
 
                     DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                    var storedOperations = _manager.GetStoredOperations(DateTime.UtcNow.AddMinutes(-5 * 60));
+                    var storedOperations = _manager.GetActiveStoredOperations(_params.Asset,_params.CandleType, "Live", DateTime.Now);
                     if (storedOperations != null && storedOperations.Count > 0)
                     {
                         storedOperations = new List<TradeOperation> { storedOperations.Last() };
@@ -217,11 +215,10 @@ namespace Midas.Broadcast
                                 LowerBound = operation.GetAbsolutLowerBound(),
                                 UpperBound = operation.GetAbsolutUpperBound(),
                                 Gain = operation.GetGain(cc.CloseValue),
-                                StrenghMark = operation.StoredAverage,
+                                ExitValue = operation.StoredAverage,
                                 StopLossMark = operation.StopLossMark,
-                                SoftStopLossMark = operation.SoftStopLossMark,
                                 Volume = 1,
-                                State = operation.State.ToString() + (operation.IsForceActive ? " FORCE" : String.Empty),
+                                State = operation.State.ToString(),
                                 PointInTime_Open = operation.EntryDate,
                                 PointInTime_Close = operation.ExitDate
                             };
@@ -257,7 +254,7 @@ namespace Midas.Broadcast
                     {
                         Log("Updating report");
 
-                        var ops = _manager.SearchOperations(DateTime.Now.AddDays(-7));
+                        var ops = _manager.SearchOperations(null, DateTime.Now.AddDays(-7));
 
                         var lastDayOps = ops.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
 
@@ -474,7 +471,7 @@ namespace Midas.Broadcast
 
                     state = String.Format("=== 24 hrs Performance: {0:0.000}% :: 7 days Performance: {1:0.000}% ===", resultLastDay, resultLastWeek);
 
-                    var infoImage = new Bitmap(1600, 920);
+                    var infoImage = new Bitmap(_params.CardWidth, 920);
                     Graphics g = Graphics.FromImage(infoImage);
 
                     g.DrawString("$ " + currentCandle.CloseValue.ToString("#,##0.00"), new Font("Arial", 12), new SolidBrush(Color.Orange), 5, 2);

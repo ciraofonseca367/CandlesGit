@@ -8,6 +8,21 @@ using Midas.Core.Util;
 
 namespace Midas.Core.Telegram
 {
+    public class TelegramEmojis
+    {
+        public static string MoneyBag = "\U0001F4B0";
+        public static string MeanSmirking = "\U0001F612";
+        public static string GreenCheckBox = "\U00002705";
+
+        public static string PlusSign = "\U00002795";
+
+        public static string MinusSign = "\U00002796";
+
+        public static string GreenCheck = "\U00002705";
+
+        public static string RedX = "\U0000274C";
+
+    }
     public class TelegramBot
     {
         private static string BOT_API = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
@@ -19,6 +34,11 @@ namespace Midas.Core.Telegram
         {
             _last = DateTime.Now.AddSeconds(-10);
             _buffers = new Dictionary<string, DateTime>(7);
+        }
+
+        public static void SetApiCode(string code)
+        {
+            BOT_API = code;
         }
 
         public static async void SendImage(Bitmap img, string msg)
@@ -94,8 +114,14 @@ namespace Midas.Core.Telegram
 
         public static void SendMessageBuffered(string threadName, string msg)
         {
-            if (!_buffers.ContainsKey(threadName))
-                _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
+            if(threadName == null)
+                threadName = String.Empty;
+            
+            lock(_buffers)
+            {
+                if (!_buffers.ContainsKey(threadName))
+                    _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
+            }
 
             DateTime last = _buffers[threadName];
             if ((DateTime.Now - last).TotalSeconds > 60)

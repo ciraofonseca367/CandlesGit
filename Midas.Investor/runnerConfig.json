@@ -1,19 +1,52 @@
 {
-    "RunMode": "LiveStream",
-    "ExperimentName": "LiveStream1",
+    "RunMode": "Invest",
+    "ExperimentName": "Investing",
     "Asset": "BTCUSDT",
-    "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-06-23 23:59:59",
-    "CandleType": "MIN5",
+    "StartDate": "2021-08-01 00:00:00",
+    "EndDate": "2021-08-20 23:59:59",
+    "CandleType": "MIN15",
     "ScoreThreshold": -1,
-    "WindowSize": 60,
+    "WindowSize": 30,
     "CardWidth": 1600,
-    "CardHeight": 800,
+    "CardHeight": 1600,
     "DrawPrediction": true,
+    "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
-    
+
+    "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
+
+    "Forecaster": "ThirtyPeriodForecast",
+    "FeedStreamType": "Historical",
+    "BrokerName": "TestBroker",
+    "PreloadCandles": false,
+
+    "Assets": [
+        {
+            "Asset": "BTCBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.9,
+            "FundName": "BTCBUSD_MIN15",
+            "AtrStopLoss": 0.7,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.1,
+            "FollowPricePerc": 0.4,
+            "GainSoftStopTrigger": 0.75
+        },
+        {
+            "Asset": "ETHBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.9,
+            "FundName": "BTCBUSD_MIN15",
+            "AtrStopLoss": 1.5,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.1,
+            "FollowPricePerc": 0.2,
+            "GainSoftStopTrigger": 0.75
+        }
+    ],
+
     "Indicators": [
         {
             "Name": "MA200",
@@ -23,7 +56,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 2
+            "Size": 7
         },
         {
             "Name": "MA100",
@@ -33,7 +66,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 2 
+            "Size": 7 
         },
         {
             "Name": "MA50",
@@ -43,17 +76,17 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 2            
+            "Size": 7  
         },
         {
-            "Name": "MAHora",
+            "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [12],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 2            
+            "Size": 7         
         },
         {
             "Name": "MA6",
@@ -63,7 +96,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 5
+            "Size": 7
         },
         {
             "Name": "ATR",
@@ -76,15 +109,25 @@
             "Color": "Pink"
         },
         {
-            "Name": "MA Volume Meio Dia",
+            "Name": "MA144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [144],
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 4 
-        }
+            "Size": 7
+        },
+        {
+            "Name": "MA309",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MaxAverageIndicator",
+            "Params": [144],
+            "Source": "Volume",
+            "Color": "Gray",
+            "ChartType": "Line",
+            "Size": 3
+        }        
     ],
 
     "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
@@ -94,12 +137,12 @@
     "FundName": "TestFund",
 
     "BrokerParameters": {
-        "ApiKey": "hUKcnDYlH154l6vYjWm5MYirJoaVLhXyEkyc3sMhaI2dQZh6EnxoH050alC3J6ax",
-        "ApiSecret": "5yTc5tiMDelKsJhMoz9oxTEeISPv0tLEi6g8aOie6UoPWxhKsYwJuWWT4FjPVMgj",
+        "ApiKey": "Egocw2priEukckugyrsEzlb0z6KFo1MNFM0SxEdBlT5RUh4rN6PYL9z9kWX9nqh2",
+        "ApiSecret": "rIoZfJYGmo0lIZ2l8P26T9udYWPG0f7NDL3VR098TCGVk3woMzkfFDioDR0Fl5nG",
         "EndPoint": "https://testnet.binance.vision",
         "Host": "testnet.binance.vision",
-        "BIAS_DIFF_FORBUY": 0.9999,
-        "BIAS_DIFF_FORSELL": 1,
+        "BIAS_DIFF_FORBUY": 1.0003,
+        "BIAS_DIFF_FORSELL": 0.9997,
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
         "STOP_LOSS": 0.009,

@@ -21,6 +21,9 @@ namespace Midas.FeedStream
 
         private bool _running;
 
+        private DateTime _startOfTime;
+        private long _elapsedMilliseconds;
+
         public TestLiveAssetFeedStream(BinanceWebSocket socket, string asset, CandleType streamCandleType, CandleType queryCandleType)
             : base(asset, streamCandleType, queryCandleType)
         {
@@ -29,11 +32,11 @@ namespace Midas.FeedStream
 
             _timeline = new List<TestPoint>()
             {
-                new TestPoint() { WaitDuration = new TimeSpan(0,0,1), Variation = 0.25, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.3, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.6, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.2, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.4, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.11, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,15,0), Variation = 0.6, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,5,0), Variation = 0.5, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,10,0), Variation = 0.5, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,15,0), Variation = -1.6, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.7, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = -0.3, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = -0.1, Volume = 1},
@@ -41,7 +44,9 @@ namespace Midas.FeedStream
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.3, Volume = 1},
             };
 
-            _logger = new TradeLogger();
+            Console.WriteLine("Stream: TestLiveAssetStream");
+
+            _logger = new TradeLogger(base._queryCandleType);
         }
 
         public override void InitPrice(double initialPrice)
@@ -51,14 +56,15 @@ namespace Midas.FeedStream
         }
 
 
-        private void Expand()
+        private void Expand(DateTime relativeNow)
         {
-            var utcNow = DateTime.UtcNow;
+            var utcNow = relativeNow;
             DateTime now = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute, utcNow.Second, DateTimeKind.Utc);
-
-            DateTime start = now.AddSeconds(30);
-
+            
+            DateTime start = now;
+            
             double acumVariation = 0;
+
             _timeline[0].Previous = new TestPoint()
             {
                 WaitDuration = new TimeSpan(0,0,0),
@@ -66,7 +72,7 @@ namespace Midas.FeedStream
                 Volume = 0,
                 Range = null,
                 Previous = null,
-                AcumVariation = 0
+                AcumVariation = 0.01
             };
 
             _timeline[0].Range = new DateRange(start, start.Add(_timeline[1].WaitDuration));
@@ -88,7 +94,7 @@ namespace Midas.FeedStream
 
         private Candle HeartBeat()
         {
-            var utcNow = DateTime.UtcNow;
+            var utcNow = _startOfTime.AddMilliseconds(_elapsedMilliseconds);
             DateTime now = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute, utcNow.Second, DateTimeKind.Utc);
 
             Random r = new Random();
@@ -141,22 +147,27 @@ namespace Midas.FeedStream
 
         protected override void SocketRunner()
         {
-            Thread.Sleep(10000);
+            Thread.Sleep(5000);
 
-            Expand();
+            _startOfTime = DateTime.UtcNow;
+
+            Expand(_startOfTime);
+
+            
             
             Candle bufferCandle = null;
             Candle lastCandle = null;
+            _elapsedMilliseconds = 0;
 
             while (_running)
             {
                 bufferCandle = HeartBeat();
 
                 if (_socketInfo != null)
-                    _socketInfo(bufferCandle.ToString());
+                    _socketInfo("testAsset", bufferCandle.ToString());
 
                 if (_socketUpdate != null)
-                    _socketUpdate("Test", bufferCandle);
+                    _socketUpdate("testAsset","Test", bufferCandle);
 
                 //We've just changed candle, thus, we need to add the lastCandle to the internal buffer
                 if (lastCandle == null || bufferCandle.OpenTime > lastCandle.OpenTime)
@@ -165,12 +176,13 @@ namespace Midas.FeedStream
                         lastCandle = bufferCandle;
 
                     if (_socketNew != null)
-                        _socketNew(lastCandle, bufferCandle);
+                        _socketNew("testAsset",lastCandle, bufferCandle);
                 }
 
                 lastCandle = bufferCandle;
 
-                Thread.Sleep(500);
+                Thread.Sleep(100);
+                _elapsedMilliseconds += 10000;
             }
 
             _state = MidasSocketState.Closed;

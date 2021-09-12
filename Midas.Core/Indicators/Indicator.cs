@@ -76,5 +76,11 @@ namespace Midas.Core.Indicators
             var ret = _currentWindow.GetList().Where(p => range.IsInside(p.PointInTime_Open));
             return ret;
         }
+
+        public virtual IEnumerable<IStockPointInTime> TakeSnapShot()
+        {
+            var list = _currentWindow.GetList();
+            return list;
+        }        
     }
 }

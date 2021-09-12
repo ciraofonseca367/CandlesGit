@@ -140,7 +140,7 @@ namespace Midas.Core.Chart
         internal void DrawLineSeries(Serie s, Color c)
         {
             IStockPointInTime previousPoint = null;
-            int size = 50;
+            int size = 30;
 
             var maxPY = _minAmount;
             var minPY = _maxAmount;
@@ -151,6 +151,7 @@ namespace Midas.Core.Chart
                 minPY = s.PointsInTime.Min(p => p.AmountValue);
             }
 
+            ARROW_ENABLED = false;
             if (ARROW_ENABLED && (maxPY < _minAmount || minPY > _maxAmount))
             {
                 var x = Convert.ToInt32(_Width * s.RelativeXPos);
@@ -164,8 +165,9 @@ namespace Midas.Core.Chart
                     _painter.FillPolygon(new SolidBrush(c), new Point[] {
                         new Point(x-size, translateMin.y),
                         new Point(x+size, translateMin.y),
-                        new Point(x, translateMin.y+size)
-                    });
+                        new Point(x-size, translateMin.y+size),
+                        new Point(x+size, translateMin.y+size),                        
+                    });                    
                 }
                 else  // we are veeeeery away from this line from above
                 {
@@ -173,9 +175,10 @@ namespace Midas.Core.Chart
                     var translateMax = Translate(0, theAmount);
 
                     _painter.FillPolygon(new SolidBrush(c), new Point[] {
-                        new Point(x-size, translateMax.y+size+5),
-                        new Point(x+size, translateMax.y+size+5),
-                        new Point(x, translateMax.y+5)
+                        new Point(x-size, translateMax.y+size),
+                        new Point(x+size, translateMax.y+size),
+                        new Point(x-size, translateMax.y),
+                        new Point(x+size, translateMax.y)
                     });
                 }
             }
@@ -196,7 +199,8 @@ namespace Midas.Core.Chart
         {
             foreach (var p in s.PointsInTime)
             {
-                this.DrawBar(p, c);
+                Color barColor = (p.Direction == CandleDirection.Up ? Color.Green : Color.DarkRed);                
+                this.DrawBar(p, barColor);
             }
         }
 
@@ -234,21 +238,23 @@ namespace Midas.Core.Chart
 
             var timeStampOpen = InSeconds(point.PointInTime_Open);
             var timeStampClose = InSeconds(point.PointInTime_Close);
+
             var c1 = Translate(timeStampOpen, opc.LowerBound);
             var c2 = Translate(timeStampClose, opc.UpperBound);
 
-            var transparentColor = Color.FromArgb(200, c);
+            var transparentColor = Color.Gray;
             Pen p = new Pen(transparentColor, 5);
             p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
 
             Pen slp = new Pen(Color.Red, 5);
+            slp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
-            Pen sslp = new Pen(Color.PaleVioletRed, 5);
-
-            Pen stlp = new Pen(Color.LightGreen, 5);
+            Pen sslp = new Pen(Color.LightBlue, 5);
+            sslp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
             var gain = opc.Gain;
-            Color gainColor = (gain >= 0 ? Color.Green : Color.Red);
+            Color gainColor = (gain >= 0 ? Color.YellowGreen : Color.Red);
+            Pen stlp = new Pen(gainColor, 5);
 
             var highBodyY = (c1.y > c2.y ? c1.y : c2.y);
             var lowBodyY = (c2.y < c1.y ? c2.y : c1.y);
@@ -265,13 +271,17 @@ namespace Midas.Core.Chart
             var stopLine = Translate(timeStampOpen, opc.StopLossMark);
             _painter.DrawLine(slp, c1.x + 1, stopLine.y, c2.x, stopLine.y);
 
-            var softStopLine = Translate(timeStampOpen, opc.SoftStopLossMark);
+            var softStopLine = Translate(timeStampOpen, opc.SoftStopMark);
             _painter.DrawLine(sslp, c1.x + 1, softStopLine.y, c2.x, softStopLine.y);
 
-            if (opc.StrenghMark > 0)
+            var centerPointX = c2.x;
+
+            if (opc.ExitValue > 0)
             {
-                var strenghLine = Translate(timeStampOpen, opc.StrenghMark);
-                _painter.DrawLine(stlp, c1.x + 1, strenghLine.y, c2.x, strenghLine.y);
+                var exitLine = Translate(timeStampOpen, opc.ExitValue);
+                _painter.DrawLine(stlp, c1.x + 1, exitLine.y, c2.x, exitLine.y);
+
+                _painter.FillEllipse(new SolidBrush(gainColor), centerPointX - 7,exitLine.y-7,15,14);
             }
 
             _painter.DrawString(
@@ -503,7 +513,7 @@ namespace Midas.Core.Chart
                     while (currentPrice < vp.MaxAmount)
                     {
                         var Dot01Coord = vp.Translate(-1, currentPrice);
-                        Pen markerPen = new Pen(Color.Black);
+                        Pen markerPen = new Pen(Color.LightGray);
                         markerPen.Width = 4;
                         markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
                         d.DrawLine(markerPen, 0, Dot01Coord.y, canvas.Width, Dot01Coord.y);
@@ -533,7 +543,7 @@ namespace Midas.Core.Chart
                 if (priceLine > 0)
                 {
                     var priceLineCoord = vp.Translate(-1, priceLine);
-                    Pen pricePen = new Pen(Color.DarkGray);
+                    Pen pricePen = new Pen(Color.Black);
                     pricePen.Width = 2;
                     d.DrawLine(pricePen, 0, priceLineCoord.y, canvas.Width, priceLineCoord.y);
                 }

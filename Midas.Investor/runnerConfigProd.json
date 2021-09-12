@@ -1,18 +1,64 @@
 {
-    "RunMode": "LiveStream",
-    "ExperimentName": "LiveStream1",
-    "Asset": "BTCUSDT",
-    "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-06-23 23:59:59",
-    "CandleType": "MIN5",
-    "ScoreThreshold": -1,
+    "RunMode": "Invest",
+    "ExperimentName": "Investing",
+    "Asset": "BTCBUSD",
+    "ScoreThreshold": "0.42",
+    "CandleType": "MIN15",
     "WindowSize": 30,
     "CardWidth": 1200,
     "CardHeight": 800,
     "DrawPrediction": true,
-    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "OutputDirectory": "/root/cfi",
+    "DelayedTriggerEnabled": false,
+
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
-   
+    "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+
+    "TelegramBotCode": "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4",
+
+    "Forecaster": "ThirtyPeriodForecast",
+    "FeedStreamType": "Live",
+    "BrokerName": "Binance",
+    "PreloadCandles": true,
+
+    "Assets": [
+        {
+            "Asset": "BTCBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.42,
+            "FundName": "BTCBUSD_MIN15",
+            "AtrStopLoss": 1,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BNBBUSD",
+            "CandleType": "MIN15",
+            "ScoreThreshold": 0.42,
+            "FundName": "BNBBUSD_MIN15",
+            "AtrStopLoss": 1,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BTCBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThreshold": 0.42,
+            "FundName": "BTCBUSD_HOUR1",
+            "AtrStopLoss": 1,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.2
+        },
+        {
+            "Asset": "BNBBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThreshold": 0.42,
+            "FundName": "BNBBUSD_HOUR1",
+            "AtrStopLoss": 1,
+            "StopLossCompSoftness": 0.5,
+            "AvgCompSoftness": 0.2
+        }
+    ],    
     
     "Indicators": [
         {
@@ -33,7 +79,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 7 
+            "Size": 7
         },
         {
             "Name": "MA50",
@@ -43,17 +89,17 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 7  
+            "Size": 7        
         },
         {
-            "Name": "MAHora",
+            "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [12],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 7        
+            "Size": 7            
         },
         {
             "Name": "MA6",
@@ -83,27 +129,21 @@
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 4
+            "Size": 4 
         }
     ],
 
-    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
-    "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
-    "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
-
-    "FundName": "TestFund",
-
     "BrokerParameters": {
-        "ApiKey": "hUKcnDYlH154l6vYjWm5MYirJoaVLhXyEkyc3sMhaI2dQZh6EnxoH050alC3J6ax",
-        "ApiSecret": "5yTc5tiMDelKsJhMoz9oxTEeISPv0tLEi6g8aOie6UoPWxhKsYwJuWWT4FjPVMgj",
-        "EndPoint": "https://testnet.binance.vision",
-        "Host": "testnet.binance.vision",
-        "BIAS_DIFF_FORBUY": 0.9999,
-        "BIAS_DIFF_FORSELL": 1.0001,
-        "TIMEOUT_BUY": 200000,
+        "ApiKey": "tuqahOJW32rf6lT0agWTZDuFYQbjS7ngQ3dtp93JhHS1du30sUDTW5CDX472FJyD",
+        "ApiSecret": "QCbY0JH4EYbOqbrOtAtC3KTMnhmsqH4scnUxC1AlOfvwgRGnTLkqTY4UBZdT0FlB",
+        "EndPoint": "https://api.binance.com",
+	    "Host": "api.binance.com",
+        "BIAS_DIFF_FORBUY": 1.0001,
+        "BIAS_DIFF_FORSELL": 1.0000,
+        "TIMEOUT_BUY": 290000,
         "TIMEOUT_SELL": 60000,
-        "STOP_LOSS": 0.0099,
-        "MSI_WINDOW_SIZE_SECONDS": 900,
+        "STOP_LOSS": 0.004,
+        "MSI_WINDOW_SIZE_SECONDS": 1600,
         "MIN_TARGET_PROFIT": 0.007
-    }    
+    }
 }

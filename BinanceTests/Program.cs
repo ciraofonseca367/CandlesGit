@@ -12,7 +12,27 @@ namespace BinanceTests
     {
         static void Main(string[] args)
         {
-            //BinanceWebSocket socket = new BinanceWebSocket();
+            string streamUrl = "wss://stream.binance.com:9443/ws";
+
+            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN15);
+            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 100000, "BNBBUSD", Midas.Core.Common.CandleType.MIN15);
+
+            var btcStream = sockBTCBUSD.OpenAndSubscribe();
+            var bnbStream = sockBNBBUSD.OpenAndSubscribe();
+
+            btcStream.OnNewInfo(new Midas.FeedStream.SocketInfo(socketInfo));
+            bnbStream.OnNewInfo(new Midas.FeedStream.SocketInfo(socketInfo));
+
+            Console.WriteLine("Ouvindo...");
+            Console.Read();
+
+            btcStream.Dispose();
+            bnbStream.Dispose();
+        }
+
+        private static void socketInfo(string identification, string info)
+        {
+            Console.WriteLine(identification+": "+info);
         }
 
         private static void Chat()

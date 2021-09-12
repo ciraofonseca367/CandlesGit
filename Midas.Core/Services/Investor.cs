@@ -21,10 +21,11 @@ using Midas.Core.Util;
 using Telegram.Bot;
 using Telegram.Bot.Extensions.Polling;
 using System.Text;
+using Midas.Core.Trade;
 
 namespace Midas.Core.Services
 {
-    public class InvestorService : KlineRunner
+    public class InvestorService
     {
         private Thread _runner;
         private bool _running;
@@ -32,105 +33,133 @@ namespace Midas.Core.Services
 
         private MongoClient _mongoClient;
 
-        private FixedSizedQueue<HangingPrediction> _hangingPredictions;
+        private CandleBot _candleBot;
 
-        private TradeOperationManager _manager = null;
-
-        private NewCandleAction _klineObservers;
-
-        private RunnerAction _runnerObservers;
-
-        private StreamWriter _streamLog;
-
-        private double _lastHourDifference;
-        private double _lastHourValue;
-        private DateTime _lastHourUpdate;
+        private Dictionary<string, AssetTrader> _traders;
 
         public InvestorService(RunParameters parans)
         {
+            TelegramBot.SetApiCode(parans.TelegramBotCode);
+
             _params = parans;
             _runner = new Thread(new ThreadStart(this.Runner));
 
             _mongoClient = new MongoClient(parans.DbConString);
-            _hangingPredictions = new FixedSizedQueue<HangingPrediction>(10000);
 
-            _manager = TradeOperationManager.GetManager(parans.DbConString, parans.FundName, parans.BrokerParameters);
-            //_manager.RestoreState(_params.IsTesting);
-
-            _streamLog = new StreamWriter(File.Open(Path.Combine(parans.OutputDirectory, "stream.log"), FileMode.Create, FileAccess.Write, FileShare.Read));
-
-            _lastHourUpdate = DateTime.MinValue;
-            _lastHourDifference = 0;
-            _lastHourValue = 0;
         }
 
-        public void Subscribe(NewCandleAction action)
+        public string GetAssetsConfig()
         {
-            _klineObservers += action;
-        }
+            StringBuilder configs = new StringBuilder();
 
-        public void SubscribeToActions(RunnerAction action)
-        {
-            _runnerObservers += action;
-        }
-
-        private void UpdateLastHour(double amount)
-        {
-            bool send = false; ;
-            if (_lastHourUpdate == DateTime.MinValue)
+            foreach (var pair in _traders)
             {
-                _lastHourValue = amount;
-                _lastHourUpdate = DateTime.Now.AddHours(-2);
-                send = true;
+                configs.Append(pair.Value.GetParametersReport());
+                configs.AppendLine();
+                configs.AppendLine();
             }
 
-            if ((DateTime.Now - _lastHourUpdate).TotalMinutes > 60)
-            {
-                _lastHourDifference = ((amount - _lastHourValue) / amount) * 100;
-                _lastHourValue = amount;
-                send = true;
-
-                _lastHourUpdate = DateTime.Now;
-            }
-
-            if (send)
-            {
-                SendReport();
-            }
+            return configs.ToString();
         }
 
-        private void SendReport()
+        public void SendMessage(string thread, string message)
         {
-            var ops = _manager.SearchOperations(DateTime.Now.AddDays(-7));
-
-            var lastDayOps = ops.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
-
-            var resultLastDay = lastDayOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
-            var taxesLastDay = lastDayOps.Count() * 0.0012;
-            var resultWeek = ops.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
-            var taxesLastWeek = ops.Count() * 0.0012;
-
-            TelegramBot.SendMessage(String.Format("BTC Last hour update: {0:0.000}%", _lastHourDifference));
-
-            if (DateTime.Now.Hour == 20 || DateTime.Now.Hour == 21 || _params.IsTesting)
-            {
-                TelegramBot.SendMessage(String.Format("DAILY REPORT:\nLast 24 hrs Gain: {0:0.000}% \nLast 24 hrs taxes:{1:0.00}\nLast 7 days Gain: {2:0.000}%\nLast 7 days taxes:{3:0.00}",
-                resultLastDay * 100, resultWeek * 100, taxesLastDay * 100, taxesLastWeek * 100));
-            }
+            if (thread == null)
+                TelegramBot.SendMessage(message);
+            else
+                TelegramBot.SendMessageBuffered(thread, message);
         }
 
-        internal string GetReport()
+        public AssetTrader GetAssetTrader(string asset)
         {
-            var ops = _manager.SearchOperations(DateTime.Now.AddDays(-7));
+            AssetTrader trader = null;
+
+            _traders.TryGetValue(asset, out trader);
+
+            return trader;
+        }
+
+        public void Start()
+        {
+            _running = true;
+
+            LoadTraders();
+
+            Console.WriteLine("Starting with traders:");
+            foreach(var t in _traders)
+                Console.WriteLine(t.ToString());
+
+            this._runner.Start();
+
+            //Set up the Bot
+            _candleBot = new CandleBot(this, _params, _traders);
+            _candleBot.Start();
+
+            TelegramBot.SendMessage("Iniciando Investor...");
+        }
+
+
+
+        internal string GetAllReport()
+        {
+            StringBuilder sb = new StringBuilder();
+            List<double> days = new List<double>();
+            List<double> weeks = new List<double>();
+            List<double> months = new List<double>();
+
+            if (_traders.Count() > 0)
+            {
+                sb.Append("<code>");
+
+                sb.Append(String.Format("ASSET    D     W      M   \n"));
+                sb.Append(String.Format("---------------------------\n"));
+                foreach (var pair in _traders)
+                {
+                    var allOps = SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
+                    var lastDay = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
+                    var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
+
+                    var resultAll = allOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultAll *= 100;
+                    var resultWeek = lastWeek.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultWeek *= 100;
+                    var resultDay = lastDay.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
+                    resultDay *= 100;
+
+                    days.Add(resultDay);
+                    weeks.Add(resultWeek);
+                    months.Add(resultAll);
+
+                    sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
+                        pair.Value.GetShortIdentifier(), resultDay, resultWeek, resultAll));
+                    sb.AppendLine();
+                }
+
+                sb.Append(String.Format("---------------------------\n"));
+                sb.Append(String.Format("{0,5}{1,6:0.00}%{2,6:0.00}%{3,6:0.00}%",
+                String.Empty, days.Average(), weeks.Average(), months.Average()
+                ));
+                sb.Append("</code>");
+            }
+            else
+                sb.Append("NO TRANDERS ON");
+
+
+            return sb.ToString();
+        }
+
+        internal string GetReport(string asset, CandleType candleType)
+        {
+            var ops = SearchOperations(asset, candleType, DateTime.Now.AddDays(-7));
 
             var lastDayOps = ops.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
 
             var resultLastDay = lastDayOps.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
             resultLastDay *= 100;
-            var taxesLastDay = lastDayOps.Count() * -0.12;
+            var taxesLastDay = lastDayOps.Count() * -0.0006;
             var resultWeek = ops.Sum(op => (op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal);
             resultWeek *= 100;
-            var taxesLastWeek = ops.Count() * -0.12;
+            var taxesLastWeek = ops.Count() * -0.0006;
 
             string message;
 
@@ -140,66 +169,192 @@ namespace Midas.Core.Services
             return message;
         }
 
-        internal Bitmap GetSnapshot()
+        public List<TradeOperationDto> SearchOperations(string asset, CandleType candle, DateTime min)
         {
-            if (_lastCandle != null)
-                return GetSnapShot(_lastCandle);
-            else
-                return null;
+
+            return InvestorService.SearchOperations(_params.DbConString, null, asset, candle, min);
         }
 
-        internal string GetTextSnapShop()
+        public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
         {
-            StringBuilder sb = new StringBuilder(200);
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
 
-            if(_lastPrediction != null)
+            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
+            var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
+            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, min));
+            filterDefinition.Add(filterBuilder1.Ne(item => item.PriceExitReal, 0));
+            if (experiment != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
+            if (asset != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
+            if (candle != CandleType.None)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.ToList();
+        }
+
+        public static List<OperationsSummary> SummariseResult(List<TradeOperationDto> allOperations)
+        {
+            var summary = allOperations
+            .GroupBy(op => op.Asset + ":" + op.CandleType)
+            .Select(group => new OperationsSummary
             {
-                _lastPrediction.ForEach(p => {
-                    sb.AppendFormat("{0} : {1:0.000}%\n", p.Tag, p.Score);
-                });
+                Asset = group.Max(i => i.Asset),
+                CandleType = group.Max(i => i.CandleType),
+                OperationsCount = group.Count(),
+                PAndL = group.Sum(op => ((op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal) * 100),
+                OperationAvg = group.Sum(i => i.Gain)  / Convert.ToDouble(group.Count()),
+                SuccessRate = Convert.ToDouble(group.Count(i => i.State == TradeOperationState.Profit)) /
+                       Convert.ToDouble(group.Count())
+            });
+
+            return summary.ToList();
+        }
+ 
+        public string GetOperationsSummary(int days)
+        {
+            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
+            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
+            StringBuilder sb = new StringBuilder(500);
+
+            var summary = SummariseResult(allOperations);
+
+            int allCount = 0;
+            double allAvgPAndL = 0, allAvgPerTrans = 0, allRate = 0;
+
+            sb.Append("<code>");
+
+            sb.Append(String.Format("{0,6}{1,3}{2,7}{3,6}{4,4}\n", "ASSET", "E", "P&L", "Avg", "R"));
+            sb.Append(String.Format("-------------------------------\n"));
+            summary.ForEach(s =>
+            {
+                sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n",
+                    AssetTrader.GetShortIdentifier(s.Asset, s.CandleType),
+                    s.OperationsCount,
+                    s.PAndL,
+                    s.OperationAvg,
+                    s.SuccessRate
+                ));
+            });
+
+            allCount = summary.Sum(s => s.OperationsCount);
+            allAvgPAndL = summary.Average(s => s.PAndL);
+            allAvgPerTrans = summary.Average(s => s.OperationAvg);
+            allRate = summary.Average(s => s.SuccessRate);
+            sb.Append(String.Format("-------------------------------\n"));
+            sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n", "", allCount, allAvgPAndL, allAvgPerTrans, allRate));
+
+            sb.Append("</code>");
+
+            return sb.ToString();
+        }
+
+        public string GetLastOperations(int number)
+        {
+            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(-2));
+            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
+
+            StringBuilder sb = new StringBuilder(500);
+
+            allOperationsReverse.Take(number).ToList().ForEach(op =>
+            {
+                var emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
+                var duration = (op.ExitDate - op.EntryDate);
+
+                sb.Append($"{op.EntryDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
+                sb.Append($"IN: {op.PriceEntryReal:0.00} OUT: {op.PriceExitReal:0.00}\n");
+                sb.Append($"{duration.Hours}hr(s), {duration.Minutes}m(s)\n\n");
+            });
+
+            return sb.ToString();
+        }
+
+
+        public static List<TradeOperationDto> GetOperationToRestore(string conString, string asset, CandleType candle, string experiment, DateTime relativeNow)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
+
+            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
+            var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
+            filterDefinition.Add(filterBuilder1.Gte(item => item.LastUpdate, relativeNow.AddHours(-1)));
+            filterDefinition.Add(filterBuilder1.Eq(item => item.State, TradeOperationState.In));
+            if (asset != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
+            if (candle != CandleType.None)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
+            if (experiment != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.ToList();
+        }
+
+
+        public static List<TradeOperationDto> SearchActiveOperations(string conString, string asset, CandleType candle, string experiment, DateTime relativeNow)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
+
+            var filterBuilder1 = Builders<TradeOperationDto>.Filter;
+            var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
+            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddHours(-14)));
+            if (asset != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
+            if (candle != CandleType.None)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
+            if (experiment != null)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
+
+            var filter = filterBuilder1.And(filterDefinition.ToArray());
+
+            var query = dbCol.Find(filter).ToList();
+
+            return query.ToList();
+        }
+
+
+        public bool Running
+        {
+            get
+            {
+                return _running;
             }
+        }
+        public string GetAllTradersStatus()
+        {
+            StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine();
-
-            var candlesToDraw = _candleMovieRoll.GetList();
-            DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
-            double atr = GetCurrentAtr(range);
-
-            if(_lastPrice > 0 && atr > 0)
+            foreach (var pair in _traders)
             {
-                sb.AppendLine("Price: $"+_lastPrice.ToString("0.00"));
-                sb.AppendLine("ATR: $"+atr.ToString("0.00"));
-                sb.AppendLine("RATR: "+((atr/_lastPrice)*100).ToString("0.000")+"%");
+                sb.Append(pair.Value.GetState());
+                sb.AppendLine();
+                sb.AppendLine();
             }
 
             return sb.ToString();
         }
 
-        internal string ForceMaketOrder()
-        {
-            string ret;
-
-            try
-            {
-                var order = _manager.ForceMarketSell();
-                if (order.InError)
-                    ret = $"Order error: {order.ErrorMsg}";
-                else
-                    ret = $"SOLD! Avg: {order.AverageValue}";
-            }
-            catch (Exception err)
-            {
-                ret = $"Error selling: {err.Message}";
-            }
-
-            return ret;
-        }
 
         public string GetBalanceReport()
         {
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
-            var price = b.GetPriceQuote("BTCUSDT");
+            var priceBTC = b.GetPriceQuote("BTCBUSD");
+            var priceBNB = b.GetPriceQuote("BNBBUSD");
+            var priceADA = b.GetPriceQuote("ADABUSD");
+            var priceETH = b.GetPriceQuote("ETHBUSD");
 
             string emoticon = "\U00002705";
             string balanceReport = "BALANCE REPORT " + emoticon + "\n\n";
@@ -210,11 +365,17 @@ namespace Midas.Core.Services
                 if (b.TotalQuantity > 0.0001)
                 {
                     if (b.Asset == "BTC")
-                        b.TotalUSDAmount = b.TotalQuantity * price;
+                        b.TotalUSDAmount = b.TotalQuantity * priceBTC;
                     else if (b.Asset == "USDT")
                         b.TotalUSDAmount = b.TotalQuantity;
                     else if (b.Asset == "BUSD")
                         b.TotalUSDAmount = b.TotalQuantity;
+                    else if (b.Asset == "BNB")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
+                    else if (b.Asset == "ADA")
+                        b.TotalUSDAmount = b.TotalQuantity * priceADA;
+                    else if (b.Asset == "ETH")
+                        b.TotalUSDAmount = b.TotalQuantity * priceETH;
 
                     balanceReport += String.Format("{0}: {1:0.0000} = ${2:0.00}\n", b.Asset, b.TotalQuantity, b.TotalUSDAmount);
                 }
@@ -226,52 +387,43 @@ namespace Midas.Core.Services
             return balanceReport;
         }
 
-        internal string GetState()
+        public double GetAccountBalance()
         {
-            var op = _manager.GetOneActiveOperation();
+            BinanceBroker b = new BinanceBroker();
+            b.SetParameters(_params.BrokerParameters);
+            var priceBTC = b.GetPriceQuote("BTCBUSD");
+            var priceBNB = b.GetPriceQuote("BNBBUSD");
+            var priceADA = b.GetPriceQuote("ADABUSD");
+            var priceETH = b.GetPriceQuote("ETHBUSD");
 
-            return (op != null ? op.ToString() : "No active operation");
-        }
-
-        public void SendMessage(string thread, string message)
-        {
-            if (thread == null)
-                TelegramBot.SendMessage(message);
-            else
-                TelegramBot.SendMessageBuffered(thread, message);
-        }
-
-        public void Start()
-        {
-            TelegramBot.SendMessage("Iniciando Investor...");
-
-            _running = true;
-
-            _manager.SetKlineRunner(this);
-
-            this._runner.Start();
-
-            if (true || !_params.IsTesting)
+            var balances = b.AccountBalance(60000);
+            balances.ForEach(b =>
             {
-                //Set up the Bot
-                _candleBot = new CandleBot(this, _params);
-                _candleBot.Start();
-            }
-        }
+                if (b.TotalQuantity > 0.0001)
+                {
+                    if (b.Asset == "BTC")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBTC;
+                    else if (b.Asset == "USDT")
+                        b.TotalUSDAmount = b.TotalQuantity;
+                    else if (b.Asset == "BUSD")
+                        b.TotalUSDAmount = b.TotalQuantity;
+                    else if (b.Asset == "BNB")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
+                    else if (b.Asset == "ADA")
+                        b.TotalUSDAmount = b.TotalQuantity * priceADA;
+                    else if (b.Asset == "ETH")
+                        b.TotalUSDAmount = b.TotalQuantity * priceETH;
+                }
+            });
 
-        public bool Running
-        {
-            get
-            {
-                return _running;
-            }
+            return balances.Sum(b => b.TotalUSDAmount);
         }
 
         public void Stop()
         {
             _running = false;
 
-            DisposeResources();
+            _runner.Join();
 
             if (!_runner.Join(1000))
                 throw new ApplicationException("Timeout waiting for the runner to stop");
@@ -279,514 +431,134 @@ namespace Midas.Core.Services
 
         private void DisposeResources()
         {
-            if (_streamLog != null)
-                _streamLog.Dispose();
-
-            TraceAndLog.GetInstance().Dispose();
-
             Console.WriteLine("Saindo...");
 
+            StopTraders();
+
             _candleBot.Stop();
+
+            TraceAndLog.GetInstance().Dispose();
         }
 
-        private void FeedIndicators(IStockPointInTime point, string source)
+        private void StartTraders()
         {
-            foreach (var ind in _params.Indicators)
-            {
-                if (ind.Source == source)
-                    ind.AddPoint(point);
-            }
+            foreach (var pair in _traders)
+                pair.Value.Start();
         }
 
-        private void NewInfo(string message)
+        public void StopTraders()
         {
-            if (_params.IsTesting)
-                Console.WriteLine(message);
+            foreach (var pair in _traders)
+                pair.Value.Stop();
 
-            if (_streamLog != null)
-            {
-                _streamLog.WriteLine(message);
-                _streamLog.Flush();
-            }
+            _traders = null;
         }
-        private Candle candleThatPredicted = null;
-        private Candle _lastCandle = null;
 
-        private FixedSizedQueue<Candle> _candleMovieRoll;
+        public void RestartTraders()
+        {
+            if (_traders != null)
+            {
+                foreach (var pair in _traders)
+                    pair.Value.Stop();
+            }
 
-        private DateTime _lastOperationUpdate;
+            _traders = _params.GetAssetTraders(this);
 
-        private Bitmap _lastImage = null;
-        private List<PredictionResult> _lastPrediction = null;
-        private double _lastAtr = 0;
-        private double _lastPrice = 0;
-        private CandleBot _candleBot;
+            foreach (var pair in _traders)
+                pair.Value.Start();
+        }
+
+        private void LoadTraders()
+        {
+            _traders = _params.GetAssetTraders(this);
+        }
 
         public void Runner()
         {
-            LiveAssetFeedStream liveStream = null;
-
-            var runParams = _params;
-
-            _lastOperationUpdate = DateTime.MinValue;
-
-            try
-            {
-                liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
-                    "btcusdt",
-                    DateRange.GetInfiniteRange(),
-                    CandleType.MIN5
-                );
-
-                if (_params.IsTesting)
-                {
-                    BinanceBroker b = new BinanceBroker();
-                    b.SetParameters(_params.BrokerParameters);
-                    var price = b.GetPriceQuote("BTCUSDT");
-                    liveStream.InitPrice(price);
-                }
-            }
-            catch (Exception err)
-            {
-                TraceAndLog.StaticLog("Main", err.ToString());
-                _running = false;
-            }
-
-            _candleMovieRoll = new FixedSizedQueue<Candle>(runParams.WindowSize);
-
-            var cacheCandles = GetCachedCandles();
-            cacheCandles.ForEach(c =>
-            {
-                _candleMovieRoll.Enqueue(c);
-
-                FeedIndicators(c, "Main");
-            });
-
-            var initialVolumes = cacheCandles.Select(p => new VolumeIndicator(p));
-            foreach (var v in initialVolumes)
-                FeedIndicators(v, "Volume");
-
-            Task<List<PredictionResult>> predictions = null;
-
-
-            Bitmap img = null;
-            string currentTrend = "None";
-
-            TraceAndLog.GetInstance().Log("Runner", String.Format("Starting runner with {0} cached candles", cacheCandles.Count));
-
-            liveStream.OnNewInfo(this.NewInfo);
-
-            liveStream.OnNewCandle((previewsC, cc) =>
-            {
-                try
-                {
-                    TraceAndLog.GetInstance().Log("Runner", "====== A new candle has just been created ======");
-
-                    currentTrend = "None";
-                    candleThatPredicted = null;
-
-                    var recentClosedCandle = previewsC;
-
-                    //Feed the indicators
-                    _candleMovieRoll.Enqueue(recentClosedCandle);
-                    FeedIndicators(recentClosedCandle, "Main");
-                    FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
-
-                    //Let us get a snapshot of the moment to predict the future shall we?
-                    var candlesToDraw = _candleMovieRoll.GetList();
-                    var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
-
-                    DateRange range = new DateRange(candlesToDraw.First().OpenTime, candlesToDraw.Last().OpenTime);
-
-                    img = GetImage(runParams, candlesToDraw, volumes, range, null, false);
-                    _lastImage = img;
-
-                    //Get a prediction
-                    RestPredictionClient predict = new RestPredictionClient();
-                    float restThreshould = (_params.IsTesting ? -2f : 0.1f); //Se estivermos testando sempre pede uma previsão de testes, se não manda o minimo de 0.1 para vir todas as previsões classificadas e estudarmos aqui e filtrar abaixo
-                    predictions = predict.PredictAsync(img, restThreshould, recentClosedCandle.CloseValue, recentClosedCandle.OpenTime);
-                    if (predictions.Wait(10000))
-                    {
-                        StorePrediction(predictions.Result);
-
-                        var result = predictions.Result;
-                        _lastPrediction = result;
-                        if (result.Count > 0)
-                        {
-                            var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
-                            var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
-                            var predictionND = result.Where(p => p.Tag == "ND").FirstOrDefault();
-
-                            int rankShort=0;
-                            for(int i=0;i<result.Count;i++)
-                            {
-                                if(result[i].Tag == "SHORT")
-                                {
-                                    rankShort = i+1;
-                                    break;                                    
-                                }
-                            }
-
-                            if(predictionLong != null && predictionLong.Score >= _params.ScoreThreshold)
-                            {
-                                if(rankShort == 2 || rankShort == 1) //Neste caso temos LONG com score para entrar, mas temos Short maior que Long, ou maior que o ND.
-                                {
-                                    TelegramBot.SendMessageBuffered("AVISO", "Double Conflict LONG & SHORT");
-                                    TraceAndLog.GetInstance().Log("Runner", "Double Conflict LONG & SHORT");
-                                }
-                                else
-                                {
-                                    candleThatPredicted = recentClosedCandle;
-                                    foreach (var prediction in result)
-                                    {
-                                        TraceAndLog.GetInstance().Log("Runner", "Here is a prediction: " + prediction.ToString());
-                                    }
-
-                                    currentTrend = result.First().Tag;
-                                    TelegramBot.SendImageBuffered("PredictImage", img, "Trend: " + currentTrend.ToString());
-                                    _manager.Signal(predictions.Result.FirstOrDefault().GetTrend());
-                                }
-                            }
-                        }
-                    }
-                    else
-                        TraceAndLog.GetInstance().Log("Runner", "Timeout waiting on a prediction!!!");
-
-                }
-                catch (Exception err)
-                {
-                    TraceAndLog.GetInstance().Log("Predict Error", err.ToString());
-                }
-
-            });
-
-            Task currentEnterTask = null;
-            Task currentUpdateObserverTask = null;
-            liveStream.OnUpdate((message, cc) =>
-            {
-                _lastCandle = cc;
-                _lastPrice = cc.CloseValue;
-                try
-                {
-                    if (candleThatPredicted != null && (_params.IsTesting || cc.OpenTime > candleThatPredicted.OpenTime)) //Delayed Trigger buffer
-                    {
-                        var currentCandle = cc;
-
-                        if (currentTrend.StartsWith("LONG"))
-                        {
-                            if (
-                                _params.IsTesting ||
-                                (
-                                    candleThatPredicted.Direction == CandleDirection.Down &&
-                                    currentCandle.CandleAge.TotalSeconds >= 200 && currentCandle.GetPureIndecisionThreshold() >= _params.IndecisionThreshold
-                                ) ||
-                                candleThatPredicted.Direction == CandleDirection.Up
-                            )
-                            {
-                                if (currentEnterTask == null || currentEnterTask.IsCompleted)
-                                {
-                                    currentEnterTask = Task.Run(() =>
-                                    {
-                                        try
-                                        {
-                                            var candlesToDraw = _candleMovieRoll.GetList();
-                                            DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
-                                            double atr = GetCurrentAtr(range);
-
-                                            _lastAtr = atr;
-
-                                            Console.WriteLine("Entrando com ATR: " + atr);
-
-                                            var prediction = predictions.Result.FirstOrDefault();
-                                            var op = _manager.SignalEnterAsync(
-                                                cc.CloseValue,
-                                                prediction.RatioLowerBound,
-                                                prediction.RatioUpperBound,
-                                                cc.OpenTime,
-                                                prediction.DateRange.End,
-                                                atr
-                                                );
-
-                                            TelegramBot.SendMessageBuffered("Entrada", "Operação ativa! Veja ao vivo em: https://www.twitch.tv/cirofns");
-
-                                            op.Wait(20000);
-                                        }
-                                        catch (Exception err)
-                                        {
-                                            TraceAndLog.StaticLog("Main", "Error entering: " + err.ToString());
-                                        }
-                                    });
-
-                                }
-                                else
-                                {
-                                    TraceAndLog.GetInstance().Log("Candle Update - Entrada", "There is already a task running, ignoring this update...");
-                                }
-                            }
-                        }
-                    }
-
-                    if (currentUpdateObserverTask == null || currentUpdateObserverTask.IsCompleted)
-                    {
-                        currentUpdateObserverTask = Task.Run(() =>
-                        {
-                            try
-                            {
-                                _klineObservers.Invoke(cc);
-                            }
-                            catch (Exception err)
-                            {
-                                TraceAndLog.GetInstance().Log("Runner", "Error invoking KlineObserver - " + err.Message);
-                            }
-                        });
-                    }
-                    else
-                    {
-                        TraceAndLog.GetInstance().Log("Candle Update - Observer", "There is already a task running, ignoring this update...");
-                    }
-
-                    UpdateLastHour(cc.CloseValue);
-
-                }
-                catch (Exception err)
-                {
-                    TraceAndLog.GetInstance().Log("Entrada Error", err.ToString());
-                }
-            });
-
-            if (_params.IsTesting)
-            {
-                liveStream.OnUpdate((message, cc) =>
-                {
-                    var imgToBroadcast = GetSnapShot(cc);
-                    imgToBroadcast.Save(Path.Combine(_params.OutputDirectory, "LiveInvestor.png"), System.Drawing.Imaging.ImageFormat.Png);
-                });
-            }
+            StartTraders();
 
             while (_running)
-                Thread.Sleep(1000);
-
-            if (liveStream != null)
-                liveStream.Close();
-
-        }
-
-        private double GetCurrentAtr(DateRange range)
-        {
-            var atrInd = _params.Indicators.Where(i => i.Name == "ATR").First();
-
-            return atrInd.TakeSnapShot(range).Last().AmountValue;
-        }
-
-        private Bitmap GetSnapShot(Candle cc)
-        {
-            var candlesToDraw = _candleMovieRoll.GetList().Union(new Candle[] { cc });
-            var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
-            Bitmap imgToBroadcast;
-
-            DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
-
-            var storedOperations = _manager.GetStoredOperations(DateTime.UtcNow.AddMinutes(-5 * 30));
-            if (storedOperations != null && storedOperations.Count > 0)
             {
-                storedOperations = new List<TradeOperation> { storedOperations.Last() };
-                List<VolumeIndicator> newVolumes = volumes.ToList();
+                Thread.Sleep(60000);
 
-                var predictionSerie = new Serie();
-                foreach (var operation in storedOperations)
+                try
                 {
-                    var forecastPoint = new TradeOperationCandle()
+                    if(DateTime.UtcNow.Hour == 0)
                     {
+                        double balance = GetAccountBalance();
+                        var br = new BalanceReport(balance);
+                        br.SaveOrUpdate(_params.DbConString);
 
-                        AmountValue = operation.PriceEntry,
-                        LowerBound = operation.GetAbsolutLowerBound(),
-                        UpperBound = operation.GetAbsolutUpperBound(),
-                        Gain = operation.GetGain(cc.CloseValue),
-                        StrenghMark = operation.StoredAverage,
-                        StopLossMark = operation.StopLossMark,
-                        SoftStopLossMark = operation.SoftStopLossMark,
-                        Volume = 1,
-                        State = operation.State.ToString() + (operation.IsForceActive ? " FORCE" : String.Empty),
-                        PointInTime_Open = operation.EntryDate,
-                        PointInTime_Close = operation.ExitDate
-                    };
-                    if (!operation.IsIn)
-                        forecastPoint.Gain = operation.GetGain();
-
-                    predictionSerie.PointsInTime.Add(forecastPoint);
-
-                    //We need to add a corresponding volume point o keep the proporcion right
-                    newVolumes.Add(new VolumeIndicator(forecastPoint));
-                }
-
-                predictionSerie.Name = "Predictions";
-                predictionSerie.Color = Color.LightBlue;
-                predictionSerie.Type = SeriesType.Forecast;
-
-                var theOperation = storedOperations.Last();
-
-                imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
-            }
-            else
-            {
-                imgToBroadcast = GetImage(_params, candlesToDraw, volumes, range, null, false);
-            }
-
-            return imgToBroadcast;
-        }
-
-
-
-        private Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, Serie prediction = null, bool onlySim = true)
-        {
-            Bitmap img = null;
-            DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
-
-            var frameMap = new Dictionary<string, ChartView>();
-            frameMap.Add("Main", dv.AddChartFrame(70));
-            frameMap.Add("Volume", dv.AddChartFrame(30));
-
-            frameMap["Main"].AddSerie(new Serie()
-            {
-                PointsInTime = candles.ToList(),
-                Name = "Main",
-            });
-
-            if (prediction != null)
-                frameMap["Main"].AddSerie(prediction);
-
-            frameMap["Volume"].AddSerie(new Serie()
-            {
-                PointsInTime = volumes.ToList<IStockPointInTime>(),
-                Name = "Volume",
-                Color = Color.LightBlue,
-                Type = SeriesType.Bar,
-            });
-
-            var grouped = runParams.Indicators.GroupBy(i => i.Target);
-            foreach (var group in grouped)
-            {
-                if (frameMap.ContainsKey(group.Key))
-                {
-                    foreach (var ind in group)
-                    {
-                        Serie s = new Serie();
-                        s.PointsInTime = ind.TakeSnapShot(range).ToList();
-                        s.Name = ind.Name;
-                        s.Color = ind.Color;
-                        s.Type = ind.Type;
-                        s.LineSize = ind.Size;
-
-                        if (s.Name == "MA200")
-                            s.RelativeXPos = 0.95;
-                        else if (s.Name == "MA100")
-                            s.RelativeXPos = 0.85;
-                        else if (s.Name == "MA50")
-                            s.RelativeXPos = 0.75;
-
-                        if (s.Name != "MA Volume Meio Dia")
-                            s.Frameble = false;
-
-                        frameMap[group.Key].AddSerie(s);
+                        TelegramBot.SendMessage($"Balance for the {DateTime.Now:yyyy-MM-dd} is $ {balance:0.000}");
+                        TraceAndLog.StaticLog("Investor","Daily balance updated");
                     }
                 }
-            }
-
-            bool isSim = false;
-            img = dv.GetImage(ref isSim);
-
-            if (onlySim && !isSim)
-                img = null;
-
-            return img;
-        }
-
-        private List<Candle> GetCachedCandles()
-        {
-            var client = new MongoClient(_params.DbConStringCandles);
-
-            var database = client.GetDatabase("CandlesFaces");
-
-            var dbCol = database.GetCollection<Candle>(String.Format("Klines_{0}_{1}", _params.Asset, _params.CandleType.ToString()));
-            var itens = dbCol.Find(new BsonDocument()).ToList();
-
-            //Filter only the candles for our windowsize
-            var lastXCandles = itens
-            .Where(i => i.CloseTime > DateTime.UtcNow.AddMinutes(_params.WindowSize * 20 * Convert.ToInt32(_params.CandleType) * -1))
-            .OrderBy(i => i.OpenTime);
-
-            return lastXCandles.ToList();
-        }
-
-        private void StorePrediction(List<PredictionResult> res)
-        {
-            try
-            {
-                var rec = new PredictionRecord()
+                catch(Exception err)
                 {
-                    UtcCreationDate = DateTime.UtcNow,
-                    Predictions = res
-                };
-
-                var client = new MongoClient(_params.DbConString);
-
-                var database = client.GetDatabase("CandlesFaces");
-
-                var dbCol = database.GetCollection<PredictionRecord>("Predictions");
-
-                dbCol.InsertOneAsync(rec);
+                    TraceAndLog.StaticLog("Investor","Error updating daily balance - "+err.ToString());
+                }
             }
-            catch (Exception err)
+
+            DisposeResources();
+        }
+    }
+
+    public class OperationsSummary
+    {
+        private int _operationsCount;
+        private double _pAndL;
+
+        private double _operationAvg;
+        private double _sucessRate;
+        private string _asset;
+
+        public int OperationsCount { get => _operationsCount; set => _operationsCount = value; }
+        public double PAndL { get => _pAndL; set => _pAndL = value; }
+        public double OperationAvg { get => _operationAvg; set => _operationAvg = value; }
+        public double SuccessRate { get => _sucessRate; set => _sucessRate = value; }
+        public string Asset { get => _asset; set => _asset = value; }
+        public CandleType CandleType { get; set; }
+    }
+
+    public class BalanceReport
+    {
+        public double Balance { get; set; }
+        public DateTime Date { get; set; }
+        private string _dateKey;
+
+        public BalanceReport(double balance)
+        {
+            Date = DateTime.UtcNow;
+            _dateKey = Date.ToString("yyyy-MM-dd HH");
+            Balance = balance;
+        }
+
+        public string DateKey
+        {
+            get
             {
-                TraceAndLog.StaticLog("Store Prediction", err.Message);
+                return _dateKey;
+            }
+            set
+            {
+                _dateKey = value;
             }
         }
-    }
 
-    public class PredictionRecord
-    {
-        public DateTime UtcCreationDate
+        public void SaveOrUpdate(string conString)
         {
-            get;
-            set;
+            var mongoClient = new MongoClient(conString);
+
+            var database = mongoClient.GetDatabase("CandlesFaces");
+
+            var dbCol = database.GetCollection<BalanceReport>("DailyBalances");
+
+            var result = dbCol.ReplaceOne(
+                item => item.DateKey == _dateKey,
+                this,
+                new ReplaceOptions { IsUpsert = true });
         }
 
-        public List<PredictionResult> Predictions
-        {
-            get;
-            set;    
-        }
-    }
-
-    public class HangingPrediction
-    {
-        public PredictionResult Prediction
-        {
-            get;
-            set;
-        }
-
-        public DateTime Timestamp
-        {
-            get;
-            set;
-        }
-
-        public string GetComparisonStamp()
-        {
-            return Timestamp.ToString("yyyy-MM-dd hh:mm:ss");
-        }
-
-        public int ExpirationInMinutes
-        {
-            get;
-            set;
-        }
-
-        public bool HasExpired(DateTime currentPoint)
-        {
-            return currentPoint > Timestamp.AddMinutes(ExpirationInMinutes);
-        }
     }
 
 }

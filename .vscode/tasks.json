@@ -44,7 +44,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/Midas.Core.Tests/Midas.Core.Tests.csproj"
+                "${workspaceFolder}/Midas.Core.NewTests/Midas.Core.NewTests.csproj"
             ]
         }
     ]

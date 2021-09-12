@@ -69,6 +69,8 @@ namespace Midas.Core.Chart
             //Paint the full canvas as blank
             g.FillRectangle(new SolidBrush(Color.White), 0, 0, _Width, _Height);
 
+            _views.Reverse();
+
             foreach(var v in _views)
             {
                 var value = 0;

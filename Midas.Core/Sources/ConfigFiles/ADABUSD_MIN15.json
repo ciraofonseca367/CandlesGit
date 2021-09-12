@@ -1,0 +1,17 @@
+{
+    "GroupLevel": "MIN15",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/ADABUSD_MIN15/",
+            "Mask": "'ADABUSD-15M-'yyyy-MM'.csv'",
+            "DateStart": "2021-07-01 00:00:00",
+            "DateEnd": "2021-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/ADABUSD_MIN15/",
+            "Mask": "'ADABUSD-15m-'yyyy-MM-dd'.csv'",
+            "DateStart": "2021-08-01 00:00:00",
+            "DateEnd": "2021-08-20 23:59:59"
+        }
+    ]
+}

@@ -24,10 +24,12 @@ namespace Midas.Core.NewTests
             config.EndPoint = endPoint;
             config.Host = "testnet.binance.vision";
 
-            TradeOperation op = new TradeOperation(null, 0.001, 0.01,0.05, DateTime.Now.AddMinutes(60),
-            "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
-            config
-            );
+            // TradeOperation op = new TradeOperation(null, 0.001, 0.01,0.05, DateTime.Now.AddMinutes(60),
+            // "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
+            // config, "BTCBUSD", Common.CandleType.MIN15
+            // );
+
+            TradeOperation op = null;
 
             op.OnCandleUpdateAsync(new Common.Candle()
             {

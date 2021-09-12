@@ -13,18 +13,17 @@ using Midas.Core.Util;
 
 namespace Midas.FeedStream
 {
-    public delegate void SocketNewCancle(Candle previous, Candle current);
+    public delegate void SocketNewCancle(string identification,Candle previous, Candle current);
 
-    public delegate void SocketEvent(string message, Candle c);
+    public delegate void SocketEvent(string identification,string message, Candle c);
 
-    public delegate void SocketInfo(string message);
+    public delegate void SocketInfo(string identification, string message);
     
 
     public abstract class LiveAssetFeedStream : AssetFeedStream, IDisposable
     {
         protected BinanceWebSocket _socket;
         protected string _asset;
-
         protected CandleType _streamCandleType;
         protected CandleType _queryCandleType;
 
@@ -79,8 +78,6 @@ namespace Midas.FeedStream
         public abstract void OpenSocket(string asset);
 
         private int _retryAttempts = 0;
-        private static int TOTAL_RETRIES = 3;
-
         protected MidasSocketState _state;
 
         public MidasSocketState State
@@ -100,33 +97,39 @@ namespace Midas.FeedStream
 
             Candle lastCandle = null;
             BinanceWebSocket _backupSocket = null;
+            bool _starting=true;
 
             while (!_closing)
             {
                 try
                 {
+                    if(_starting) //We Open and Subscribe to the socket only inside the loop cause the first open sometimes generates a timeout
+                    {
+                        _starting = false;
+
+                        this._socket.ReOpenAndSubscribe();
+
+                        if (_socketInfo != null)
+                            _socketInfo(_asset, "Connected: " + this._socket.SocketStatus);
+                    }
+
                     if (this._socket == null)
                     {
                         _retryAttempts++;
 
-                        if (_retryAttempts <= TOTAL_RETRIES)
-                        {
-                            this._socket = _backupSocket;
-                            this._socket.OpenAndSubscribe();
+                        TraceAndLog.StaticLog("Socket",_retryAttempts+ " - Trying to connect again..");
+                        
+                        this._socket = _backupSocket;
+                        this._socket.ReOpenAndSubscribe();
 
-                            if (_socketInfo != null)
-                                _socketInfo("Socket is null, I will try to create another! - " + this._socket.SocketStatus);
-                        }
-                        else
-                        {
-                            break;
-                        }
+                        if (_socketInfo != null)
+                            _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
                     }
 
                     var buffer = this._socket.ReconnetableReceive();
 
                     if (_socketInfo != null)
-                        _socketInfo(buffer);
+                        _socketInfo(_asset, buffer);
 
                     if (buffer.IndexOf("result") == -1) //Ignore Sometimes when the connection starts binance will return a JSON with result:null
                     {
@@ -140,7 +143,7 @@ namespace Midas.FeedStream
                             bufferCandle = tmpCandle;
 
                         if(_socketUpdate != null)
-                            _socketUpdate(buffer, bufferCandle);
+                            _socketUpdate(_asset, buffer, bufferCandle);
 
                         //We've just changed candle, thus, we need to add the lastCandle to the internal buffer
                         if (lastCandle == null || bufferCandle.OpenTime > lastCandle.OpenTime)
@@ -149,7 +152,7 @@ namespace Midas.FeedStream
                                 lastCandle = bufferCandle;
 
                             if(_socketNew != null)
-                                _socketNew(lastCandle, bufferCandle);
+                                _socketNew(_asset, lastCandle, bufferCandle);
                         }
 
                         lastCandle = bufferCandle;
@@ -164,10 +167,10 @@ namespace Midas.FeedStream
 
                     this._socket = null;
                     if(_socketInfo != null)
-                        _socketInfo(msg);
+                        _socketInfo(_asset, msg);
                     
                     TraceAndLog.StaticLog("Socket", msg);
-                    Thread.Sleep(5000);
+                    Thread.Sleep(20000);
                 }
             }
 
@@ -177,10 +180,11 @@ namespace Midas.FeedStream
         public virtual void Close(bool fromGC = false)
         {
             _closing = true;
+
             if(_socket != null)
                 _socket.Dispose();
 
-            _threadRunner.Join(1000);
+            _threadRunner.Join(5000);
 
             if (!fromGC)
                 GC.SuppressFinalize(this);
@@ -206,6 +210,7 @@ namespace Midas.FeedStream
         */
         public BinanceLiveAssetFeedStream(BinanceWebSocket socket, string asset, CandleType streamCandleType, CandleType queryCandleType) : base(socket, asset, streamCandleType, queryCandleType)
         {
+            Console.WriteLine("Stream: BinanceLiveAssetStream");
         }
 
         public override int BufferCount()
@@ -215,8 +220,7 @@ namespace Midas.FeedStream
 
         public override void OpenSocket(string asset)
         {
-            base._socket = new BinanceWebSocket("wss://stream.binance.com:9443/ws/", 10000, asset, "5m");
-            base._socket.OpenAndSubscribe();
+            throw new NotImplementedException();
         }
 
         public override Candle ParseCandle(string buffer)
