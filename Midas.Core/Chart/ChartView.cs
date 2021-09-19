@@ -544,7 +544,7 @@ namespace Midas.Core.Chart
                 {
                     var priceLineCoord = vp.Translate(-1, priceLine);
                     Pen pricePen = new Pen(Color.Black);
-                    pricePen.Width = 2;
+                    pricePen.Width = 5;
                     d.DrawLine(pricePen, 0, priceLineCoord.y, canvas.Width, priceLineCoord.y);
                 }
 

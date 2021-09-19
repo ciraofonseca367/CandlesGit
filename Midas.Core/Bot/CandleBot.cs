@@ -208,7 +208,7 @@ namespace Midas.Core.Telegram
                         {
                             await botClient.SendTextMessageAsync(
                                 chatId: message.Chat.Id,
-                                text: trend);
+                                text: trend,parseMode: ParseMode.Html);
 
                             using (MemoryStream ms = new MemoryStream())
                             {
@@ -437,8 +437,7 @@ namespace Midas.Core.Telegram
                 new KeyboardButton[][]
                 {
                     new KeyboardButton[] { "Snapshot","State" },
-                    new KeyboardButton[] { "Close Position", "Force Sell" },
-                    new KeyboardButton[] { "P&L"},
+                    new KeyboardButton[] { "Close Position", "P&L" },
                     new KeyboardButton[] { "Back"}
                 })
             {
@@ -485,50 +484,6 @@ namespace Midas.Core.Telegram
 
             var session = GetSession(callbackQuery.Message.Chat.Id);
             currentTrader = (AssetTrader)session.Data["Trader"];
-
-            // switch (callbackQuery.Data)
-            // {
-            //     case "Snapshot":
-            //         if (currentTrader != null)
-            //         {
-            //             await botClient.SendChatActionAsync(callbackQuery.Message.Chat.Id, ChatAction.Typing);
-
-            //             var trend = currentTrader.GetTextSnapShot();
-            //             var img = currentTrader.GetSnapshotForBot();
-
-            //             if (img != null)
-            //             {
-            //                 await botClient.SendTextMessageAsync(
-            //                     chatId: callbackQuery.Message.Chat.Id,
-            //                     text: trend);
-
-            //                 using (MemoryStream ms = new MemoryStream())
-            //                 {
-            //                     img.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            //                     ms.Flush();
-            //                     ms.Position = 0;
-
-
-            //                     await botClient.SendPhotoAsync(chatId: callbackQuery.Message.Chat.Id,
-            //                                                     photo: new InputOnlineFile(ms),
-            //                                                     caption: "This is what I look like!");
-            //                 }
-            //             }
-            //             else
-            //             {
-            //                 await botClient.SendTextMessageAsync(
-            //                     chatId: callbackQuery.Message.Chat.Id,
-            //                     text: "Wait for the first candle...");
-            //             }
-            //         }
-            //         else
-            //         {
-            //             await botClient.SendTextMessageAsync(
-            //                 chatId: callbackQuery.Message.Chat.Id,
-            //                 text: "No asset selected");
-            //         }
-            //         break;
-            // }
         }
 
         private string Truncate(string msg, int size)

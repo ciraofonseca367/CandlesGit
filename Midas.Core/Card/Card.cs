@@ -25,10 +25,8 @@ namespace Midas.Core.Card
         private List<Indicators.CalculatedIndicator> _indicators;
 
         private static DateTime _lastOperationEnd = DateTime.MinValue;
-        private static Candle _lastTryLastCandle;
 
         private RunParameters _params;
-        private static Candle _lastPrediction;
 
         private DateTime _beginWindow, _endWindow, _futureDate;
 
@@ -251,52 +249,37 @@ namespace Midas.Core.Card
 
         private string GetForecast(double currentValue, DateTime presentTime)
         {
-            var forecast = GetCompleteForecast(currentValue, presentTime);
-
-            double limitToPredictLongLevel1 = 1;
-            double limitToPredictLongLevel2 = 2;
-            double limitToPredictLongLevel3 = 3;
-            double stopLossLong = -0.2;
-            double limitToPredictShortLevel1 = -1;
-            double limitToPredictShortLevel2 = -2;
-            double limitToPredictShortLevel3 = -3;
-            double stopLossShort = 0.2;
-
             string status = "";
+            double limitToPredictLong = 1;
+            double limitToPredictShort = -1;
+            double limitToPredictZero = 1;
 
-            if (forecast.GetLowestDifferente(0, 15) > stopLossLong)
+            var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
+            var range = new DateRange(_beginWindow, _endWindow);
+            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
+            stopLossShort *= 1.5;
+            var stopLossLong = stopLossShort *-1;            
+
+            status = "IGNORED";
+
+            var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
+
+            if(forecastOnPrice.HighestDifference <= limitToPredictZero &&
+                forecastOnPrice.LowestDifFerence >= limitToPredictZero*-1)
+                status = "ZERO";
+
+
+            if (forecastOnPrice.CountHighestDifference(1,_params.ForecastWindow,limitToPredictLong) >= 3)
             {
-                if (forecast.ForecastLong >= stopLossShort)
-                    status = "LONG0001";
-                if (forecast.ForecastLong >= limitToPredictLongLevel1)
-                    status += ",LONG0102";
-                if (forecast.ForecastLong >= limitToPredictLongLevel2)
-                    status += ",LONG0203";
-                if (forecast.ForecastLong >= limitToPredictLongLevel3)
-                    status += ",LONG0304";
-
-                if (String.IsNullOrEmpty(status))
-                    status = "Zero";
+                if(forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow/3)) > stopLossLong)
+                    status = "LONG";
             }
-            else if (forecast.GetHighestDifference(0, 15) < stopLossShort)
-            {
-                if (forecast.ForecastLong <= stopLossLong)
-                    status = "SHORT0001";
-                if (forecast.ForecastShort <= limitToPredictShortLevel1)
-                    status += ",SHORT0102";
-                if (forecast.ForecastShort <= limitToPredictShortLevel2)
-                    status += ",SHORT0203";
-                if (forecast.ForecastShort <= limitToPredictShortLevel3)
-                    status += ",SHORT0304";
 
-                if (String.IsNullOrEmpty(status))
-                    status = "Zero";
-            }
-            else if (forecast.ForecastLong <= limitToPredictLongLevel1 && forecast.ForecastShort >= limitToPredictShortLevel1)
-                status = "CONFUSED";
-            else
+
+            if (forecastOnPrice.CountLowestDifference(1,_params.ForecastWindow,limitToPredictShort) >= 3)
             {
-                status = "ND";
+                if(forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow/3)) < stopLossShort)
+                    status = "SHORT";
             }
 
             return status;
@@ -347,209 +330,6 @@ namespace Midas.Core.Card
             s.Flush();
             s.Position = 0;
         }
-
-        public List<PredictionResult> GetPrediction(float scoreThreshold)
-        {
-            var client = ForecastFactory.GetDefaultForecaster();
-
-            return client.Predict(_img, scoreThreshold,0, DateTime.Now);
-        }
-
-        public PredictionReportItem WritePrediction(StreamWriter output, float scoreThreshold, string fileName)
-        {
-            PredictionReportItem reportItem = null;
-            double localTarget;
-
-            string status = null;
-            string statusTarget = null;
-            if (AboveAverage(GetFirstCandle().CloseValue, GetLastCandle().CloseValue))
-            {
-
-                var client = ForecastFactory.GetDefaultForecaster();
-
-                var response = client.Predict(_img, 0.1f, 0, DateTime.MinValue);
-
-                if (response != null)
-                {
-                    var cardRange = new DateRange(_beginWindow, _endWindow);
-                    var stopLossAtrAbs = _indicators.Where(i => i.Name == "ATR").First().TakeSnapShot(cardRange).Last().AmountValue;
-
-                    float lowerBoundToPredict = 0;
-                    float upperBoundToPredict = 0;
-
-                    PredictionResult first = null;
-                    if(response.Count() > 0)
-                    {
-                        first = response.First();
-                    }
-
-                    var predictionLong = response.Where(p => p.Tag == "LONG").FirstOrDefault();
-                    var predictionShort = response.Where(p => p.Tag == "SHORT").FirstOrDefault();
-                    var predictionZero = response.Where(p => p.Tag == "ZERO").FirstOrDefault();
-
-                    int rankShort=0;
-                    int rankLong = 0;
-                    double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
-                    double scoreZero = predictionZero == null ? 0 : predictionZero.Score;
-                    for(int i=0;i<response.Count;i++)
-                    {
-                        if(response[i].Tag == "SHORT")
-                            rankShort = i+1;
-
-                        if(response[i].Tag == "LONG")
-                            rankLong = i+1;
-                    }     
-
-                    var diffLONG_ZERO = (Math.Abs(scoreLong - scoreZero) / 1)*100;
-
-                    if (rankLong == 1 && predictionLong.Score >= _params.ScoreThreshold)
-                    {
-                        localTarget = response.Max(r => r.RatioUpperBound) * 0.75;
-
-                        var lastCandlePlusOne = GetLastCandlePlusOne();
-                        var lastCandle = GetLastCandle();
-                        var hourAverageValue = GetAverageValue("MA12");
-
-                        PredictionResult result2 = null;
-                        double score2 = 0;
-                        string tag2 = "";
-                        if(response.Count() > 1)
-                        {
-                            result2 = response[1];
-                            tag2 = result2.Tag;
-                            score2 = result2.Score;
-                        }
-
-                        var stopLossAtr = (stopLossAtrAbs / lastCandle.CloseValue) * 100;
-
-                        double stopLoss = stopLossAtr * -0.5;
-
-                        // if (
-                        //     !_params.DelayedTriggerEnabled ||
-                        //     (_params.DelayedTriggerEnabled
-                        //         &&
-                        //         (
-                        //             (currentValue <= hourAverageValue && lastCandlePlusOne.GetPureIndecisionThreshold() >= _params.IndecisionThreshold) ||
-                        //             currentValue > hourAverageValue
-                        //         )
-                        //     )
-                        // )
-
-                        // if (
-                        //     !_params.DelayedTriggerEnabled ||
-                        //     (_params.DelayedTriggerEnabled &&
-                        //         lastCandle.Direction == CandleDirection.Up ||                            
-                        //         (lastCandle.Direction == CandleDirection.Down && lastCandlePlusOne.GetPureIndecisionThreshold() >= _params.IndecisionThreshold)
-                        //     )
-                        // )
-
-                        if (
-                            _params.DelayedTriggerEnabled == false ||
-                            (_params.DelayedTriggerEnabled &&
-                                (
-                                    lastCandle.Direction == CandleDirection.Down &&
-                                    lastCandlePlusOne.GetPureIndecisionThreshold() >= _params.IndecisionThreshold
-                                ) ||
-                            lastCandle.Direction == CandleDirection.Up
-                            )
-                        )
-                        {
-
-                            int lastPredictionDistance = -1;
-                            if (_lastPrediction != null)
-                                lastPredictionDistance = Convert.ToInt32((GetFirstCandle().PointInTime_Close - _lastPrediction.PointInTime_Close).TotalMinutes);
-
-                            if ((score2 < 0.5) &&
-                                (lastCandle.OpenTime > _lastOperationEnd && (lastPredictionDistance / 5)+1 >= _params.AllowedConsecutivePredictions)
-                                )
-                            {
-                                lowerBoundToPredict = 0.5f;
-                                upperBoundToPredict = 1.0f;
-
-                                status = "OK";
-                                statusTarget = "OK";
-
-                                double presentClosing = 0;
-                                if (_params.DelayedTriggerEnabled)
-                                {
-                                    if (lastCandle.Direction == CandleDirection.Down)
-                                    {
-                                        if (lastCandlePlusOne.GetPureIndecisionThreshold() >= _params.IndecisionThreshold)
-                                            presentClosing = lastCandlePlusOne.CloseValue;
-
-                                        // if(lastCandlePlusTwo.GetPureIndecisionThreshold() >= _params.IndecisionThreshold && presentClosing == 0)
-                                        //     presentClosing = lastCandlePlusTwo.CloseValue;
-                                    }
-                                    else
-                                        presentClosing = lastCandle.CloseValue;
-                                }
-                                else
-                                {
-                                    presentClosing = lastCandle.CloseValue;
-                                }
-
-                                double result = 0;
-                                TimeSpan operationDuration;
-
-                                var forecastInfoAvg = this.GetCompleteForecastOnAnAverage(lastCandle.OpenTime, "MA12");
-                                var forecastInfo = this.GetCompleteForecast(lastCandle.CloseValue,lastCandle.OpenTime);
-
-                                var maxAvg = forecastInfoAvg.ForecastLong;
-                                var res = forecastInfoAvg.AverageOrStop(stopLoss);
-                                result = res.Item2;
-
-                                operationDuration = res.Item1;
-
-                                _lastOperationEnd = lastCandle.CloseTime.Add(operationDuration);
-                                // if(result > 1.1)
-                                //     _lastOperationEnd.AddHours(4);
-
-                                if (result < 0.12)
-                                    status = "BAD";
-
-                                if (result < _params.Target1)
-                                    statusTarget = "BAD";
-
-                                double lastPredictionLastThreshold = -100;
-
-                                lastPredictionLastThreshold = lastCandlePlusOne.GetPureIndecisionThreshold();
-
-                                reportItem = new PredictionReportItem()
-                                {
-                                    Tag = first.Tag,
-                                    Result = result,
-                                    Status = status,
-                                    StatusTarget = statusTarget,
-                                    HighestDifference = forecastInfo.HighestDifference,
-                                    LowestDifFerence = forecastInfo.LowestDifFerence,
-                                    Picture = fileName,
-                                    TimeToGetHigh = forecastInfo.TimeToGetHigh,
-                                    OperationDurantion = operationDuration
-                                };
-
-                                var line = String.Format(
-                                    "{0};{1:0.0000000};{2:0.0000000};{3:0.0000000};{4};{5}; {6:0.0000000};{7:0.0000000}; {8}; {9: 0.0000000}; {10}; {11}; {12:0.00}; {13}; {14}, {15:0.000}, {16:0.000}, {17}, {18:0.000}",
-                                    first.Tag, lowerBoundToPredict, upperBoundToPredict, result, status, statusTarget, forecastInfo.HighestDifference,
-                                    forecastInfo.LowestDifFerence, 0, lastPredictionLastThreshold, fileName, _params.DelayedTriggerEnabled, _params.IndecisionThreshold, forecastInfo.TimeToGetHigh,
-                                    forecastInfo.AllValues, stopLoss, score2, tag2, diffLONG_ZERO);
-
-                                output.WriteLine(line);
-                                output.Flush();
-                            }
-
-                            _lastPrediction = GetFirstCandle();
-
-                        }
-
-                    }
-                }
-            }
-
-            _lastTryLastCandle = GetLastCandle();
-
-            return reportItem;
-        }
-
 
         private double GetAverageValue(string averageName)
         {
@@ -720,7 +500,7 @@ namespace Midas.Core.Card
         {
             var result = GetResult(parans);
 
-            return $"{result.PAndL.ToString("0.0000")};{result.SuccessRate.ToString("0.0000")}; {result.AllEntries.Count()}; {result.ExperimentName}; {parans.ScoreThreshold};{parans.StopLoss}; {parans.AverageVerification}; {parans.Range.Start.ToString("yyyy/MM/dd")}; {parans.Range.End.ToString("yyyy/MM/dd")}; {parans.DelayedTriggerEnabled}; {parans.IndecisionThreshold}; {parans.Target1.ToString("0.00")}; {parans.Target2.ToString("0.00")}; {parans.Target3.ToString("0.00")};{result.SuccessRateTarget.ToString("0.0000")};{parans.TagFilter}";
+            return $"{result.PAndL.ToString("0.0000")};{result.SuccessRate.ToString("0.0000")}; {result.AllEntries.Count()}; {result.ExperimentName}; 0;{parans.StopLoss}; {parans.AverageVerification}; {parans.Range.Start.ToString("yyyy/MM/dd")}; {parans.Range.End.ToString("yyyy/MM/dd")}; {parans.DelayedTriggerEnabled}; {parans.IndecisionThreshold}; {parans.Target1.ToString("0.00")}; {parans.Target2.ToString("0.00")}; {parans.Target3.ToString("0.00")};{result.SuccessRateTarget.ToString("0.0000")};{parans.TagFilter}";
         }
     }
 
@@ -872,9 +652,9 @@ namespace Midas.Core.Card
             {
                 var max = maxList.Max(c => c.HighestValue);
 
-                var diffAvg = ((max - StartValue) / max) * 100;
+                var diffMax = ((max - StartValue) / max) * 100;
 
-                return diffAvg;
+                return diffMax;
             }
             else
             {
@@ -882,6 +662,56 @@ namespace Midas.Core.Card
             }
 
         }
+
+        public int CountHighestDifference(int beginPeriod, int endPeriod, double diff)
+        {
+            var maxList = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (maxList.Count() > 0)
+            {
+                var startValue = this.StartValue;
+                var count = maxList.Count((c) => {
+                    var thisDiff = ((c.HighestValue - startValue) / c.HighestValue) * 100; 
+
+                    return thisDiff >= diff;
+                });
+
+                return count;
+            }
+            else
+            {
+                return 0;
+            }
+
+        }        
+
+        public int CountLowestDifference(int beginPeriod, int endPeriod, double diff)
+        {
+            var minList = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (minList.Count() > 0)
+            {
+                var startValue = this.StartValue;
+                var count = minList.Count((c) => {
+                    var thisDiff = ((c.LowestValue - startValue) / c.LowestValue) * 100; 
+
+                    return thisDiff <= diff;
+                });
+
+                return count;
+            }
+            else
+            {
+                return 0;
+            }
+
+        }           
 
         public double GetAverageDifference(int beginPeriod, int endPeriod)
         {

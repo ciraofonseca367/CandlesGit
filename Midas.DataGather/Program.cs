@@ -59,8 +59,16 @@ namespace Midas.DataGather
 
         private void OnNewCandle(string asset, Candle p, Candle c)
         {
-            Console.WriteLine($"=== New Candle {asset} - {p.ToString()} ===");
-            p.SaveOrUpdate(_params.DbConString,String.Format("Klines_{0}_{1}", asset.ToUpper(), _params.CandleType.ToString()));
+            try
+            {
+                Console.WriteLine($"=== New Candle {asset} - {p.ToString()} ===");
+                p.SaveOrUpdate(_params.DbConString, String.Format("Klines_{0}_{1}", asset.ToUpper(), _params.CandleType.ToString()));
+            }
+            catch (Exception err)
+            {
+                Console.WriteLine("Error when updating Candle!" + err.ToString());
+                TelegramBot.SendMessage("CRITICAL: Error to store candles!" + err.Message);
+            }
         }
 
         public void Runner()
@@ -72,28 +80,11 @@ namespace Midas.DataGather
 
             var lastNewsCheck = DateTime.MinValue;
             var state = LoadLastState();
-            
-            string streamUrl = "wss://stream.binance.com:9443/ws";
-            var sockBTCBUSD = new BinanceWebSocket(streamUrl, 120000, "BTCBUSD", Midas.Core.Common.CandleType.MIN15);
-            var sockBNBBUSD = new BinanceWebSocket(streamUrl, 120000, "BNBBUSD", Midas.Core.Common.CandleType.MIN15);
-            var sockADABUSD = new BinanceWebSocket(streamUrl, 120000, "ADABUSD", Midas.Core.Common.CandleType.MIN15);
-            var sockETHBUSD = new BinanceWebSocket(streamUrl, 120000, "ETHBUSD", Midas.Core.Common.CandleType.MIN15);
-
-            var btcTBtream = sockBTCBUSD.OpenAndSubscribe();
-            var bnbStream = sockBNBBUSD.OpenAndSubscribe();
-            var adaStream = sockADABUSD.OpenAndSubscribe();
-            var ethStream = sockETHBUSD.OpenAndSubscribe();
-
-            btcTBtream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
-            bnbStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
-            adaStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
-            ethStream.OnNewCandle(new SocketNewCancle(this.OnNewCandle));
 
             while (_running)
             {
                 try
                 {
-
                     /* Code to read the news every 5 minutes */
                     if ((DateTime.Now - lastNewsCheck).TotalMinutes > 5)
                     {
@@ -147,11 +138,6 @@ namespace Midas.DataGather
                     TelegramBot.SendMessage("Data Gather - Thread Error: " + err.ToString());
                 }
             }
-
-
-            btcTBtream.Dispose();            
-            bnbStream.Dispose();            
-
         }
         public Dictionary<string, string> LoadLastState()
         {
@@ -235,10 +221,11 @@ namespace Midas.DataGather
                                     //Console.WriteLine("Tier:" + articleTier);
                                     Console.WriteLine("");
 
-                                    entries.Add(new {
+                                    entries.Add(new
+                                    {
                                         Title = title,
                                         Link = link,
-                                        Description = String.IsNullOrEmpty(description) ? "" : description.Substring(0, Math.Min(description.Length-1, 200)),
+                                        Description = String.IsNullOrEmpty(description) ? "" : description.Substring(0, Math.Min(description.Length - 1, 200)),
                                         PublishedDate = articlePublishedDate,
                                         DateHit = DateTime.Now
                                     });
@@ -295,14 +282,14 @@ namespace Midas.DataGather
                 try
                 {
 
-                    foreach(var item in entries)
+                    foreach (var item in entries)
                     {
                         TelegramBot.SendMessage(item.Link);
 
                         Thread.Sleep(100);
                     }
 
-                    
+
                 }
                 catch (Exception e)
                 {

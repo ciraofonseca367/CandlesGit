@@ -60,8 +60,9 @@ namespace Midas.Core.Indicators
                         double diff1 = Math.Abs(c.HighestValue - p.LowestValue);
                         double diff2 = Math.Abs(c.HighestValue - p.CloseValue);
                         double diff3 = Math.Abs(c.LowestValue - p.CloseValue);
+                        double diff4 = Math.Abs(c.HighestValue - c.LowestValue);
 
-                        var numbers = new List<double>() { diff1, diff2, diff3 };
+                        var numbers = new List<double>() { diff1, diff2, diff3, diff4 };
 
                         atrs.Add(numbers.Max());
                     }

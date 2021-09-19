@@ -46,6 +46,22 @@ namespace Midas.Core.Common
                 (range.End >= range.Start && range.End <= range.End);
         }
 
+        public long GetStartInMilliseconds()
+        {
+            DateTime firstSecond = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            var span = Start - firstSecond;
+
+            return Convert.ToInt64(span.TotalMilliseconds);
+        }
+
+        public long GetEndInMilliseconds()
+        {
+            DateTime firstSecond = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            var span = End - firstSecond;
+
+            return Convert.ToInt64(span.TotalMilliseconds);
+        }
+
         public static DateRange GetInfiniteRange()
         {
             return new DateRange(DateTime.MaxValue, DateTime.MaxValue);

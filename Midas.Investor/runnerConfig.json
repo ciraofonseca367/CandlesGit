@@ -5,11 +5,10 @@
     "StartDate": "2021-08-01 00:00:00",
     "EndDate": "2021-08-20 23:59:59",
     "CandleType": "MIN15",
-    "ScoreThreshold": -1,
     "WindowSize": 30,
     "CardWidth": 1600,
     "CardHeight": 1600,
-    "DrawPrediction": true,
+    "IsTesting": true,
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
@@ -24,28 +23,19 @@
 
     "Assets": [
         {
-            "Asset": "BTCBUSD",
-            "CandleType": "MIN15",
-            "ScoreThreshold": 0.9,
-            "FundName": "BTCBUSD_MIN15",
-            "AtrStopLoss": 0.7,
+            "Asset": "BNBBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThresholdByAvg": 0.9,
+            "ScoreThresholdByPrice": 0.75,
+            "FundName": "BNBBUSD_HOUR1",
+            "AtrStopLoss": 1,
             "StopLossCompSoftness": 0.5,
             "AvgCompSoftness": 0.1,
-            "FollowPricePerc": 0.4,
+            "FollowPricePerc": 0.3,
             "GainSoftStopTrigger": 0.75
-        },
-        {
-            "Asset": "ETHBUSD",
-            "CandleType": "MIN15",
-            "ScoreThreshold": 0.9,
-            "FundName": "BTCBUSD_MIN15",
-            "AtrStopLoss": 1.5,
-            "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.1,
-            "FollowPricePerc": 0.2,
-            "GainSoftStopTrigger": 0.75
-        }
-    ],
+        }          
+    ],    
+
 
     "Indicators": [
         {
@@ -148,5 +138,8 @@
         "STOP_LOSS": 0.009,
         "MSI_WINDOW_SIZE_SECONDS": 900,
         "MIN_TARGET_PROFIT": 0.007
-    }
+    },
+
+    "UrlPriceModel" : "http://vps32867.publiccloud.com.br:81",
+    "UrlAvgModel" : "http://vps32867.publiccloud.com.br"
 }

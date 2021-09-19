@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Midas.Core.Common;
@@ -52,6 +53,19 @@ namespace Midas.Core.Forecast
             await t;
 
             return res;
+        }
+
+        public Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime)
+        {
+            Prediction predictionResult = null;
+
+            var predictions = PredictAsync(image, 0.1f, currentValue, currentTime);
+            if (predictions.Wait(60000))
+            {
+                predictionResult = Prediction.ParseRawResult(predictions.Result);
+            }
+
+            return predictionResult;
         }
     }
 }

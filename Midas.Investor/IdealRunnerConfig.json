@@ -1,0 +1,39 @@
+"Assets": [
+    {
+        "Asset": "BTCBUSD",
+        "CandleType": "MIN15",
+        "ScoreThresholdByAvg": 0.9,
+        "ScoreThresholdByPrice": 0.75,
+        "FundName": "BTCBUSD_MIN15",
+        "AtrStopLoss": 0.8,
+        "StopLossCompSoftness": 0.5,
+        "AvgCompSoftness": 0.1,
+        "FollowPricePerc": 0.4,
+        "GainSoftStopTrigger": 0.75
+    },       
+    {
+        "Asset": "ETHBUSD",
+        "CandleType": "MIN15",
+        "ScoreThresholdByAvg": 0.9,
+        "ScoreThresholdByPrice": 0.75,
+        "FundName": "ETHBUSD_MIN15",
+        "AtrStopLoss": 1,
+        "StopLossCompSoftness": 0.5,
+        "AvgCompSoftness": 0.1,
+        "FollowPricePerc": 0.3,
+        "GainSoftStopTrigger": 0.75
+    },       
+    {
+        "Asset": "ADABUSD",
+        "CandleType": "MIN15",
+        "ScoreThresholdByAvg": 0.9,
+        "ScoreThresholdByPrice": 0.75,
+        "FundName": "ADABUSD_MIN15",
+        "AtrStopLoss": 1,
+        "StopLossCompSoftness": 0.5,
+        "AvgCompSoftness": 0.1,
+        "FollowPricePerc": 0.3,
+        "GainSoftStopTrigger": 0.75
+    }     
+],
+"ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",

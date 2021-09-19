@@ -51,7 +51,7 @@ namespace Midas
 
             runParams.WriteToConsole();
 
-            var res = CandlesGateway.GetCandles(
+            var res = CandlesGateway.GetCandlesFromFile(
                 runParams.Asset,
                 runParams.Range,
                 runParams.CandleType
@@ -128,8 +128,8 @@ namespace Midas
                                 Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams.Indicators, runParams);
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
-                                    var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
-                                    if (tag != "IGNORED")
+                                    var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open);
+                                    if (tag != "ZZZZIGNORED")
                                     {
                                         DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
                                         var fileName = c.SaveToFile(dirInfo.FullName, tag);
@@ -142,37 +142,6 @@ namespace Midas
                                         csvWriter.Write(",");
                                         csvWriter.Write(tag);
                                         csvWriter.WriteLine();
-                                    }
-                                }
-                                else
-                                {
-                                    PredictionReportItem predictionReportItem = null;
-                                    try
-                                    {
-                                        predictionReportItem = c.WritePrediction(csvWriter, runParams.ScoreThreshold, c.GetFileName("PC"));
-                                    }
-                                    catch (Exception err)
-                                    {
-                                        Console.WriteLine("Prediction error: " + err.ToString());
-                                    }
-
-                                    if (predictionReportItem != null)
-                                    {
-                                        report.AddReportItem(predictionReportItem);
-
-                                        var cpDirInfo = new DirectoryInfo(Path.Combine(outputDir.FullName, "CheckPredictions"));
-                                        cpDirInfo.Create();
-
-                                        var result = report.GetResult(runParams);
-                                        Console.Write(String.Format("  {0:0.00}% PL, AR: {1:0.00}%, AT: {2:0.00}%,  {3} Entries", result.PAndL, result.SuccessRate, result.SuccessRateTarget, result.AllEntries.Count));
-
-                                        var wholeCandles = bufferCandles.Where(c => wholeWindowRange.IsInside(c.PointInTime_Open));
-                                        var volumesFull = wholeCandles.Select(p => new VolumeIndicator(p));
-
-                                        var bigPicture = GetImage(runParams, wholeCandles, volumesFull, wholeWindowRange, false);
-
-                                        c.SaveToFile(cpDirInfo.FullName, "PC");
-                                        bigPicture.Save(Path.Combine(cpDirInfo.FullName, c.GetFileName("BP")));
                                     }
                                 }
                             }

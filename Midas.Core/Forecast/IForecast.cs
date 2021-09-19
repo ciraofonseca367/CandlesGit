@@ -12,26 +12,23 @@ namespace Midas.Core.Forecast
         Task<List<PredictionResult>> PredictAsync(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime);
 
         List<PredictionResult> Predict(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime);
+
+        Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime);
     }
 
     public class ForecastFactory
     {
-        public static IForecast GetForecaster(string id)
+        public static IForecast GetForecaster(string id, string url)
         {
             switch(id)
             {
                 case "ThirtyPeriodForecast":
-                    return new ThirtyPeriodForecast();
+                    return new ThirtyPeriodForecast(url);
                 case "TestForecast":
                     return new TestForecast();
                 default:
                     throw new NotImplementedException(id + " - Not implemented");
             }
-        }
-
-        public static IForecast GetDefaultForecaster()
-        {
-            return new ThirtyPeriodForecast();
         }
     }
 }

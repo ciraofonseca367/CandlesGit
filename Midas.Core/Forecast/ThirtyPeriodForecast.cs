@@ -16,18 +16,17 @@ namespace Midas.Core.Forecast
     public class ThirtyPeriodForecast : IForecast
     {
 
-        private const string predictionServer = "http://vps32867.publiccloud.com.br";
+        private string _predictionServer = "http://vps32867.publiccloud.com.br";
         private HttpClient _httpClient;
-        public ThirtyPeriodForecast()
+        public ThirtyPeriodForecast(string predictionServer)
         {
+            _predictionServer = predictionServer;
             _httpClient = new HttpClient();
 
-            _httpClient.BaseAddress = new Uri(predictionServer);
+            _httpClient.BaseAddress = new Uri(_predictionServer);
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "ya29.c.Kp8BBQgiwKQ8DKdsgDT-Hu0oQe53uz9WFI3ZchggizJpeVRuvIj5CGNNhpPZgJaW7fklPqM7Zwr2yTem7H2uSm2XGsn63fTtgnYfPnk55hCVubfXGkykmHQ6J8wC6LOZE9I1EbVg7qXOp8ey5DFbNBXrHiOBrohm7MZ0Q646hIxszo1ouegyqgPXskitBxdqzLzZys-k-YquFqlKOLxeP0qJ");
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            Console.WriteLine("ThiryPeriodForecast active - "+predictionServer);
         }
 
         private string TransformImageToBase64(Bitmap image)
@@ -159,6 +158,117 @@ namespace Midas.Core.Forecast
             {
                 throw new TimeoutException("Error while waiting prediction");
             }
+        }
+
+        public Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime)
+        {
+            Prediction predictionResult = null;
+
+            var predictions = PredictAsync(image, 0.1f, currentValue, currentTime);
+            if (predictions.Wait(60000))
+            {
+                predictionResult = Prediction.ParseRawResult(predictions.Result);
+            }
+            else
+            {
+                throw new ApplicationException("Timeout waiting on a prediction!!!" + _predictionServer);
+            }
+
+            return predictionResult;
+        }
+    }
+
+    public class Prediction
+    {
+        public string CurrentTrend { get; internal set; }
+        public PredictionResult Long { get; internal set; }
+        public PredictionResult Short { get; internal set; }
+        public PredictionResult Zero { get; internal set; }
+        public int RankShort { get; internal set; }
+        public int RankLong { get; internal set; }
+        public int RankZero { get; internal set; }
+
+        public double ScoreShort
+        {
+            get
+            {
+                return Short == null ? 0 : Short.Score;
+            }
+        }
+
+        public double ScoreLong
+        {
+            get
+            {
+                return Long == null ? 0 : Long.Score;
+            }
+        }
+
+        public double ScoreZero
+        {
+            get
+            {
+                return Zero == null ? 0 : Zero.Score;
+            }
+        }
+
+        public Candle CandleThatPredicted { get; internal set; }
+        public List<PredictionResult> AllPredictions { get; internal set; }
+
+        public bool Go(float scoreThreshold)
+        {
+            bool ret = false;
+
+            if (RankLong == 1 && ScoreLong >= scoreThreshold)
+                ret = true;
+
+            return ret;
+        }
+
+        public string GetTrend()
+        {
+            return null;
+        }
+
+        public static Prediction ParseRawResult(List<PredictionResult> result)
+        {
+            Prediction predictionResult = null;
+            if (result.Count > 0)
+            {
+                predictionResult = new Prediction();
+
+                var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
+                var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
+                var predictionZero = result.Where(p => p.Tag == "ZERO").FirstOrDefault();
+
+                int rankShort = 0;
+                int rankLong = 0;
+                int rankZero = 0;
+                double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
+                for (int i = 0; i < result.Count; i++)
+                {
+                    if (result[i].Tag == "SHORT")
+                        rankShort = i + 1;
+
+                    if (result[i].Tag == "LONG")
+                        rankLong = i + 1;
+
+                    if (result[i].Tag == "ZERO")
+                        rankZero = i + 1;
+                }
+
+                predictionResult.Long = predictionLong;
+                predictionResult.Short = predictionShort;
+                predictionResult.Zero = predictionZero;
+
+                predictionResult.RankShort = rankShort;
+                predictionResult.RankLong = rankLong;
+                predictionResult.RankZero = rankZero;
+
+                predictionResult.AllPredictions = result;
+            }
+
+            return predictionResult;
         }
     }
 

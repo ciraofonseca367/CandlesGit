@@ -86,7 +86,6 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "CandleType", this.CandleType.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
-                Console.WriteLine("{0,-20}: {1}", "Score Threshold", String.Join(',', ScoreThreshold.ToString("0.00")));
                 Console.WriteLine("");
                 Console.WriteLine("Stream Config:");
                 Console.WriteLine("{0,-20}: {1}", "URL", this.LiveStreamSiteUrl);
@@ -110,14 +109,14 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "RunMode", this.RunMode.ToString());
                 Console.WriteLine("{0,-20}: {1}", "CandleType", this.CandleType.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
-                Console.WriteLine("{0,-20}: {1}", "Score", this.ScoreThreshold);
-                Console.WriteLine("{0,-20}: {1}", "Testing", this.IsTesting);
                 Console.WriteLine("{0,-20}: {1}", "Experiment", this.ExperimentName);
                 Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
                 Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());                
                 Console.WriteLine("{0,-20}: {1}", "DelayedTrigger", this.DelayedTriggerEnabled);
                 Console.WriteLine("");
+                Console.WriteLine("{0,-20}: {1}", "Model Avg", this.UrlAvgModel);
+                Console.WriteLine("{0,-20}: {1}", "Model Price", this.UrlPriceModel);
             }
         }
 
@@ -155,11 +154,6 @@ namespace Midas.Core
             private set;
         }
 
-        public float ScoreThreshold
-        {
-            get;
-            set;
-        }
 
         public string LiveStreamSiteUrl
         {
@@ -186,14 +180,6 @@ namespace Midas.Core
         }
 
         public bool IsTesting
-        {
-            get 
-            {
-                return ScoreThreshold < 0;
-            }
-        }
-
-        public bool DrawPrediction
         {
             get;
             private set;
@@ -233,7 +219,6 @@ namespace Midas.Core
             get;
             set;
         }
-
         public RunModeType RunMode
         {
             get;
@@ -262,7 +247,8 @@ namespace Midas.Core
         public string TelegramBotCode { get; private set; }
         public string Forecaster { get; internal set; }
         public string FeedStreamType { get; internal set; }
-
+        public string UrlAvgModel { get; internal set; }
+        public string UrlPriceModel { get; internal set; }
         private string _dbConString;
         private string _dbConStringCandles;
         private int _forecastWindow;
@@ -312,10 +298,11 @@ namespace Midas.Core
             ExperimentName = Convert.ToString(stuff.ExperimentName);
             PreloadCandles = Convert.ToBoolean(stuff.PreloadCandles);
 
+            UrlPriceModel = Convert.ToString(stuff.UrlPriceModel);
+            UrlAvgModel = Convert.ToString(stuff.UrlAvgModel);
+
             FundName = Convert.ToString(stuff.FundName);
             BrokerParameters = stuff.BrokerParameters;
-
-            ScoreThreshold = Convert.ToSingle(stuff.ScoreThreshold);
 
             FFmpegBasePath = Convert.ToString(stuff.FFmpegBasePath);
             LiveStreamSiteUrl = Convert.ToString(stuff.LiveStreamSiteUrl);
@@ -323,7 +310,7 @@ namespace Midas.Core
 
             if (stuff.ForecastWindow != null)
             {
-                _forecastWindow = Convert.ToInt32(stuff.ForecastWindow) + 3;
+                _forecastWindow = Convert.ToInt32(stuff.ForecastWindow);
             }
 
             WindowSize = Convert.ToInt32(stuff.WindowSize);
@@ -334,7 +321,9 @@ namespace Midas.Core
             if(stuff.DelayedTriggerEnabled != null)
                 DelayedTriggerEnabled = Convert.ToBoolean(stuff.DelayedTriggerEnabled);
 
-            DrawPrediction = Convert.ToBoolean(stuff.DrawPrediction);
+            IsTesting = false;
+            if(stuff.IsTesting != null)
+                IsTesting = Convert.ToBoolean(stuff.IsTesting);
 
             Range = new DateRange(start, end);
 
@@ -391,13 +380,12 @@ namespace Midas.Core
 
             if(ps.Length > 1)
             {
-                ScoreThreshold = Convert.ToSingle(Convert.ToSingle(ps[1]) / 100);
-                ExperimentName = ps[2];
-                Range.Start = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
-                Range.End = DateTime.ParseExact(ps[4], "yyyyMMdd", null);
+                ExperimentName = ps[1];
+                Range.Start = DateTime.ParseExact(ps[2], "yyyyMMdd", null);
+                Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
                 Range.End = Range.End.AddHours(23);
                 Range.End = Range.End.AddMinutes(59);
-                DelayedTriggerEnabled = Convert.ToBoolean(ps[5]);
+                DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
 
                 //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
             }
@@ -414,11 +402,13 @@ namespace Midas.Core
                 {
                     string asset = Convert.ToString(metaAsset.Asset);
                     CandleType candleType = (CandleType) Enum.Parse(typeof(CandleType), Convert.ToString(metaAsset.CandleType));
-                    float score = Convert.ToSingle(metaAsset.ScoreThreshold);
+                    float scoreByAvg = Convert.ToSingle(metaAsset.ScoreThresholdByAvg);
+                    float scoreByPrice = Convert.ToSingle(metaAsset.ScoreThresholdByPrice);
                     string fundName = Convert.ToString(metaAsset.FundName);
 
                     var assetParams = new AssetParameters();
-                    assetParams.Score = score;
+                    assetParams.ScoreByAvg = scoreByAvg;
+                    assetParams.ScoreByPrice = scoreByPrice;
                     assetParams.FundName = fundName;
                     assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
                     assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
@@ -516,7 +506,8 @@ namespace Midas.Core
 
     public class AssetParameters
     {
-        public float Score { get; internal set; }
+        public float ScoreByAvg { get; internal set; }
+        public float ScoreByPrice { get; internal set; }
         public string FundName { get; internal set; }
         public float AtrStopLoss { get; internal set; }
         public float AvgCompSoftness { get; internal set; }
@@ -526,12 +517,13 @@ namespace Midas.Core
 
         public override string ToString()
         {
-            return $"Score: {Score:0.00}, SL:{AtrStopLoss:0.00}";
+            return $"Score Avg: {ScoreByAvg:0.00}, ScorebyPrice: {ScoreByPrice:0.00}, SL:{AtrStopLoss:0.00}, FollowPricePerc:{FollowPricePerc}, GainSoftStopTrigger:{GainSoftStopTrigger}";
         }
 
         public AssetParameters()
         {
             FollowPricePerc = 0.4f;
+
             GainSoftStopTrigger = 0.75;
             AvgCompSoftness = 0.1f;
         }

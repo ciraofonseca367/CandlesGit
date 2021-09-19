@@ -146,7 +146,7 @@ namespace Midas.Broadcast
 
             try
             {
-                liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandles(
+                liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandlesFromFile(
                     "BTCBUSD",
                     DateRange.GetInfiniteRange(),
                     runParams.CandleType
@@ -212,8 +212,8 @@ namespace Midas.Broadcast
                             {
 
                                 AmountValue = operation.PriceEntry,
-                                LowerBound = operation.GetAbsolutLowerBound(),
-                                UpperBound = operation.GetAbsolutUpperBound(),
+                                LowerBound = 0.5/100,
+                                UpperBound = 1/100,
                                 Gain = operation.GetGain(cc.CloseValue),
                                 ExitValue = operation.StoredAverage,
                                 StopLossMark = operation.StopLossMark,

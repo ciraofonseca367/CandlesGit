@@ -126,11 +126,7 @@ namespace Midas.Trading
                     ExitDate = forecastDate,
                     EntryDate = DateTime.UtcNow.AddMinutes(5 * 2 * -1),
                     ForecastDate = forecastDate,
-                    LowerBound = 0.005,
-                    UpperBound = 0.01,
                     MaxValue = testLastValue,
-                    AbsoluteLowerBound = testLastValue * (1 + 0.005),
-                    AbsoluteUpperBound = testLastValue * (1 + 0.01),
                     StopLossMarker = testLastValue * 0.99,
                     PriceEntryDesired = testLastValue,
                     PriceEntryReal = testLastValue,
@@ -290,7 +286,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public async Task<TradeOperation> SignalEnterAsync(double value, double LowerBound, double upperBound, DateTime pointInTime, DateTime forecastPeriod, double atr)
+        public async Task<TradeOperation> SignalEnterAsync(double value, DateTime pointInTime, DateTime forecastPeriod, double atr, string modelName)
         {
             TradeOperation ret = null;
 
@@ -298,14 +294,14 @@ namespace Midas.Trading
             //{
                 if (_currentOperation == null)
                 {
-                    _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
+                    _currentOperation = new TradeOperation(this, _fund, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                     _allOperations.Add(_currentOperation);
                 }
                 else
                 {
                     if (_currentOperation.IsCompleted)
                     {
-                        _currentOperation = new TradeOperation(this, _fund, LowerBound, upperBound, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
+                        _currentOperation = new TradeOperation(this, _fund, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                         _allOperations.Add(_currentOperation);
                     }
                 }
@@ -315,7 +311,7 @@ namespace Midas.Trading
             {
                 if (_currentOperation.State == TradeOperationState.Initial)
                 {
-                    await _currentOperation.EnterAsync(value, pointInTime, atr);
+                    await _currentOperation.EnterAsync(value, pointInTime, atr, modelName);
                     ret = _currentOperation;
                 }
             }

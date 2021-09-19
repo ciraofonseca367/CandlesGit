@@ -88,68 +88,71 @@ namespace Midas.FeedStream
 
             Console.WriteLine(DateRange.ToString());
 
-            var res = CandlesGateway.GetCandles(
+            var res = CandlesGateway.GetCandlesFromRest(
                 _asset,
-                DateRange,
-                base._queryCandleType
+                base._queryCandleType,
+                DateRange
             );
 
             string lastDay = String.Empty;
 
-            Candle[] candles;
             Candle previous = null;
-            while ((candles = res.Read(10)) != null && _running)
+            foreach (var c in res)
             {
-                foreach (var c in candles)
+                var currentDay = c.PointInTime_Open.ToString("yyyy-MM-dd HH");
+
+                if (previous != null)
                 {
-                    var currentDay = c.PointInTime_Open.ToString("yyyy-MM-dd HH");
-
-                    if (previous != null)
+                    var seedCandle = new Candle()
                     {
-                        var seedCandle = new Candle()
-                        {
-                            PointInTime_Open = c.PointInTime_Open,
-                            PointInTime_Close = c.PointInTime_Open,
-                            OpenValue = c.OpenValue,
-                            CloseValue = c.OpenValue,
-                            LowestValue = c.OpenValue,
-                            HighestValue = c.OpenValue
-                        };
+                        PointInTime_Open = c.PointInTime_Open,
+                        PointInTime_Close = c.PointInTime_Open,
+                        OpenValue = c.OpenValue,
+                        CloseValue = c.OpenValue,
+                        LowestValue = c.OpenValue,
+                        HighestValue = c.OpenValue
+                    };
 
-                        var diff = c.CloseValue - c.OpenValue;
-                        var amountFactor = diff / 100;
-                        var secondsFactor = c.CandleAge.TotalSeconds / 100;
+                    var diff = c.CloseValue - c.OpenValue;
+                    var amountFactor = diff / 100;
+                    var secondsFactor = c.CandleAge.TotalSeconds / 100;
 
-                        Random r = new Random();
-                        Thread.Sleep(r.Next(25,50));
+                    Random r = new Random();
+                    Thread.Sleep(r.Next(25,50));
 
-                        _socketNew("Test", previous, seedCandle);
+                    _socketNew("Test", previous, seedCandle);
 
-                        for(int i=1;i<=100;i++)
-                        {
-                            var nc = (Candle) seedCandle.Clone();
-                            nc.CloseValue += i*amountFactor;
-
-                            if(c.Direction == CandleDirection.Up)
-                                nc.HighestValue = nc.CloseValue;
-                            else
-                                nc.LowestValue = nc.CloseValue;
-
-                            nc.PointInTime_Close = seedCandle.PointInTime_Open.AddSeconds(i*secondsFactor);
-
-                            _socketUpdate("test", "test", nc);
-                        }
-                    }
-
-                    if(lastDay != currentDay)
+                    for(int i=1;i<=100;i++)
                     {
-                        lastDay = currentDay;
-                        Console.WriteLine($"{base._asset}:{base._queryCandleType} - {lastDay}");
-                    }
+                        var nc = (Candle) seedCandle.Clone();
+                        nc.CloseValue += i*amountFactor;
 
-                    previous = c;
+                        if(c.Direction == CandleDirection.Up)
+                            nc.HighestValue = nc.CloseValue;
+                        else
+                            nc.LowestValue = nc.CloseValue;
+
+                        DateTime close = seedCandle.PointInTime_Open.AddSeconds(i*secondsFactor);
+                        close = new DateTime(close.Year,close.Month,close.Day,close.Hour,close.Minute,0);
+
+                        nc.PointInTime_Close = close;
+
+                        //Thread.Sleep(10);
+
+                        _socketUpdate("test", "test", nc);
+                    }
                 }
+
+                if(lastDay != currentDay)
+                {
+                    lastDay = currentDay;
+                    Console.WriteLine($"{base._asset}:{base._queryCandleType} - {lastDay}");
+                }
+
+                previous = c;
             }
+
+            Console.WriteLine("End of stream...");
 
             _state = MidasSocketState.Closed;
 

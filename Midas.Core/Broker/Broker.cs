@@ -13,6 +13,7 @@ using System.Diagnostics;
 using Midas.Core.Util;
 using Midas.FeedStream;
 using Midas.Core.Common;
+using System.Collections.Concurrent;
 
 namespace Midas.Core.Broker
 {
@@ -191,6 +192,7 @@ namespace Midas.Core.Broker
 
     public class BinanceBroker : Broker
     {
+        private static ConcurrentDictionary<string, double> _exchangeRates;
 
         private static double BIAS_DIFF_FORBUY = 1 - 0.0001;
         private static double BIAS_DIFF_FORSELL = 1 + 0.0001;
@@ -212,6 +214,11 @@ namespace Midas.Core.Broker
         private string _host;
 
         private string _apiKey, _apiSecret;
+
+        static BinanceBroker()
+        {
+            _exchangeRates = new ConcurrentDictionary<string, double>();
+        }
 
         public override void SetParameters(dynamic config)
         {
@@ -236,18 +243,28 @@ namespace Midas.Core.Broker
         public override double GetPriceQuote(string asset)
         {
             asset = asset.Replace("BTCBUSD", "BTCUSDT");
-            var ret = Get(
-                _priceTickerUri,
-                String.Format(_symbolPriceTicker, asset),
-                10000, false
-            );
-
+            string key = $"{asset}-{DateTime.UtcNow:yyyy-mm-dd HH}";
             double quote = 0;
-            if (ret.price != null)
-                quote = Convert.ToDouble(ret.price);
+
+            _exchangeRates.TryGetValue(key, out quote);
+
+            if(quote == 0)
+            {
+                var ret = Get(
+                    _priceTickerUri,
+                    String.Format(_symbolPriceTicker, asset),
+                    10000, false
+                );
+
+                if (ret.price != null)
+                {
+                    quote = Convert.ToDouble(ret.price);
+                    _exchangeRates[key] = quote;
+                }
+            }
 
             return quote;
-        }
+        }     
 
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
@@ -651,7 +668,7 @@ namespace Midas.Core.Broker
         }
         public override double GetPriceQuote(string asset)
         {
-            return 0;
+            return 1000;
         }
 
         public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price)

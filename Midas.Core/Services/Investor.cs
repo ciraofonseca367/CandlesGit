@@ -219,7 +219,7 @@ namespace Midas.Core.Services
  
         public string GetOperationsSummary(int days)
         {
-            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
+            var allOperations = SearchOperations(this._params.DbConString, null, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
             var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
             StringBuilder sb = new StringBuilder(500);
 
@@ -258,7 +258,7 @@ namespace Midas.Core.Services
         public string GetLastOperations(int number)
         {
             var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(-2));
-            var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
+            var allOperationsReverse = allOperations.OrderByDescending(op => op.ExitDate).ToList();
 
             StringBuilder sb = new StringBuilder(500);
 
@@ -392,7 +392,6 @@ namespace Midas.Core.Services
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
             var priceBTC = b.GetPriceQuote("BTCBUSD");
-            var priceBNB = b.GetPriceQuote("BNBBUSD");
             var priceADA = b.GetPriceQuote("ADABUSD");
             var priceETH = b.GetPriceQuote("ETHBUSD");
 
@@ -407,8 +406,6 @@ namespace Midas.Core.Services
                         b.TotalUSDAmount = b.TotalQuantity;
                     else if (b.Asset == "BUSD")
                         b.TotalUSDAmount = b.TotalQuantity;
-                    else if (b.Asset == "BNB")
-                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
                     else if (b.Asset == "ADA")
                         b.TotalUSDAmount = b.TotalQuantity * priceADA;
                     else if (b.Asset == "ETH")
