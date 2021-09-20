@@ -3,10 +3,9 @@ using System.Threading;
 using Midas.Core;
 using Midas.Core.Services;
 
-
 namespace Midas.InVestor
 {
-    class Program
+    public class Program
     {
         private static InvestorService _investor;
         static void Main(string[] args)

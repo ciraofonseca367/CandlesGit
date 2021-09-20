@@ -76,6 +76,8 @@ namespace Midas.Core.Trade
         {
             _running = true;
 
+            //RestoreOpIfAny();
+
             //Open the streamlog for this trader
             _streamLog = new StreamWriter(
                 File.Open(
@@ -89,7 +91,7 @@ namespace Midas.Core.Trade
 
             //Init the previous candles from DB in the movieroll and indicators
             var cacheCandles = GetCachedCandles();
-            foreach(var c in cacheCandles)
+            foreach (var c in cacheCandles)
             {
                 _candleMovieRoll.Enqueue(c);
 
@@ -131,6 +133,14 @@ namespace Midas.Core.Trade
             TraceAndLog.StaticLog(_myName, String.Format("Starting runner with {0} cached candles", cacheCandles.Count()));
         }
 
+        private void RestoreOpIfAny()
+        {
+            var op = _manager.RestoreState();
+
+            TraceAndLog.StaticLog(GetIdentifier(), $"Restored state: {op.ToString()}");
+            TelegramBot.SendMessage($"Restored state: {op.ToString()}");
+        }
+
         internal List<CalculatedIndicator> Indicators
         {
             get
@@ -143,15 +153,18 @@ namespace Midas.Core.Trade
         public string Asset { get => _asset; }
         public CandleType CandleType { get => _candleType; }
 
-        public void Stop()
+        public void Stop(bool closeOp = true)
         {
             if (_running)
             {
-                var currentOp = _manager.GetOneActiveOperation();
-                if (currentOp != null)
+                if (closeOp)
                 {
-                    var closeTask = currentOp.CloseOperation();
-                    closeTask.Wait(60000);
+                    var currentOp = _manager.GetOneActiveOperation();
+                    if (currentOp != null)
+                    {
+                        var closeTask = currentOp.CloseOperation();
+                        closeTask.Wait(60000);
+                    }
                 }
 
                 _running = false;
@@ -246,7 +259,7 @@ namespace Midas.Core.Trade
 
                 //StorePrediction(_myName, predictions.Result);
 
-                var tempPredBox = new PredictionBox(); 
+                var tempPredBox = new PredictionBox();
 
                 tempPredBox.ByPrice = priceRes;
                 tempPredBox.ByAvg = avgRes;
@@ -459,8 +472,8 @@ namespace Midas.Core.Trade
                     {
 
                         AmountValue = operation.PriceEntry,
-                        LowerBound = operation.PriceEntry * (1 + (0.75/100)),
-                        UpperBound = operation.PriceEntry * (1 + (1.25/100)),
+                        LowerBound = operation.PriceEntry * (1 + (0.75 / 100)),
+                        UpperBound = operation.PriceEntry * (1 + (1.25 / 100)),
                         Gain = operation.GetGain(cc.CloseValue),
                         ExitValue = operation.ExitValue,
                         StopLossMark = operation.StopLossMark,
@@ -724,7 +737,7 @@ namespace Midas.Core.Trade
 
                 var seconds = Convert.ToInt32(_candleType);
 
-                var lastCandles = CandlesGateway.GetCandlesFromRest(asset, this._candleType, new DateRange(begin, DateTime.UtcNow.AddMinutes(seconds*-1)));
+                var lastCandles = CandlesGateway.GetCandlesFromRest(asset, this._candleType, new DateRange(begin, DateTime.UtcNow.AddMinutes(seconds * -1)));
                 ret = lastCandles;
             }
 
@@ -812,7 +825,7 @@ namespace Midas.Core.Trade
         {
             var ret = false;
             var trend = GetTrend(scoreThresholdByAvg, scoreThresholdByPrice);
-            var amount = CandleThatPredicted.AmountValue;
+            var amount = CandleThatPredicted.CloseValue;
             string trendType = "None";
 
             if (trend == TrendType.LONG || trend == TrendType.DOUBLE_LONG)
@@ -824,7 +837,7 @@ namespace Midas.Core.Trade
                     trendType = "AVG";
                 }
 
-                if (GetDiffAmount1VsAmount2(amount, ma12) > -0.1 && ByPrice.ScoreLong >= scoreThresholdByPrice)
+                if (amount > ma12 && ByPrice.ScoreLong >= scoreThresholdByPrice)
                 {
                     trendType = "Price";
                     ret = true;

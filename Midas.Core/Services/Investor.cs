@@ -177,6 +177,13 @@ namespace Midas.Core.Services
 
         public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
         {
+            return SearchOperations(conString,experiment,asset,candle,min, DateTime.MinValue, TradeOperationState.None);
+        }
+
+
+        public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min,
+            DateTime lastUpdateMin, TradeOperationState state, bool noPriceExit=true)
+        {
             var client = new MongoClient(conString);
             var database = client.GetDatabase("CandlesFaces");
             var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
@@ -184,13 +191,20 @@ namespace Midas.Core.Services
             var filterBuilder1 = Builders<TradeOperationDto>.Filter;
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
             filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, min));
-            filterDefinition.Add(filterBuilder1.Ne(item => item.PriceExitReal, 0));
+            
+            if(noPriceExit)
+                filterDefinition.Add(filterBuilder1.Ne(item => item.PriceExitReal, 0));
+
             if (experiment != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Experiment, experiment));
             if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
             if (candle != CandleType.None)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.CandleType, candle));
+            if (lastUpdateMin != DateTime.MinValue)
+                filterDefinition.Add(filterBuilder1.Gt(item => item.LastUpdate, lastUpdateMin));
+            if (state != TradeOperationState.None)
+                filterDefinition.Add(filterBuilder1.Eq(item => item.State, state));
 
             var filter = filterBuilder1.And(filterDefinition.ToArray());
 
@@ -219,7 +233,7 @@ namespace Midas.Core.Services
  
         public string GetOperationsSummary(int days)
         {
-            var allOperations = SearchOperations(this._params.DbConString, null, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1));
+            var allOperations = SearchOperations(this._params.DbConString, null, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1), DateTime.MinValue, TradeOperationState.None);
             var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
             StringBuilder sb = new StringBuilder(500);
 
@@ -430,7 +444,7 @@ namespace Midas.Core.Services
         {
             Console.WriteLine("Saindo...");
 
-            StopTraders();
+            StopTraders(false);
 
             _candleBot.Stop();
 
@@ -443,10 +457,10 @@ namespace Midas.Core.Services
                 pair.Value.Start();
         }
 
-        public void StopTraders()
+        public void StopTraders(bool stopOp = true)
         {
             foreach (var pair in _traders)
-                pair.Value.Stop();
+                pair.Value.Stop(stopOp);
 
             _traders = null;
         }

@@ -16,15 +16,15 @@
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
-    "Forecaster": "ThirtyPeriodForecast",
-    "FeedStreamType": "Historical",
+    "Forecaster": "TestForecast",
+    "FeedStreamType": "Live",
     "BrokerName": "TestBroker",
-    "PreloadCandles": false,
+    "PreloadCandles": true,
 
     "Assets": [
         {
-            "Asset": "BNBBUSD",
-            "CandleType": "HOUR1",
+            "Asset": "BTCBUSD",
+            "CandleType": "MIN15",
             "ScoreThresholdByAvg": 0.9,
             "ScoreThresholdByPrice": 0.75,
             "FundName": "BNBBUSD_HOUR1",

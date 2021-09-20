@@ -89,6 +89,8 @@ namespace Midas.Trading
 
             _lastTrade = DateTime.MinValue;
 
+            
+
             _broker = Broker.GetBroker("Binance", brokerConfig);
 
             _lastAttempt = ANGEL_BIRTH;
@@ -107,36 +109,12 @@ namespace Midas.Trading
             GetFunds();
         }
 
-        public void RestoreState(bool isTesting)
+        public TradeOperation RestoreState()
         {
             List<TradeOperationDto> ops = null;
-            if (!isTesting)
-                ops = GetOpenOperations();
-            else
-            {
-                ops = new List<TradeOperationDto>();
-                DateTime forecastDate = DateTime.UtcNow.AddMinutes(5 * 5);
-                double testLastValue = 30000;
+            ops = GetOpenOperations();
+            TradeOperation state = null;
 
-                var objId = ObjectId.GenerateNewId(DateTime.Now);
-                var myId = new BsonObjectId(objId);
-
-                ops.Add(new TradeOperationDto()
-                {
-                    ExitDate = forecastDate,
-                    EntryDate = DateTime.UtcNow.AddMinutes(5 * 2 * -1),
-                    ForecastDate = forecastDate,
-                    MaxValue = testLastValue,
-                    StopLossMarker = testLastValue * 0.99,
-                    PriceEntryDesired = testLastValue,
-                    PriceEntryReal = testLastValue,
-                    PriceExitDesired = 0,
-                    PriceExitReal = 0,
-                    LastValue = testLastValue,
-                    State = TradeOperationState.In,
-                    _id = myId
-                });
-            }
             if (ops.Count > 0)
             {
                 if (ops.Count > 1)
@@ -145,10 +123,11 @@ namespace Midas.Trading
                 }
 
                 _currentOperation = new TradeOperation(ops.First(), _fund, this, _conString, _brokerName,  _brokerConfig);
+                state = _currentOperation;
                 _allOperations.Add(_currentOperation);
             }
 
-            GetFunds();
+            return state;
         }
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
@@ -196,13 +175,7 @@ namespace Midas.Trading
 
         public List<TradeOperationDto> GetOpenOperations()
         {
-            var client = new MongoClient(_conString);
-            var database = client.GetDatabase("CandlesFaces");
-            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
-
-            var query = dbCol.Find(item => item.State == TradeOperationState.In).ToList();
-
-            return query.ToList();
+            return InvestorService.SearchOperations(_conString, null, _asset, _candleType, DateTime.MinValue, DateTime.UtcNow.AddHours(-12), TradeOperationState.In, false);
         }
 
         public List<TradeOperationDto> SearchOperations(string asset, DateTime min)

@@ -130,27 +130,28 @@ namespace Midas.Trading
             _priceEntryDesired = state.PriceEntryDesired;
             _priceExitDesired = state.PriceExitDesired;
             _priceExitReal = state.PriceExitReal;
-            _stopLossMarker = state.StopLossMarker;
             _softStopLossMarker = state.SoftStopLossMarker;
             _state = state.State;
-            _myId = (BsonObjectId)state._id;
+            _myId = (ObjectId)state._id;
             _myStrId = _myId.ToString();
 
-            _lastMaxValue = -1;
+            _stopLossMarker = GetInitialStopLoss(_priceEntryReal, 0.5);
 
-            GetInitialStopLoss(_priceEntryReal, 0.5);
+            _asset = state.Asset;
+            _candleType = state.CandleType;
+            _modelName = state.ModelName;
+            _lastUpdate = state.LastUpdate;
 
             _exitDate = state.ExitDate;
             _entryDate = state.EntryDate;
+            _lastLongPrediction = _entryDate;
             _forecastDate = state.ForecastDate;
             _lastMaxValue = state.MaxValue;
 
-            int windowSize = Convert.ToInt32(config.MSI_WINDOW_SIZE_SECONDS);
-
             _lastCandle = new Candle()
             {
-                PointInTime_Open = DateTime.Now,
-                PointInTime_Close = DateTime.Now.AddMinutes(5),
+                PointInTime_Open = DateTime.UtcNow,
+                PointInTime_Close = DateTime.UtcNow.AddMinutes(5),
                 AmountValue = state.LastValue
             };
         }
@@ -809,6 +810,7 @@ namespace Midas.Trading
         Stopped = 5,
         Profit = 6,
 
-        FailedOut
+        FailedOut = 7,
+        None = 8
     }
 }
