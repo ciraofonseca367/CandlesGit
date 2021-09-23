@@ -72,11 +72,24 @@ namespace Midas.Core.Trade
             return maValue;
         }
 
+        public double GetDifferentFromPast(double currentAmount, DateTime min)
+        {
+            var candles = _candleMovieRoll.GetList();
+
+            var last = candles.Where(c => c.OpenTime >= min).ToList();
+
+            double diff=0;
+            if(last.Count > 0)
+                diff = ((currentAmount - last.First().OpenValue) / last.First().OpenValue) * 100;
+
+            return diff;
+        }
+
         public void Start()
         {
             _running = true;
 
-            //RestoreOpIfAny();
+            RestoreOpIfAny();
 
             //Open the streamlog for this trader
             _streamLog = new StreamWriter(
@@ -137,8 +150,11 @@ namespace Midas.Core.Trade
         {
             var op = _manager.RestoreState();
 
-            TraceAndLog.StaticLog(GetIdentifier(), $"Restored state: {op.ToString()}");
-            TelegramBot.SendMessage($"Restored state: {op.ToString()}");
+            if (op != null)
+            {
+                TraceAndLog.StaticLog(GetIdentifier(), $"Restored state: {op.ToString()}");
+                TelegramBot.SendMessage($"Restored state: {op.ToString()}");
+            }
         }
 
         internal List<CalculatedIndicator> Indicators
@@ -225,31 +241,15 @@ namespace Midas.Core.Trade
 
                 Prediction avgRes = null, priceRes = null;
 
-                var t1 = Task.Run(() =>
+                try
                 {
-                    try
-                    {
 
-                        avgRes = avgForecaster.GetPrediction(_lastImg, current.AmountValue, current.OpenTime);
-                    }
-                    catch (Exception err)
-                    {
-                        TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
-                    }
-                });
-                var t2 = Task.Run(() =>
+                    avgRes = avgForecaster.GetPrediction(_lastImg, current.AmountValue, current.OpenTime);
+                }
+                catch (Exception err)
                 {
-                    try
-                    {
-                        priceRes = priceForecaster.GetPrediction(_lastImg, current.AmountValue, current.OpenTime);
-                    }
-                    catch (Exception err)
-                    {
-                        TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
-                    }
-                });
-
-                Task.WaitAll(t1, t2);
+                    TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
+                }
 
                 if (avgRes != null)
                     avgRes.CandleThatPredicted = current;
@@ -281,10 +281,13 @@ namespace Midas.Core.Trade
                 {
                     var currentTrend = _predictionBox.GetTrend(_assetParams.ScoreByPrice, _assetParams.ScoreByAvg);
 
+                    _manager.Signal(currentTrend);
+
+
                     if (currentTrend != TrendType.NONE)
                     {
                         Console.WriteLine("Trend: " + currentTrend);
-                        TelegramBot.SendMessageBuffered("Trend", $"{GetIdentifier()} is " + currentTrend);
+                        TelegramBot.SendMessage($"{GetIdentifier()} is " + currentTrend);
                     }
                 }
             }
@@ -413,7 +416,8 @@ namespace Midas.Core.Trade
         public string GetParametersReport()
         {
             string configs = $"<b>== {this.Asset.ToUpper()} - {this._candleType.ToString()} = {_params.WindowSize.ToString()} W ==</b>\n";
-            configs += $"Score: {this.AssetParams.ScoreByAvg.ToString("0.00")}%\n";
+            configs += $"Score Avg: {this.AssetParams.ScoreByAvg.ToString("0.00")}%\n";
+            configs += $"Score Price: {this.AssetParams.ScoreByPrice.ToString("0.00")}%\n";
             configs += $"Fund: ${this._manager.Funds:0.0000}\n";
             configs += $"{_params.CardWidth} x {_params.CardHeight}\n";
             configs += $"Delay triggger {(_params.DelayedTriggerEnabled ? "ON" : "OFF")}";
@@ -837,11 +841,11 @@ namespace Midas.Core.Trade
                     trendType = "AVG";
                 }
 
-                if (amount > ma12 && ByPrice.ScoreLong >= scoreThresholdByPrice)
-                {
-                    trendType = "Price";
-                    ret = true;
-                }
+                // if (GetDiffAmount1VsAmount2(amount, ma12) > -0.4 && ByPrice.ScoreLong >= scoreThresholdByPrice)
+                // {
+                //     trendType = "Price";
+                //     ret = true;
+                // }
             }
 
             return new Tuple<bool, string>(ret, trendType);

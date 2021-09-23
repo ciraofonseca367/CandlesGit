@@ -22,6 +22,7 @@ using Telegram.Bot;
 using Telegram.Bot.Extensions.Polling;
 using System.Text;
 using Midas.Core.Trade;
+using DateTimeUtil;
 
 namespace Midas.Core.Services
 {
@@ -283,7 +284,7 @@ namespace Midas.Core.Services
 
                 sb.Append($"{op.EntryDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
                 sb.Append($"IN: {op.PriceEntryReal:0.00} OUT: {op.PriceExitReal:0.00}\n");
-                sb.Append($"{duration.Hours}hr(s), {duration.Minutes}m(s)\n\n");
+                sb.Append($"{TimeSpanPlus.ToString(duration)}\n\n");
             });
 
             return sb.ToString();
@@ -406,6 +407,7 @@ namespace Midas.Core.Services
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
             var priceBTC = b.GetPriceQuote("BTCBUSD");
+            var priceBNB = b.GetPriceQuote("BNBBUSD");
             var priceADA = b.GetPriceQuote("ADABUSD");
             var priceETH = b.GetPriceQuote("ETHBUSD");
 
@@ -424,6 +426,8 @@ namespace Midas.Core.Services
                         b.TotalUSDAmount = b.TotalQuantity * priceADA;
                     else if (b.Asset == "ETH")
                         b.TotalUSDAmount = b.TotalQuantity * priceETH;
+                    else if (b.Asset == "BNB")
+                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
                 }
             });
 

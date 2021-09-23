@@ -1,0 +1,247 @@
+{
+    "GroupLevel": "MIN5",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2017-09.csv",
+            "DateStart": "2017-09-01 00:00:00",
+            "DateEnd": "2017-09-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2017-10.csv",
+            "DateStart": "2017-10-01 00:00:00",
+            "DateEnd": "2017-10-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2017-11.csv",
+            "DateStart": "2017-11-01 00:00:00",
+            "DateEnd": "2017-11-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2017-12.csv",
+            "DateStart": "2017-12-01 00:00:00",
+            "DateEnd": "2017-12-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-01.csv",
+            "DateStart": "2018-01-01 00:00:00",
+            "DateEnd": "2018-01-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-02.csv",
+            "DateStart": "2018-02-01 00:00:00",
+            "DateEnd": "2018-02-28 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-03.csv",
+            "DateStart": "2018-03-01 00:00:00",
+            "DateEnd": "2018-03-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-04.csv",
+            "DateStart": "2018-04-01 00:00:00",
+            "DateEnd": "2018-04-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-05.csv",
+            "DateStart": "2018-05-01 00:00:00",
+            "DateEnd": "2018-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-06.csv",
+            "DateStart": "2018-06-01 00:00:00",
+            "DateEnd": "2018-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-07.csv",
+            "DateStart": "2018-07-01 00:00:00",
+            "DateEnd": "2018-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-08.csv",
+            "DateStart": "2018-08-01 00:00:00",
+            "DateEnd": "2018-08-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-09.csv",
+            "DateStart": "2018-09-01 00:00:00",
+            "DateEnd": "2018-09-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-10.csv",
+            "DateStart": "2018-10-01 00:00:00",
+            "DateEnd": "2018-10-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-11.csv",
+            "DateStart": "2018-11-01 00:00:00",
+            "DateEnd": "2018-11-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2018-12.csv",
+            "DateStart": "2018-12-01 00:00:00",
+            "DateEnd": "2018-12-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-01.csv",
+            "DateStart": "2019-01-01 00:00:00",
+            "DateEnd": "2019-01-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-02.csv",
+            "DateStart": "2019-02-01 00:00:00",
+            "DateEnd": "2019-02-28 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-03.csv",
+            "DateStart": "2019-03-01 00:00:00",
+            "DateEnd": "2019-03-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-04.csv",
+            "DateStart": "2018-04-01 00:00:00",
+            "DateEnd": "2018-04-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-05.csv",
+            "DateStart": "2019-05-01 00:00:00",
+            "DateEnd": "2019-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-06.csv",
+            "DateStart": "2019-06-01 00:00:00",
+            "DateEnd": "2019-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-07.csv",
+            "DateStart": "2019-07-01 00:00:00",
+            "DateEnd": "2019-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-08.csv",
+            "DateStart": "2019-08-01 00:00:00",
+            "DateEnd": "2019-08-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-09.csv",
+            "DateStart": "2019-09-01 00:00:00",
+            "DateEnd": "2019-09-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-10.csv",
+            "DateStart": "2019-10-01 00:00:00",
+            "DateEnd": "2019-10-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-11.csv",
+            "DateStart": "2019-11-01 00:00:00",
+            "DateEnd": "2019-11-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2019-12.csv",
+            "DateStart": "2019-12-01 00:00:00",
+            "DateEnd": "2019-12-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-01.csv",
+            "DateStart": "2020-01-01 00:00:00",
+            "DateEnd": "2020-01-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-02.csv",
+            "DateStart": "2020-02-01 00:00:00",
+            "DateEnd": "2020-02-28 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-03.csv",
+            "DateStart": "2020-03-01 00:00:00",
+            "DateEnd": "2020-03-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-04.csv",
+            "DateStart": "2020-04-01 00:00:00",
+            "DateEnd": "2020-04-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-05.csv",
+            "DateStart": "2020-05-01 00:00:00",
+            "DateEnd": "2020-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-06.csv",
+            "DateStart": "2020-06-01 00:00:00",
+            "DateEnd": "2020-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-07.csv",
+            "DateStart": "2020-07-01 00:00:00",
+            "DateEnd": "2020-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-08.csv",
+            "DateStart": "2020-08-01 00:00:00",
+            "DateEnd": "2020-08-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-09.csv",
+            "DateStart": "2020-09-01 00:00:00",
+            "DateEnd": "2020-09-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-10.csv",
+            "DateStart": "2020-10-01 00:00:00",
+            "DateEnd": "2020-10-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-11.csv",
+            "DateStart": "2020-11-01 00:00:00",
+            "DateEnd": "2020-11-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2020-12.csv",
+            "DateStart": "2020-12-01 00:00:00",
+            "DateEnd": "2020-12-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-01.csv",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-01-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-02.csv",
+            "DateStart": "2021-02-01 00:00:00",
+            "DateEnd": "2021-02-28 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-03.csv",
+            "DateStart": "2021-03-01 00:00:00",
+            "DateEnd": "2021-03-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-04.csv",
+            "DateStart": "2021-04-01 00:00:00",
+            "DateEnd": "2021-04-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-05.csv",
+            "DateStart": "2021-05-01 00:00:00",
+            "DateEnd": "2021-05-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/BTCUSDT-5m-2021-06.csv",
+            "DateStart": "2021-06-01 00:00:00",
+            "DateEnd": "2021-06-30 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/",
+            "Mask": "'BTCUSDT-5m-'yyyy-MM-dd'.csv'",
+            "DateStart": "2021-07-01 00:00:00",
+            "DateEnd": "2021-07-31 23:59:59"
+        },
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTC/",
+            "Mask": "'BTCUSDT-5m-'yyyy-MM-dd'.csv'",
+            "DateStart": "2021-08-01 00:00:00",
+            "DateEnd": "2021-08-08 23:59:59"
+        }
+    ]
+}

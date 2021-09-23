@@ -256,8 +256,8 @@ namespace Midas.Core.Card
 
             var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
             var range = new DateRange(_beginWindow, _endWindow);
-            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
-            stopLossShort *= 1.5;
+            var ratr = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
+            var stopLossShort = ratr/3;
             var stopLossLong = stopLossShort *-1;            
 
             status = "IGNORED";
@@ -269,14 +269,14 @@ namespace Midas.Core.Card
                 status = "ZERO";
 
 
-            if (forecastOnPrice.CountHighestDifference(1,_params.ForecastWindow,limitToPredictLong) >= 3)
+            if (forecastOnPrice.CountHighestDifference(1,_params.ForecastWindow,ratr) >= 3)
             {
                 if(forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow/3)) > stopLossLong)
                     status = "LONG";
             }
 
 
-            if (forecastOnPrice.CountLowestDifference(1,_params.ForecastWindow,limitToPredictShort) >= 3)
+            if (forecastOnPrice.CountLowestDifference(1,_params.ForecastWindow,ratr*-1) >= 3)
             {
                 if(forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow/3)) < stopLossShort)
                     status = "SHORT";

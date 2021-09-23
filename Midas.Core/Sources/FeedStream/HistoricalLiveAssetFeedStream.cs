@@ -113,16 +113,30 @@ namespace Midas.FeedStream
                         HighestValue = c.OpenValue
                     };
 
-                    var diff = c.CloseValue - c.OpenValue;
-                    var amountFactor = diff / 100;
-                    var secondsFactor = c.CandleAge.TotalSeconds / 100;
+                    double diff;
+
+                    if(c.Direction == CandleDirection.Up)
+                    {
+                        diff = c.HighestValue - c.LowestValue;
+                        seedCandle.CloseValue = c.LowestValue;
+                    }
+                    else
+                    {
+                        diff = c.LowestValue - c.HighestValue;
+                        seedCandle.CloseValue = c.HighestValue;
+                    }
+
+                    int factor = 100;
+
+                    var amountFactor = diff / factor;
+                    var secondsFactor = c.CandleAge.TotalSeconds / factor;
 
                     Random r = new Random();
                     Thread.Sleep(r.Next(25,50));
 
                     _socketNew("Test", previous, seedCandle);
 
-                    for(int i=1;i<=100;i++)
+                    for(int i=1;i<=factor;i++)
                     {
                         var nc = (Candle) seedCandle.Clone();
                         nc.CloseValue += i*amountFactor;
@@ -137,7 +151,7 @@ namespace Midas.FeedStream
 
                         nc.PointInTime_Close = close;
 
-                        //Thread.Sleep(10);
+                        //Thread.Sleep(100);
 
                         _socketUpdate("test", "test", nc);
                     }

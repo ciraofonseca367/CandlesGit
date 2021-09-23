@@ -16,25 +16,25 @@
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
-    "Forecaster": "TestForecast",
-    "FeedStreamType": "Live",
+    "Forecaster": "ThirtyPeriodForecast",
+    "FeedStreamType": "Historical",
     "BrokerName": "TestBroker",
-    "PreloadCandles": true,
+    "PreloadCandles": false,
 
     "Assets": [
         {
             "Asset": "BTCBUSD",
-            "CandleType": "MIN15",
-            "ScoreThresholdByAvg": 0.9,
-            "ScoreThresholdByPrice": 0.75,
+            "CandleType": "HOUR1",
+            "ScoreThresholdByAvg": 0.5,
+            "ScoreThresholdByPrice": 0.45,
             "FundName": "BNBBUSD_HOUR1",
             "AtrStopLoss": 1,
-            "StopLossCompSoftness": 0.5,
-            "AvgCompSoftness": 0.1,
+            "StopLossCompSoftness": 0.3,
+            "AvgCompSoftness": 0.4,
             "FollowPricePerc": 0.3,
-            "GainSoftStopTrigger": 0.75
-        }          
-    ],    
+            "GainSoftStopTrigger": 1
+        }
+    ],
 
 
     "Indicators": [
@@ -84,6 +84,17 @@
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
             "Params": [6],
             "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 7
+        },
+        {
+            "Name": "MA9",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [9],
+            "Source": "Main",
+            "Target": "NONE",
             "ChartType": "Line",
             "Color": "Black",
             "Size": 7

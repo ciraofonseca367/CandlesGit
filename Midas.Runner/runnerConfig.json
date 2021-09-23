@@ -1,8 +1,8 @@
 {
     "RunMode": "Create",
     "IsTesting": "true",
-    "ExperimentName": "run100_byPrice_BNB",
-    "Asset": "BNBBUSD",
+    "ExperimentName": "run100_byPrice_BTC",
+    "Asset": "BTCBUSD",
     "StartDate": "2021-01-01 00:00:00",
     "EndDate": "2021-07-31 23:59:59",
     "CandleType": "MIN15",

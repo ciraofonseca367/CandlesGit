@@ -19,7 +19,7 @@ namespace Midas.Core.Forecast
             var previewTags = new List<PredictionResult>();
             Console.WriteLine("Generating test prediction in 5 seconds...");
             
-            Thread.Sleep(5000);
+            Thread.Sleep(5*1000);
 
             var testResult = new PredictionResult()
             {
@@ -28,15 +28,15 @@ namespace Midas.Core.Forecast
                 Score = 0.99f,
                 CreationDate = currentTime,
                 DateRange = new DateRange(currentTime, currentTime.AddHours(3)),
-                RatioLowerBound = 0.75/100,
-                RatioUpperBound = 1.25/100
+                RatioLowerBound = 0.5/100,
+                RatioUpperBound = 1.5/100
             };
             
 
             testResult.LowerBound = currentValue * (1 + testResult.RatioLowerBound);
             testResult.UpperBound = currentValue * (1 + testResult.RatioUpperBound);
 
-            previewTags.Add(testResult);
+            //previewTags.Add(testResult);
 
             Console.WriteLine("Here is a prediction...");
 

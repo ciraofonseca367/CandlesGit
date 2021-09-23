@@ -41,7 +41,7 @@ namespace Midas.Trading
         private TradeLogger _logger;
         private AssetTrader _trader;
 
-        private DateTime _lastTrade;
+        private TradeOperation _lastTrade;
 
         private string _experiment;
 
@@ -87,9 +87,6 @@ namespace Midas.Trading
             _trader = trader;
             _experiment = experiment;
 
-            _lastTrade = DateTime.MinValue;
-
-            
 
             _broker = Broker.GetBroker("Binance", brokerConfig);
 
@@ -230,15 +227,26 @@ namespace Midas.Trading
             return _allOperations.Where(op => op.EntryDate > validDate).ToList();
         }
 
-        internal void OperationFinished(Candle cc)
+        internal void OperationFinished(TradeOperation op, Candle cc)
         {
-            _lastTrade = cc.CloseTime;
+            _lastTrade = op;
             _trader.SaveSnapshot(cc);
         }
 
-        private TimeSpan GetLastOperationPeriodSpan(DateTime now)
+        private bool IsBlocked(DateTime relativeNow)
         {
-            return now - _lastTrade;
+            bool blocked = false;
+            if(_lastTrade != null)
+            {
+                if(_lastTrade.IsClassic())
+                {
+                    var howLongAgo = relativeNow - _lastTrade.ExitDate;
+                    if(howLongAgo.TotalHours < 30)
+                        blocked = true;
+                }
+            }
+
+            return blocked;
         }
 
         public List<TradeOperation> GetOperationsThreadSafe(DateTime validDate)
@@ -253,7 +261,7 @@ namespace Midas.Trading
             return _allOperations.OrderByDescending(op => op.EntryDate).FirstOrDefault(op => op.IsIn);
         }
 
-        public void Signal(TradeType signal)
+        public void Signal(TrendType signal)
         {
             if (_currentOperation != null)
                 _currentOperation.Signal(signal);
@@ -263,7 +271,7 @@ namespace Midas.Trading
         {
             TradeOperation ret = null;
 
-            //if (GetLastOperationPeriodSpan(pointInTime).TotalHours > 1.5f)
+            //if (!IsBlocked(pointInTime))
             //{
                 if (_currentOperation == null)
                 {
