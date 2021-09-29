@@ -43,11 +43,11 @@ namespace Midas.Core.NewTests
 
             string orderId = DateTime.Now.Ticks.ToString();
             string asset = "BTCUSDT";
-            var task = broker.SmartOrderAsync(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice, PriceBias.Optmistic);
+            var task = broker.SmartOrderAsync(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice, PriceBias.Optmistic, DateTime.Now);
             task.Wait(180000);
             Broker.BrokerOrder order = task.Result;
 
-            Debug.WriteLine(order.Status);
+            Debug.WriteLine(order.RawStatus);
             Debug.WriteLine(order.InError);
             Debug.WriteLine(order.AverageValue.ToString("0.0000"));
             Debug.WriteLine("MarketOrder Buy Avg: "+order.AverageValue.ToString());
@@ -56,18 +56,18 @@ namespace Midas.Core.NewTests
             Assert.IsTrue(order.InError);
 
             string orderIdB = DateTime.Now.Ticks.ToString()+"B";
-            var task2 = broker.SmartOrderAsync(orderIdB, asset, OrderDirection.SELL, amount, 60000, order.AverageValue, PriceBias.Optmistic);
+            var task2 = broker.SmartOrderAsync(orderIdB, asset, OrderDirection.SELL, amount, 60000, order.AverageValue, PriceBias.Optmistic, DateTime.Now);
             task2.Wait(60000);
             Broker.BrokerOrder order2 = task2.Result;
 
             Debug.WriteLine(order2.AverageValue.ToString("0.0000"));
-            Debug.WriteLine(order2.Status);
+            Debug.WriteLine(order2.RawStatus);
             Debug.WriteLine(order2.InError);
             Debug.WriteLine("MarketOrder Sell Avg: "+order2.AverageValue.ToString());
 
             Debug.WriteLine("Tempo: "+ (DateTime.Now - start).TotalSeconds);
 
-            Assert.IsTrue(order2.Status == "FILLED");
+            Assert.IsTrue(order2.RawStatus == "FILLED");
         }
 
         [TestMethod]
@@ -102,11 +102,11 @@ namespace Midas.Core.NewTests
 
             string orderId = DateTime.Now.Ticks.ToString();
             string asset = "BTCUSDT";
-            var task = broker.SmartOrderAsync(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice, PriceBias.Optmistic);
+            var task = broker.SmartOrderAsync(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice, PriceBias.Optmistic, DateTime.Now);
             task.Wait(180000);
             Broker.BrokerOrder order = task.Result;
 
-            Debug.WriteLine(order.Status);
+            Debug.WriteLine(order.RawStatus);
             Debug.WriteLine(order.InError);
             Debug.WriteLine(order.AverageValue.ToString("0.0000"));
             Debug.WriteLine("MarketOrder Buy Avg: "+order.AverageValue.ToString());
@@ -115,18 +115,18 @@ namespace Midas.Core.NewTests
             Assert.IsTrue(order.InError);
 
             string orderIdB = DateTime.Now.Ticks.ToString()+"B";
-            var task2 = broker.SmartOrderAsync(orderIdB, asset, OrderDirection.SELL, amount, 60000, order.AverageValue, PriceBias.Optmistic);
+            var task2 = broker.SmartOrderAsync(orderIdB, asset, OrderDirection.SELL, amount, 60000, order.AverageValue, PriceBias.Optmistic, DateTime.Now);
             task2.Wait(60000);
             Broker.BrokerOrder order2 = task2.Result;
 
             Debug.WriteLine(order2.AverageValue.ToString("0.0000"));
-            Debug.WriteLine(order2.Status);
+            Debug.WriteLine(order2.RawStatus);
             Debug.WriteLine(order2.InError);
             Debug.WriteLine("MarketOrder Sell Avg: "+order2.AverageValue.ToString());
 
             Debug.WriteLine("Tempo: "+ (DateTime.Now - start).TotalSeconds);
 
-            Assert.IsTrue(order2.Status == "FILLED");
+            Assert.IsTrue(order2.RawStatus == "FILLED");
         }
 
 
@@ -163,11 +163,11 @@ namespace Midas.Core.NewTests
             Debug.WriteLine("Preço atual: "+currentPrice.ToString("0.0000"));
 
             string orderId = DateTime.Now.Ticks.ToString();
-            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9);
+            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9, DateTime.Now);
 
             var status = broker.OrderStatus(orderId, asset, 5000);
 
-            Assert.IsTrue(status.Status == "NEW");
+            Assert.IsTrue(status.RawStatus == "NEW");
 
             Assert.IsTrue(broker.CancelOrder(orderId, asset, 10000));
         }    
@@ -204,11 +204,11 @@ namespace Midas.Core.NewTests
             Debug.WriteLine("Preço atual: "+currentPrice.ToString("0.0000"));
 
             string orderId = DateTime.Now.Ticks.ToString();
-            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9);
+            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9, DateTime.Now);
 
             var status = broker.OrderStatus(orderId, asset, 5000);
 
-            Assert.IsTrue(status.Status == "NEW");
+            Assert.IsTrue(status.RawStatus == "NEW");
 
             broker.CancelAllOpenOrdersAsync(asset, 10000);
         }            

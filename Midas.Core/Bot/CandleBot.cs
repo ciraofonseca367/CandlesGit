@@ -117,6 +117,11 @@ namespace Midas.Core.Telegram
             }
             catch (Exception exception)
             {
+                if(update != null && update.Message != null)
+                    await botClient.SendTextMessageAsync(chatId: update.Message.Chat.Id,
+                                                                text: $"General error: {exception.Message}",
+                                                                replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);   
+
                 await HandleErrorAsync(botClient, exception, cancellationToken);
             }
         }
@@ -266,6 +271,36 @@ namespace Midas.Core.Telegram
                         text: stateAll);
 
                     break;                    
+                case "Try Enter":
+                    
+                   await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    if (currentTrader != null)
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "Wait while I get a prediction and check if it's advisible to open a position");
+
+                        var enterResult = currentTrader.SetPrediction();
+                        bool goodToEnter = currentTrader.GoodToEnter();
+
+                        enterResult +=$"\n\nGood to enter? {goodToEnter}";
+
+                        if(enterResult == String.Empty)
+                            enterResult = "Nothing to report";
+
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: enterResult, parseMode: ParseMode.Html);
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "No asset selected");
+                    }
+                    
+                    break;                    
                 case "P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -378,11 +413,16 @@ namespace Midas.Core.Telegram
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
-                                                                text: "It can take a a couple of minutes to close the operations, wait...");
+                                                                text: "It can take a a couple of minutes to close the operation, wait...");
 
-                    var op = await currentTrader.CloseOperationIfAny();
-
-                    var text = op != null ? $"Done!\n{op.ToString()}" : "No operation to close here";
+                    string text;
+                    var op = currentTrader.CloseOperationIfAny();
+                    if(op != null)
+                    {
+                        text = "Done!";
+                    }
+                    else
+                        text = "No operation to close here";
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: text);
@@ -436,6 +476,7 @@ namespace Midas.Core.Telegram
             var replyKeyboardMarkup = new ReplyKeyboardMarkup(
                 new KeyboardButton[][]
                 {
+                    new KeyboardButton[] { "Try Enter" },
                     new KeyboardButton[] { "Snapshot","State" },
                     new KeyboardButton[] { "Close Position", "P&L" },
                     new KeyboardButton[] { "Back"}
@@ -454,7 +495,7 @@ namespace Midas.Core.Telegram
         {
             List<KeyboardButton[]> buttonsLines = new List<KeyboardButton[]>();
             buttonsLines.Add(new KeyboardButton[] { "General P&L", "Full Report", "Last Transactions" });
-            buttonsLines.Add(new KeyboardButton[] { "Open Positions" });
+            buttonsLines.Add(new KeyboardButton[] { "Open Positions"});
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
             buttonsLines.Add(new KeyboardButton[] { "Balance", "Config" });

@@ -1,10 +1,10 @@
 {
     "RunMode": "Invest",
     "ExperimentName": "Investing",
-    "Asset": "BTCUSDT",
+    "Asset": "BTCBUSD",
     "StartDate": "2021-08-01 00:00:00",
-    "EndDate": "2021-08-20 23:59:59",
-    "CandleType": "MIN15",
+    "EndDate": "2021-08-31 23:59:59",
+    "CandleType": "HOUR1",
     "WindowSize": 30,
     "CardWidth": 1600,
     "CardHeight": 1600,
@@ -26,11 +26,11 @@
             "Asset": "BTCBUSD",
             "CandleType": "HOUR1",
             "ScoreThresholdByAvg": 0.5,
-            "ScoreThresholdByPrice": 0.45,
+            "ScoreThresholdByPrice": 0.75,
             "FundName": "BNBBUSD_HOUR1",
-            "AtrStopLoss": 1,
-            "StopLossCompSoftness": 0.3,
-            "AvgCompSoftness": 0.4,
+            "AtrStopLoss": 0.25,
+            "StopLossCompSoftness": 0.01,
+            "AvgCompSoftness": 0.5,
             "FollowPricePerc": 0.3,
             "GainSoftStopTrigger": 1
         }
@@ -103,7 +103,7 @@
             "Name": "ATR",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.ATRIndicator",
-            "Params": [14],
+            "Params": [30],
             "Source": "Main",
             "Target": "NONE",
             "ChartType": "Line",
@@ -142,15 +142,24 @@
         "ApiSecret": "rIoZfJYGmo0lIZ2l8P26T9udYWPG0f7NDL3VR098TCGVk3woMzkfFDioDR0Fl5nG",
         "EndPoint": "https://testnet.binance.vision",
         "Host": "testnet.binance.vision",
-        "BIAS_DIFF_FORBUY": 1.0003,
-        "BIAS_DIFF_FORSELL": 0.9997,
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
-        "STOP_LOSS": 0.009,
-        "MSI_WINDOW_SIZE_SECONDS": 900,
-        "MIN_TARGET_PROFIT": 0.007
+        "PurchaseSteps": [
+            {
+                "Units": 2,
+                "GainTrigger": 0
+            },
+            {
+                "Units": 6,
+                "GainTrigger": 0.2
+            },
+            {
+                "Units": 2,
+                "GainTrigger": 0.4
+            }
+        ]
     },
 
-    "UrlPriceModel" : "http://vps32867.publiccloud.com.br:81",
+    "UrlPriceModel" : "http://vps32867.publiccloud.com.br:443",
     "UrlAvgModel" : "http://vps32867.publiccloud.com.br"
 }

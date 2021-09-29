@@ -6,87 +6,144 @@ using System.Threading.Tasks;
 
 namespace Midas.Core.Broker
 {
-    public abstract class BrokerOrder
+    public class BrokerOrder
     {
-        protected OrderType _type;
+        private OrderType _type;
         private OrderDirection _direction;
-        protected string _orderId;
-        protected Broker _broker;
+        private string _orderId;
+        private Broker _broker;
 
-        protected string _asset;
+        private DateTime _creationDate;
 
-        public BrokerOrder(Broker broker, OrderDirection direction, OrderType type, string orderId, string asset)
+        public BrokerOrder(Broker broker, OrderDirection direction, OrderType type, string orderId, DateTime creationDate)
         {
             _type = type;
             _orderId = orderId;
             _broker = broker;
-            _asset = asset;
             _direction = direction;
             InError = false;
+            _creationDate = creationDate;
+            HasTimeouted = false;
         }
 
-        public BrokerOrder(Broker broker, string orderId, string asset) : this(broker, OrderDirection.NONE, OrderType.NONE, orderId, asset)
+
+        public BrokerOrder(Broker broker, string orderId, DateTime creationDate) : this(broker, OrderDirection.NONE, OrderType.NONE, orderId, creationDate)
         {
         }
 
-        public virtual double AverageValue
+        public TimeSpan WaitDuration(DateTime relativeNow)
+        {
+            return (relativeNow - _creationDate);
+        }
+
+        public double DesiredPrice
         {
             get;
             set;
         }
 
-        public virtual double Price
+        public bool HasTimeouted
         {
             get;
             set;
         }
+
+        public double AverageValue
+        {
+            get;
+            set;
+        }
+
+        public double Quantity
+        {
+            get; set;
+        }
+
         public string ErrorMsg { get; internal set; }
-        public string ErrorCode { get; internal set; }         
+        public string ErrorCode { get; internal set; }
 
-        public virtual string Status
+        public virtual string RawStatus
         {
             get;
             set;
         }
 
-        public virtual bool InError
+        public BrokerOrderStatus Status
         {
             get;
             set;
         }
 
-
-        public virtual string BrokerOrderId
-        {
-            get;
-            set;
-        }
-        protected virtual OrderDirection Direction
+        public bool InError
         {
             get;
             set;
         }
 
 
-        protected virtual OrderType Type
+        public string BrokerOrderId
         {
-            get;
-            set;
+            get
+            {
+                return _orderId;
+            }
+            set
+            {
+                _orderId = value;
+            }
+
+        }
+        public OrderDirection Direction
+        {
+            get
+            {
+                return _direction;
+            }
         }
 
-        internal bool WaitForConfimation(int v)
+
+        public OrderType Type
         {
-            throw new NotImplementedException();
+            get
+            {
+                return _type;
+            }
+            set
+            {
+                _type = value;
+            }
         }
+
+        public string OrderId { get => _orderId; set => _orderId = value; }
     }
 
-    public class BinanceBrokerOrder : BrokerOrder
+    /*
+Status	Description
+NEW	The order has been accepted by the engine.
+PARTIALLY_FILLED	A part of the order has been filled.
+FILLED	The order has been completed.
+CANCELED	The order has been canceled by the user.
+PENDING_CANCEL	Currently unused
+REJECTED	The order was not accepted by the engine and not processed.
+EXPIRED	The order was canceled according to the order type's rules (e.g. LIMIT FOK orders with no fill, LIMIT IOC or MARKET orders that partially fill) or by the exchange, (e.g. orders canceled during liquidation, orders canceled during maintenance)
+    */
+
+    public enum BrokerOrderStatus
     {
-        public BinanceBrokerOrder(Broker broker,OrderDirection direction, OrderType type, string orderId, string asset) : base(broker, direction, type, orderId, asset)
-        {
-        }
-        public BinanceBrokerOrder(Broker broker, string orderId, string asset) : base(broker, orderId, asset)
-        {
-        }
+        None,
+        NEW,
+
+        FILLED,
+
+        EXPIRED,
+
+        ERROR,
+
+        CANCELED,
+
+        PENDING_CANCEL,
+        REJECTED,
+
+        PARTIALLY_FILLED
     }
 }

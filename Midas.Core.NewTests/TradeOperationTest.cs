@@ -40,9 +40,7 @@ namespace Midas.Core.NewTests
             });
 
             Thread.Sleep(10);
-            var statusEnter = op.EnterAsync(30500, DateTime.Now,10);
-            statusEnter.Wait(10000);
-            Assert.IsTrue(statusEnter.Result);
+            op.Enter(30500, DateTime.Now,10);
 
             Thread.Sleep(10);
 

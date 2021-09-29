@@ -59,9 +59,24 @@ namespace Midas.FeedStream
                 if (_activeFile != null)
                     _activeFile.Dispose();
 
-                _activeFile = File.Open(_files[_filePosition], FileMode.Open, FileAccess.Read, FileShare.Read);
-                _currentStream = new StreamReader(_activeFile);
-                _filePosition++;
+                
+                FileInfo fileInfo = new FileInfo(_files[_filePosition]);
+                do
+                {
+                    fileInfo = new FileInfo(_files[_filePosition]);
+                    _filePosition++;
+                }
+                while(!fileInfo.Exists && _filePosition < _files.Length);
+
+                if(fileInfo.Exists)
+                {
+                    _activeFile = File.Open(_files[_filePosition], FileMode.Open, FileAccess.Read, FileShare.Read);
+                    _currentStream = new StreamReader(_activeFile);
+                }
+                else
+                {
+                    _currentStream = null;
+                }
             }
             else
                 _currentStream = null;

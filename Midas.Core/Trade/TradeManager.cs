@@ -267,7 +267,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public async Task<TradeOperation> SignalEnterAsync(double value, DateTime pointInTime, DateTime forecastPeriod, double atr, string modelName)
+        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double atr, string modelName)
         {
             TradeOperation ret = null;
 
@@ -292,7 +292,7 @@ namespace Midas.Trading
             {
                 if (_currentOperation.State == TradeOperationState.Initial)
                 {
-                    await _currentOperation.EnterAsync(value, pointInTime, atr, modelName);
+                    _currentOperation.Enter(value, pointInTime, atr, modelName);
                     ret = _currentOperation;
                 }
             }
@@ -304,7 +304,7 @@ namespace Midas.Trading
 
         public BrokerOrder ForceMarketSell()
         {
-            var order = _broker.MarketOrder("EMERGENCYSELL", _asset, OrderDirection.SELL, _fund, 60000);
+            var order = _broker.MarketOrder("EMERGENCYSELL", _asset, OrderDirection.SELL, _fund, 60000, 0, DateTime.UtcNow, false);
             return order;
         }
 

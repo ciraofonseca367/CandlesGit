@@ -20,13 +20,10 @@ namespace Midas.FeedStream
         private TradeLogger _logger;
         private double _lastValue;
 
-        private bool _running;
-
         public HistoricalLiveAssetFeedStream(BinanceWebSocket socket, string asset, CandleType streamCandleType, CandleType queryCandleType)
             : base(asset, streamCandleType, queryCandleType)
         {
             _state = MidasSocketState.Connected;
-            _running = true;
 
             _logger = new TradeLogger();
 
@@ -71,12 +68,11 @@ namespace Midas.FeedStream
 
         public override void Close(bool fromGC)
         {
-            _running = false;
+            base.Close(fromGC);
         }
 
         public override void Dispose()
         {
-            _running = false;
             base.Dispose();
         }
 
@@ -132,7 +128,7 @@ namespace Midas.FeedStream
                     var secondsFactor = c.CandleAge.TotalSeconds / factor;
 
                     Random r = new Random();
-                    Thread.Sleep(r.Next(25,50));
+                    Thread.Sleep(r.Next(300,350));
 
                     _socketNew("Test", previous, seedCandle);
 
@@ -151,7 +147,7 @@ namespace Midas.FeedStream
 
                         nc.PointInTime_Close = close;
 
-                        //Thread.Sleep(100);
+                        //Thread.Sleep(20);
 
                         _socketUpdate("test", "test", nc);
                     }

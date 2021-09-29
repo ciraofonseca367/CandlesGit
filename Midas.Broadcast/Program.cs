@@ -211,7 +211,7 @@ namespace Midas.Broadcast
                             var forecastPoint = new TradeOperationCandle()
                             {
 
-                                AmountValue = operation.PriceEntry,
+                                AmountValue = operation.PriceEntryAverage,
                                 LowerBound = 0.5/100,
                                 UpperBound = 1/100,
                                 Gain = operation.GetGain(cc.CloseValue),

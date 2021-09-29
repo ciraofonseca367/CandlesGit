@@ -36,7 +36,7 @@ namespace Midas.Core.Forecast
             testResult.LowerBound = currentValue * (1 + testResult.RatioLowerBound);
             testResult.UpperBound = currentValue * (1 + testResult.RatioUpperBound);
 
-            //previewTags.Add(testResult);
+            previewTags.Add(testResult);
 
             Console.WriteLine("Here is a prediction...");
 

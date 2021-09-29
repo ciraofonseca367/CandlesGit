@@ -287,6 +287,9 @@ namespace Midas.Core.Services
                 sb.Append($"{TimeSpanPlus.ToString(duration)}\n\n");
             });
 
+            if(allOperationsReverse.Count() == 0)
+                sb.Append("No records in the last 48 hrs");
+
             return sb.ToString();
         }
 

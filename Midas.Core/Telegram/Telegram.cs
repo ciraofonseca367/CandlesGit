@@ -22,6 +22,8 @@ namespace Midas.Core.Telegram
 
         public static string RedX = "\U0000274C";
 
+        public static string CrossedFingers = "\U0001F91E";
+
     }
     public class TelegramBot
     {

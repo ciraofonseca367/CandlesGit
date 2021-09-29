@@ -58,8 +58,10 @@ namespace Midas
             );
 
             var outputDir = Directory.CreateDirectory(
-                Path.Combine(runParams.OutputDirectory, runParams.ExperimentName)
+                Path.Combine(runParams.OutputDirectory, runParams.ExperimentName, runParams.Asset)
                 );
+
+            var rootOutputDir = new DirectoryInfo(Path.Combine(runParams.OutputDirectory, runParams.ExperimentName));
 
             PredictionReport report = null;
             if (runParams.RunMode == RunModeType.Predict)
@@ -69,7 +71,9 @@ namespace Midas
 
             RoundRobinNumber robin = new RoundRobinNumber(10);
 
-            using (var csvFile = File.Open(Path.Combine(outputDir.FullName, runParams.OutputFile), FileMode.Create, FileAccess.Write, FileShare.Read))
+            Candle lastLong = null;
+
+            using (var csvFile = File.Open(Path.Combine(rootOutputDir.FullName, runParams.OutputFile), FileMode.Append, FileAccess.Write, FileShare.Read))
             {
                 StreamWriter csvWriter = new StreamWriter(csvFile);
 
@@ -120,28 +124,27 @@ namespace Midas
                             if (img != null)
                             {
                                 var firstSecond = candles.ElementAt(0).PointInTime_Open;
-                                var lastSecond = candles.ElementAt(candles.Count() - 1).PointInTime_Close;
+                                var currentCandle = (Candle) candles.ElementAt(candles.Count() - 1);
+                                var lastSecond = currentCandle.PointInTime_Close;
                                 var progressSpan = lastSecond - runParams.Range.Start;
 
                                 progress.setProgress(progressSpan.TotalMinutes);
 
-                                Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams.Indicators, runParams);
+                                Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams.Indicators, runParams, currentCandle);
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
                                     var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open);
-                                    if (tag != "ZZZZIGNORED")
+                                    if (tag != "ZZZZZZIGNORED")
                                     {
                                         DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
                                         var fileName = c.SaveToFile(dirInfo.FullName, tag);
 
 
-                                        csvWriter.Write("gs://candlebucket/");
-                                        csvWriter.Write(runParams.ExperimentName);
-                                        csvWriter.Write("/");
-                                        csvWriter.Write(fileName);
-                                        csvWriter.Write(",");
-                                        csvWriter.Write(tag);
+                                        csvWriter.Write($"gs://candlebucket/{runParams.ExperimentName}/{runParams.Asset}/{fileName},{tag}");
                                         csvWriter.WriteLine();
+
+                                        if(tag == "LONG")
+                                            lastLong = currentCandle;
                                     }
                                 }
                             }

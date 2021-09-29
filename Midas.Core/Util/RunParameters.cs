@@ -22,11 +22,11 @@ namespace Midas.Core
 
         public static RunParameters CreateInstace(string[] ps)
         {
-            if(_singleParams == null)
+            if (_singleParams == null)
             {
-                lock(_lockSinc)
+                lock (_lockSinc)
                 {
-                    if(_singleParams == null)
+                    if (_singleParams == null)
                         _singleParams = new RunParameters(ps);
                 }
             }
@@ -37,7 +37,7 @@ namespace Midas.Core
         public static RunParameters GetInstance()
         {
             return _singleParams;
-        }                
+        }
         public CandleType CandleType
         {
             get;
@@ -112,7 +112,7 @@ namespace Midas.Core
                 Console.WriteLine("{0,-20}: {1}", "Experiment", this.ExperimentName);
                 Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
                 Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
-                Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());                
+                Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
                 Console.WriteLine("{0,-20}: {1}", "DelayedTrigger", this.DelayedTriggerEnabled);
                 Console.WriteLine("");
                 Console.WriteLine("{0,-20}: {1}", "Model Avg", this.UrlAvgModel);
@@ -318,23 +318,23 @@ namespace Midas.Core
             CardWidth = Convert.ToInt32(stuff.CardWidth);
             CardHeight = Convert.ToInt32(stuff.CardHeight);
 
-            if(stuff.DelayedTriggerEnabled != null)
+            if (stuff.DelayedTriggerEnabled != null)
                 DelayedTriggerEnabled = Convert.ToBoolean(stuff.DelayedTriggerEnabled);
 
             IsTesting = false;
-            if(stuff.IsTesting != null)
+            if (stuff.IsTesting != null)
                 IsTesting = Convert.ToBoolean(stuff.IsTesting);
 
             Range = new DateRange(start, end);
 
-            if(stuff.StopLoss != null)
+            if (stuff.StopLoss != null)
                 StopLoss = Convert.ToDouble(stuff.StopLoss);
-            if(stuff.AverageVerification != null)
+            if (stuff.AverageVerification != null)
                 AverageVerification = Convert.ToString(stuff.AverageVerification);
-            if(stuff.AllowedConsecutivePredictions != null)
+            if (stuff.AllowedConsecutivePredictions != null)
                 AllowedConsecutivePredictions = Convert.ToInt32(stuff.AllowedConsecutivePredictions);
 
-            if(stuff.OutputFileResults != null)
+            if (stuff.OutputFileResults != null)
                 OutputFileResults = Convert.ToString(stuff.OutputFileResults);
 
             if (stuff.RunMode != null)
@@ -342,13 +342,13 @@ namespace Midas.Core
 
             TelegramBotCode = Convert.ToString(stuff.TelegramBotCode);
 
-            if(stuff.Indicators != null)
+            if (stuff.Indicators != null)
             {
                 _rootIndicators = stuff.Indicators;
                 Indicators = GetIndicators();
             }
 
-            if(stuff.Assets != null)
+            if (stuff.Assets != null)
                 _rootAssets = stuff.Assets;
 
 
@@ -378,16 +378,25 @@ namespace Midas.Core
             Target2 = 1;
             Target3 = 1;
 
-            if(ps.Length > 1)
+            if (RunMode == RunModeType.Invest)
+            {
+                if (ps.Length > 1)
+                {
+                    ExperimentName = ps[1];
+                    Range.Start = DateTime.ParseExact(ps[2], "yyyyMMdd", null);
+                    Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
+                    Range.End = Range.End.AddHours(23);
+                    Range.End = Range.End.AddMinutes(59);
+                    DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
+
+                    //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
+                }
+            }
+            else if(RunMode == RunModeType.Create)
             {
                 ExperimentName = ps[1];
-                Range.Start = DateTime.ParseExact(ps[2], "yyyyMMdd", null);
-                Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
-                Range.End = Range.End.AddHours(23);
-                Range.End = Range.End.AddMinutes(59);
-                DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
-
-                //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
+                Asset = ps[2];
+                OutputFile = ps[3];
             }
         }
 
@@ -401,7 +410,7 @@ namespace Midas.Core
                 foreach (var metaAsset in _rootAssets)
                 {
                     string asset = Convert.ToString(metaAsset.Asset);
-                    CandleType candleType = (CandleType) Enum.Parse(typeof(CandleType), Convert.ToString(metaAsset.CandleType));
+                    CandleType candleType = (CandleType)Enum.Parse(typeof(CandleType), Convert.ToString(metaAsset.CandleType));
                     float scoreByAvg = Convert.ToSingle(metaAsset.ScoreThresholdByAvg);
                     float scoreByPrice = Convert.ToSingle(metaAsset.ScoreThresholdByPrice);
                     string fundName = Convert.ToString(metaAsset.FundName);
@@ -413,18 +422,18 @@ namespace Midas.Core
                     assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
                     assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
                     assetParams.StopLossCompSoftness = Convert.ToSingle(metaAsset.StopLossCompSoftness);
-                    if(metaAsset.GainSoftStopTrigger != null)
+                    if (metaAsset.GainSoftStopTrigger != null)
                         assetParams.FollowPricePerc = Convert.ToSingle(metaAsset.FollowPricePerc);
-                    if(metaAsset.GainSoftStopTrigger != null)
+                    if (metaAsset.GainSoftStopTrigger != null)
                         assetParams.GainSoftStopTrigger = Convert.ToSingle(metaAsset.GainSoftStopTrigger);
 
                     var trader = new AssetTrader(service, asset, candleType, this, 120000, assetParams);
 
-                    traders.Add(asset+":"+candleType.ToString(), trader);
+                    traders.Add(asset + ":" + candleType.ToString(), trader);
                 }
             }
 
-            return traders; 
+            return traders;
         }
 
         internal List<CalculatedIndicator> GetIndicators()
@@ -459,7 +468,7 @@ namespace Midas.Core
                         throw new ArgumentException("Erro when loading indicador - " + metaIndicator.Name.ToString());
 
                     newInd.Source = Convert.ToString(metaIndicator.Source);
-                    if(metaIndicator.Target == null)
+                    if (metaIndicator.Target == null)
                         newInd.Target = newInd.Source;
                     else
                         newInd.Target = Convert.ToString(metaIndicator.Target);
