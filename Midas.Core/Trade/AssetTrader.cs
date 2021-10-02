@@ -287,7 +287,7 @@ namespace Midas.Core.Trade
 
                 //StorePrediction(_myName, predictions.Result);
 
-                var tempPredBox = new PredictionBox();
+                var tempPredBox = new PredictionBox(_assetParams.ScoreByAvg,_assetParams.ScoreByPrice);
 
                 tempPredBox.ByPrice = priceRes;
                 tempPredBox.ByAvg = avgRes;
@@ -313,7 +313,7 @@ namespace Midas.Core.Trade
 
             if(_predictionBox != null)
             {
-                var ret = _predictionBox.GoodToEnter(ma6,atr, _assetParams.ScoreByAvg, _assetParams.ScoreByPrice);
+                var ret = _predictionBox.GoodToEnter(ma6,atr);
                 goodToEnter = ret.Item1;
             }
 
@@ -388,7 +388,7 @@ namespace Midas.Core.Trade
                 Tuple<bool, string> goodToEnterRes = null;
 
                 if (_predictionBox != null)
-                    goodToEnterRes = _predictionBox.GoodToEnter(ma6,atr, _assetParams.ScoreByAvg, _assetParams.ScoreByPrice);
+                    goodToEnterRes = _predictionBox.GoodToEnter(ma6,atr);
 
                 if (goodToEnterRes != null &&
                     goodToEnterRes.Item1) //Delayed Trigger buffer
@@ -405,8 +405,6 @@ namespace Midas.Core.Trade
                             DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
                             _lastAtr = atr;
-
-                            //var prediction = _predictionBox.GetWinnerPrediction(ma12, _assetParams.ScoreByAvg, _assetParams.ScoreByPrice);
 
                             var op = _manager.SignalEnter(
                                 cc.CloseValue,
@@ -516,7 +514,7 @@ namespace Midas.Core.Trade
 
                 DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                var currentOperation = _manager.GetOneActiveOperation();
+                var currentOperation = _manager.GetLastRecentOperation();
                 if (currentOperation != null)
                 {
                     List<VolumeIndicator> newVolumes = volumes.ToList();
@@ -866,12 +864,23 @@ namespace Midas.Core.Trade
         public Prediction ByPrice { get; internal set; }
         public Prediction ByAvg { get; internal set; }
 
-        private TrendType _trend;
+        private DateTime _predictionDate;
+        
 
-        public Tuple<bool, string> GoodToEnter(double ma6, double atr, float scoreThresholdByAvg, float scoreThresholdByPrice)
+        private readonly float _scoreThresholdByAvg;
+        private readonly float _scoreThresholdByPrice;
+
+        public PredictionBox(float scoreThresholdByAvg, float scoreThresholdByPrice)
+        {
+            this._scoreThresholdByAvg = scoreThresholdByAvg;
+            this._scoreThresholdByPrice = scoreThresholdByPrice;
+            _predictionDate = DateTime.Now;
+        }
+
+        public Tuple<bool, string> GoodToEnter(double ma6, double atr)
         {
             var ret = false;
-            var trend = GetTrend(scoreThresholdByAvg, scoreThresholdByPrice);
+            var trend = GetTrend(_scoreThresholdByAvg, _scoreThresholdByPrice);
             var amount = CandleThatPredicted.CloseValue;
             string trendType = "None";
             double compareAtr = atr * 0.75;
@@ -879,13 +888,13 @@ namespace Midas.Core.Trade
             if (trend == TrendType.LONG || trend == TrendType.DOUBLE_LONG)
             {
 
-                if (ByAvg != null && GetDiffAmount1VsAmount2(amount, ma6) < compareAtr && ByAvg.ScoreLong >= scoreThresholdByAvg)
+                if (ByAvg != null && GetDiffAmount1VsAmount2(amount, ma6) < compareAtr && ByAvg.ScoreLong >= _scoreThresholdByAvg)
                 {
                     ret = true;
                     trendType = "AVG";
                 }
 
-                if (ByPrice != null && GetDiffAmount1VsAmount2(amount, ma6) > compareAtr*-1 && ByPrice.ScoreLong >= scoreThresholdByPrice)
+                if (ByPrice != null && GetDiffAmount1VsAmount2(amount, ma6) > compareAtr*-1 && ByPrice.ScoreLong >= _scoreThresholdByPrice)
                 {
                     trendType = "Price";
                     ret = true;
@@ -955,7 +964,7 @@ namespace Midas.Core.Trade
                     ret = TrendType.SHORT;
             }
 
-            _trend = ret;
+
             return ret;
         }
 
@@ -963,7 +972,9 @@ namespace Midas.Core.Trade
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.Append($"Trend: <b>{_trend}</b>\n");
+            var trend = GetTrend(_scoreThresholdByAvg, _scoreThresholdByPrice);
+            sb.Append($"Gerada em: <b>{_predictionDate:dd/MM/yyyy HH:mm}</b>\n");
+            sb.Append($"Trend: <b>{trend}</b>\n\n");
 
             sb.Append("ByAvg Model:\n");
             if (ByAvg != null)

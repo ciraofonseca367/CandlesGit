@@ -249,6 +249,8 @@ namespace Midas.Core
         public string FeedStreamType { get; internal set; }
         public string UrlAvgModel { get; internal set; }
         public string UrlPriceModel { get; internal set; }
+        public bool DrawShadow { get; private set; }
+
         private string _dbConString;
         private string _dbConStringCandles;
         private int _forecastWindow;
@@ -320,6 +322,9 @@ namespace Midas.Core
 
             if (stuff.DelayedTriggerEnabled != null)
                 DelayedTriggerEnabled = Convert.ToBoolean(stuff.DelayedTriggerEnabled);
+
+            if (stuff.DrawShadow != null)
+                DrawShadow = Convert.ToBoolean(stuff.DrawShadow);
 
             IsTesting = false;
             if (stuff.IsTesting != null)

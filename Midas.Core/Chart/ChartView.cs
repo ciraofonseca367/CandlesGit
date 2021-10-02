@@ -34,6 +34,7 @@ namespace Midas.Core.Chart
             Frameble = true;
 
             RelativeXPos = 0.7;
+            DrawShadow = true;
         }
 
         public bool IncludeInPrediction
@@ -77,6 +78,11 @@ namespace Midas.Core.Chart
             var diff1 = Math.Abs(((s.PointsInTime.Last().AmountValue - this.PointsInTime.Last().AmountValue) / this.PointsInTime.Last().AmountValue) * 100);
             var diff2 = Math.Abs(((s.PointsInTime.First().AmountValue - this.PointsInTime.First().AmountValue) / this.PointsInTime.First().AmountValue) * 100);
             return Math.Max(diff1, diff2);
+        }
+
+        public bool DrawShadow
+        {
+            get;set;
         }
 
         public bool Frameble
@@ -212,7 +218,7 @@ namespace Midas.Core.Chart
                 {
                     var candle = (Candle)p;
                     Color candleColor = (candle.Direction == CandleDirection.Up ? Color.Green : Color.DarkRed);
-                    this.DrawCandle(candle, candleColor);
+                    this.DrawCandle(candle, candleColor, s.DrawShadow);
                 });
             }
         }
@@ -293,7 +299,7 @@ namespace Midas.Core.Chart
             );
         }
 
-        internal void DrawCandle(Candle d, Color c)
+        internal void DrawCandle(Candle d, Color c, bool drawShadow)
         {
             var point = d;
             var timeStampOpen = InSeconds(point.PointInTime_Open);
@@ -316,10 +322,12 @@ namespace Midas.Core.Chart
             _painter.FillRectangle(b, c1.x + 1, lowBodyY, (c2.x - c1.x) - 1, bodySize);
 
             //Upper Shaddow
-            _painter.DrawLine(p, s1.x + 1, s1.y, s1.x + 1, highBodyY);
+            if(drawShadow)
+                _painter.DrawLine(p, s1.x + 1, s1.y, s1.x + 1, highBodyY);
 
             //Lower Shaddow
-            _painter.DrawLine(p, s2.x + 1, lowBodyY, s2.x + 1, s2.y);
+            if(drawShadow)
+                _painter.DrawLine(p, s2.x + 1, lowBodyY, s2.x + 1, s2.y);
         }
         private void DrawLine(IStockPointInTime pointA, IStockPointInTime pointB, Color c, int size)
         {
@@ -518,7 +526,7 @@ namespace Midas.Core.Chart
                         markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
                         d.DrawLine(markerPen, 0, Dot01Coord.y, canvas.Width, Dot01Coord.y);
 
-                        currentPrice += vp.MinAmount * 0.005;
+                        currentPrice += vp.MinAmount * 0.01;
                     }
                 }
 

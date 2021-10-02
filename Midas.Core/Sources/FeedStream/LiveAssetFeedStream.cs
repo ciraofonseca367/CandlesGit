@@ -231,7 +231,7 @@ namespace Midas.FeedStream
                 HighestValue = Convert.ToDouble(stuff.k.h),
                 OpenValue = Convert.ToDouble(stuff.k.o),
                 CloseValue = Convert.ToDouble(stuff.k.c),
-                Volume = Convert.ToDouble(stuff.k.V)
+                Volume = Convert.ToDouble(stuff.k.v)
             };
 
             return c;

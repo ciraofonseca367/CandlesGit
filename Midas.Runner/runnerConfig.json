@@ -2,8 +2,8 @@
     "RunMode": "Create",
     "IsTesting": "true",
     "ExperimentName": "run200",
-    "Asset": "BTCBUSD",
-    "StartDate": "2021-01-01 00:00:00",
+    "Asset": "BTCUSDT",
+    "StartDate": "2020-01-01 00:00:00",
     "EndDate": "2021-08-31 23:59:59",
     "CandleType": "MIN15",
     "ScoreThreshold": 0.35,
@@ -13,6 +13,7 @@
     "OutputFileResults": "Comparativo1.csv",
     "CardWidth": 1600,
     "CardHeight": 1600,
+    "DrawShadow": false,
     "OutputMode": "All",
     "AverageToForecast": "MA12",
 
@@ -50,16 +51,6 @@
             "ChartType": "Line",
             "Color": "Blue",
             "Size": 7  
-        },
-        {
-            "Name": "MA12",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [12],
-            "Source": "Main",
-            "ChartType": "Line",
-            "Color": "Pink",
-            "Size": 7         
         },
         {
             "Name": "MA6",

@@ -28,7 +28,7 @@
             "ScoreThresholdByAvg": 0.5,
             "ScoreThresholdByPrice": 0.75,
             "FundName": "BNBBUSD_HOUR1",
-            "AtrStopLoss": 0.25,
+            "AtrStopLoss": 0.10,
             "StopLossCompSoftness": 0.01,
             "AvgCompSoftness": 0.5,
             "FollowPricePerc": 0.3,
@@ -118,17 +118,7 @@
             "Color": "Black",
             "ChartType": "Line",
             "Size": 7
-        },
-        {
-            "Name": "MA309",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.MaxAverageIndicator",
-            "Params": [144],
-            "Source": "Volume",
-            "Color": "Gray",
-            "ChartType": "Line",
-            "Size": 3
-        }        
+        }    
     ],
 
     "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",

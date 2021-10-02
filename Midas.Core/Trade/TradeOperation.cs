@@ -480,7 +480,7 @@ namespace Midas.Trading
             string data = $"Asset:{_asset}:{_candleType.ToString()} - Gain: {GetGain().ToString("0.000")}%\nEntry: {this.PriceEntryAverage.ToString("0.00")}\n";
             data += $"Duration: {TimeSpanPlus.ToString(this.OperationDurationUTC)}\nLast Long:{TimeSpanPlus.ToString(LastLongSignalDuration)}\nEntry Spread: {EntrySpreadAverage.ToString("0.00")}%\n";
             data += $"State: {State}\nExit Spread: {this.ExitSpreadAverage.ToString("0.00")}%\n";
-            data += $"EntryDate: {EntryDateInUTC.ToString("yyyy-MM-dd HH:mm")}\n";
+            data += $"EntryDate: {EntryDateInUTC.ToLocalTime().ToString("yyyy-MM-dd HH:mm")}\n";
             data += $"Strengh: {GetRelativeAmountPurchased():0.0}/100.0";
 
             return data;

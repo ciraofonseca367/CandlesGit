@@ -233,6 +233,7 @@ namespace Midas.Trading
             _trader.SaveSnapshot(cc);
         }
 
+        //Função para possivelmente usar se desejarmos bloquear a operação após uma transação de grandes ganhos
         private bool IsBlocked(DateTime relativeNow)
         {
             bool blocked = false;
@@ -259,6 +260,11 @@ namespace Midas.Trading
         public TradeOperation GetOneActiveOperation()
         {
             return _allOperations.OrderByDescending(op => op.EntryDate).FirstOrDefault(op => op.IsIn);
+        }
+
+        public TradeOperation GetLastRecentOperation()
+        {
+            return _allOperations.OrderByDescending(op => op.EntryDate).FirstOrDefault(op => op.EntryDate >= DateTime.UtcNow.AddHours(-30));
         }
 
         public void Signal(TrendType signal)

@@ -303,29 +303,25 @@ namespace Midas.Core.Card
 
             var goodRange = _ratr*1.5;
 
-            var ma6 = GetAvgValue("MA6");
-
             if (_ratr > 0)
             {
 
                 var forecastOnPrice = GetCompleteForecast(currentValue, presentTime);
 
-                var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, "MA6");
-
-                if (forecastOnAverage.HighestDifference <= goodRange/3 &&
-                    forecastOnAverage.LowestDifFerence >= (goodRange/3) * -1)
+                if (forecastOnPrice.GetHighestCloseDifference(1,_params.ForecastWindow) <= goodRange/3.5 &&
+                    forecastOnPrice.GetLowestCloseDifferente(1,_params.ForecastWindow) >= (goodRange/3.5) * -1)
                     status = "ZERO";
 
-                if (forecastOnPrice.CountHighestDifference(1, _params.ForecastWindow, goodRange) >= 4)
+                if (forecastOnPrice.CountGreatherCloseDifference(currentValue, 1, _params.ForecastWindow, goodRange) >= 6)
                 {
-                    if (forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow / 3)) > stopLossShort)
+                    if (forecastOnPrice.GetLowestCloseDifferente(1, Convert.ToInt32(_params.ForecastWindow / 2)) > 0)
                         status = "LONG";
                 }
 
 
-                if (forecastOnPrice.CountLowestDifference(1, _params.ForecastWindow, goodRange * -1) >= 4)
+                if (forecastOnPrice.CountLesserCloseDifference(currentValue, 1, _params.ForecastWindow, goodRange * -1) >= 6)
                 {
-                    if (forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow / 3)) < stopLossLong)
+                    if (forecastOnPrice.GetHighestCloseDifference(1, Convert.ToInt32(_params.ForecastWindow / 2)) < 0)
                         status = "SHORT";
                 }
 
@@ -335,6 +331,10 @@ namespace Midas.Core.Card
 
                 // if(diff > ratr)
                 //     status = "IGNORED";       
+            }
+            else
+            {
+                status = "ERROR";
             }
 
             return status;
@@ -389,7 +389,7 @@ namespace Midas.Core.Card
 
         public string GetFileName(string tag)
         {
-            string fileName = String.Format("{0} {1:dd_MMM HH_mm_ss} {2} {3}.gif",
+            string fileName = String.Format("{0} {1:dd_MMM_yyyy HH_mm} {2} {3}.gif",
                 _range.GetSpan().TotalSeconds,
                 _range.End,
                 _ratr.ToString("0.00").Replace(".", "p"),
@@ -664,6 +664,30 @@ namespace Midas.Core.Card
             //_allCandles.ToList().GetRange(comparePeriod + 3, periodsInTheFuture - 3);
         }
 
+        public double GetLowestCloseDifferente(int beginPeriod, int endPeriod)
+        {
+            var list = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (list.Count() > 0)
+            {
+                var lowest = list.Min(c => c.CloseValue);
+
+                var diffLowest = ((lowest - StartValue) / StartValue) * 100;
+
+                return diffLowest;
+            }
+            else
+            {
+                Console.WriteLine("OPA AQUI!!!");
+                return 0;
+            }
+
+            //_allCandles.ToList().GetRange(comparePeriod + 3, periodsInTheFuture - 3);
+        }        
+
         public Tuple<TimeSpan, double> AverageOrStop(double stop)
         {
             double ret = 0;
@@ -757,6 +781,28 @@ namespace Midas.Core.Card
 
         }
 
+        public double GetHighestCloseDifference(int beginPeriod, int endPeriod)
+        {
+            var maxList = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (maxList.Count() > 0)
+            {
+                var max = maxList.Max(c => c.CloseValue);
+
+                var diffMax = ((max - StartValue) / StartValue) * 100;
+
+                return diffMax;
+            }
+            else
+            {
+                return 0;
+            }
+
+        }        
+
         public int CountHighestDifference(double startValue, int beginPeriod, int endPeriod, double diff)
         {
             if(startValue == -1)
@@ -815,6 +861,55 @@ namespace Midas.Core.Card
                 return 0;
             }
         }
+
+        public int CountGreatherCloseDifference(double startValue, int beginPeriod, int endPeriod, double diff)
+        {
+            var list = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (list.Count() > 0)
+            {
+                var count = list.Count((c) =>
+                {
+                    var thisDiff = ((c.CloseValue - startValue) / startValue) * 100;
+
+                    return thisDiff >= diff;
+                });
+
+                return count;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        
+        public int CountLesserCloseDifference(double startValue, int beginPeriod, int endPeriod, double diff)
+        {
+            var list = ClippedCandles.Where(c =>
+            {
+                return c.Periodo >= beginPeriod && c.Periodo <= endPeriod;
+            });
+
+            if (list.Count() > 0)
+            {
+                var count = list.Count((c) =>
+                {
+                    var thisDiff = ((c.CloseValue - startValue) / startValue) * 100;
+
+                    return thisDiff <= diff;
+                });
+
+                return count;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
 
         public int CountLowestDifference(int beginPeriod, int endPeriod, double diff)
         {

@@ -134,7 +134,7 @@ namespace Midas
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
                                     var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open);
-                                    if (tag != "ZZZZZZIGNORED")
+                                    if (tag != "IGNORED")
                                     {
                                         DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
                                         var fileName = c.SaveToFile(dirInfo.FullName, tag);
@@ -205,7 +205,8 @@ namespace Midas
             frameMap["Main"].AddSerie(new Serie()
             {
                 PointsInTime = candles.ToList(),
-                Name = "Main"
+                Name = "Main",
+                DrawShadow = runParams.DrawShadow
             });
 
             frameMap["Volume"].AddSerie(new Serie()
