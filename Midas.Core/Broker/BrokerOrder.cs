@@ -33,7 +33,7 @@ namespace Midas.Core.Broker
 
         public TimeSpan WaitDuration(DateTime relativeNow)
         {
-            return (relativeNow - _creationDate);
+            return (relativeNow - CreationDate);
         }
 
         public double DesiredPrice
@@ -83,15 +83,7 @@ namespace Midas.Core.Broker
 
         public string BrokerOrderId
         {
-            get
-            {
-                return _orderId;
-            }
-            set
-            {
-                _orderId = value;
-            }
-
+            get;set;
         }
         public OrderDirection Direction
         {
@@ -115,6 +107,12 @@ namespace Midas.Core.Broker
         }
 
         public string OrderId { get => _orderId; set => _orderId = value; }
+        public DateTime CreationDate { get => _creationDate; }
+
+        public override string ToString()
+        {
+            return $"{Direction}({Type})) {Quantity:0.000} by ${AverageValue:0.00}={Status} ({((AverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
+        }
     }
 
     /*

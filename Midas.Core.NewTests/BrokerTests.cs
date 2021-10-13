@@ -163,7 +163,7 @@ namespace Midas.Core.NewTests
             Debug.WriteLine("Preço atual: "+currentPrice.ToString("0.0000"));
 
             string orderId = DateTime.Now.Ticks.ToString();
-            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9, DateTime.Now);
+            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9,currentPrice*0.9, DateTime.Now);
 
             var status = broker.OrderStatus(orderId, asset, 5000);
 
@@ -204,7 +204,7 @@ namespace Midas.Core.NewTests
             Debug.WriteLine("Preço atual: "+currentPrice.ToString("0.0000"));
 
             string orderId = DateTime.Now.Ticks.ToString();
-            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9, DateTime.Now);
+            var order = broker.LimitOrder(orderId, asset, OrderDirection.BUY, amount, 180000, currentPrice*0.9, currentPrice*0.9, DateTime.Now);
 
             var status = broker.OrderStatus(orderId, asset, 5000);
 

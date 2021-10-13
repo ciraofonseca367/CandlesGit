@@ -133,7 +133,7 @@ namespace Midas
                                 Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams.Indicators, runParams, currentCandle);
                                 if (runParams.RunMode == RunModeType.Create)
                                 {
-                                    var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open);
+                                    var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
                                     if (tag != "IGNORED")
                                     {
                                         DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
@@ -198,9 +198,10 @@ namespace Midas
             DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            frameMap.Add("Blank", dv.AddChartFrame(30));
+            frameMap.Add("BlankHigh", dv.AddChartFrame(20));
             frameMap.Add("Main", dv.AddChartFrame(40));
-            frameMap.Add("Volume", dv.AddChartFrame(30));
+            frameMap.Add("BlankLow", dv.AddChartFrame(20));
+            frameMap.Add("Volume", dv.AddChartFrame(20));
 
             frameMap["Main"].AddSerie(new Serie()
             {

@@ -92,6 +92,8 @@ namespace Midas.FeedStream
 
             string lastDay = String.Empty;
 
+            var firstDay = res.First();
+
             Candle previous = null;
             foreach (var c in res)
             {
@@ -132,6 +134,10 @@ namespace Midas.FeedStream
 
                     _socketNew("Test", previous, seedCandle);
 
+                    int sleep=0;
+                    if((c.PointInTime_Open - firstDay.PointInTime_Open).TotalDays > 2)
+                        sleep = 200;
+
                     for(int i=1;i<=factor;i++)
                     {
                         var nc = (Candle) seedCandle.Clone();
@@ -147,7 +153,7 @@ namespace Midas.FeedStream
 
                         nc.PointInTime_Close = close;
 
-                        //Thread.Sleep(20);
+                        //Thread.Sleep(sleep);
 
                         _socketUpdate("test", "test", nc);
                     }

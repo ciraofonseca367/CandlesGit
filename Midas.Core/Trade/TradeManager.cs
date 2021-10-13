@@ -273,7 +273,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double atr, string modelName)
+        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ln, string modelName)
         {
             TradeOperation ret = null;
 
@@ -298,7 +298,7 @@ namespace Midas.Trading
             {
                 if (_currentOperation.State == TradeOperationState.Initial)
                 {
-                    _currentOperation.Enter(value, pointInTime, atr, modelName);
+                    _currentOperation.Enter(value, pointInTime, ln, modelName);
                     ret = _currentOperation;
                 }
             }

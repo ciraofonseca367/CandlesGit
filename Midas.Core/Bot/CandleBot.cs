@@ -410,13 +410,18 @@ namespace Midas.Core.Telegram
 
                     break;
                 case "Close Position":
+                case "Ask To Close Position":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: "It can take a a couple of minutes to close the operation, wait...");
 
+                    bool hardIndication = true;
+                    if(message.Text == "Ask To Close Position")
+                        hardIndication = false;
+
                     string text;
-                    var op = currentTrader.CloseOperationIfAny();
+                    var op = currentTrader.CloseOperationIfAny(hardIndication);
                     if(op != null)
                     {
                         text = "Done!";
@@ -478,7 +483,7 @@ namespace Midas.Core.Telegram
                 {
                     new KeyboardButton[] { "Try Enter" },
                     new KeyboardButton[] { "Snapshot","State" },
-                    new KeyboardButton[] { "Close Position", "P&L" },
+                    new KeyboardButton[] { "Close Position", "Ask To Close Position" },
                     new KeyboardButton[] { "Back"}
                 })
             {

@@ -8,36 +8,63 @@ using Midas.Sources;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Midas.Core.Binance;
+using System.Linq;
+using Midas.Core.Trade;
+using Midas.Core.Common;
 
 namespace BinanceTests
 {
     public class Program
     {
+        private static BookView _lastView;
         static void Main(string[] args)
         {
-            // string streamUrl = "wss://stream.binance.com:9443/ws";
+            // string mainUri = "wss://stream.binance.com:9443/ws";
+            // var bookSocket = new BinanceBookWebSocket(mainUri, 10000, "BTCBUSD", 10);
 
-            // var sockBTCBUSD = new BinanceWebSocket(streamUrl, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN15);
-            // var sockBNBBUSD = new BinanceWebSocket(streamUrl, 100000, "BNBBUSD", Midas.Core.Common.CandleType.MIN15);
+            // var sockBTCBUSD = new BinanceWebSocket(mainUri, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN5);
 
             // var btcStream = sockBTCBUSD.OpenAndSubscribe();
-            // var bnbStream = sockBNBBUSD.OpenAndSubscribe();
 
-            // btcStream.OnNewInfo(new Midas.FeedStream.SocketInfo(socketInfo));
-            // bnbStream.OnNewInfo(new Midas.FeedStream.SocketInfo(socketInfo));
+            // bookSocket.Open();
+
+            // //bookSocket.OnNewInfo(socketInfo);
+            // bookSocket.OnNewBookView((bookView) => {
+            //     // Console.WriteLine($"Best Bid: {bookView.Bids.Last().Qty} - {bookView.Bids.Last().Price}");
+            //     // Console.WriteLine($"Best Ask: {bookView.Asks.Last().Qty} - {bookView.Asks.Last().Price}");
+
+            //     _lastView = bookView;
+            // });
+
+            // btcStream.OnUpdate((info, info2, candle) => {
+            //     Console.WriteLine("PASSEI AQUI!");
+
+            //     var localView = _lastView;
+            //     var priceBuy = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Ask);
+            //     var priceSell = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Bid);
+
+            //     var diffBuy = ((priceBuy - candle.CloseValue) / candle.CloseValue) * 100;
+            //     var diffSell = ((priceSell - candle.CloseValue) / candle.CloseValue) * 100;
+
+            //     Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceBuy:0.000} - {diffBuy:0.0000}%");
+            //     Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceSell:0.000} - {diffSell:0.0000}%");
+            // });
 
             // Console.WriteLine("Ouvindo...");
             // Console.Read();
 
+            // bookSocket.Dispose();
             // btcStream.Dispose();
-            // bnbStream.Dispose();
 
             DownloadCoinFiles();
+
         }
 
         private static void socketInfo(string identification, string info)
         {
             Console.WriteLine(identification + ": " + info);
+            Console.WriteLine();
         }
 
         private static void Chat()
@@ -46,11 +73,11 @@ namespace BinanceTests
 
         private static void DownloadCoinFiles()
         {
-            string remoteUriMask = "https://data.binance.vision/data/spot/monthly/klines/{0}/15m/{0}-15m-{1}-{2}.zip";
-            string folderMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-MIN15/";
-            string fileNameMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-MIN15/{0}-15m-{1}-{2}.zip";
+            string remoteUriMask = "https://data.binance.vision/data/spot/monthly/klines/{0}/1h/{0}-1h-{1}-{2}.zip";
+            string folderMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-HOUR1/";
+            string fileNameMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-HOUR1/{0}-1h-{1}-{2}.zip";
 
-            string[] pairs = new string[] { "DOTUSDT", "XRPUSDT", "ADAUSDT"};
+            string[] pairs = new string[] { "BTCUSDT", "ETHUSDT", "BNBUSDT"};
 
             List<Task> downloads = new List<Task>();
 

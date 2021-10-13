@@ -3,7 +3,7 @@
     "IsTesting": "true",
     "ExperimentName": "run200",
     "Asset": "BTCUSDT",
-    "StartDate": "2020-01-01 00:00:00",
+    "StartDate": "2021-01-01 00:00:00",
     "EndDate": "2021-08-31 23:59:59",
     "CandleType": "MIN15",
     "ScoreThreshold": 0.35,
@@ -15,7 +15,7 @@
     "CardHeight": 1600,
     "DrawShadow": false,
     "OutputMode": "All",
-    "AverageToForecast": "MA12",
+    "AverageToForecast": "MA6",
 
     "StopLoss": -1,
     "AverageVerification": "MA 200 periodos",
@@ -79,16 +79,6 @@
             "Params": [144],
             "Source": "Volume",
             "Color": "Black",
-            "ChartType": "Line",
-            "Size": 7
-        },
-        {
-            "Name": "MA309",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.MaxAverageIndicator",
-            "Params": [144],
-            "Source": "Volume",
-            "Color": "White",
             "ChartType": "Line",
             "Size": 3
         }

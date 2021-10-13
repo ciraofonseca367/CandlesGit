@@ -214,11 +214,15 @@ namespace Midas.Core.Chart
         {
             if (s.PointsInTime.Count > 0)
             {
+                var drawShadowPoint = s.PointsInTime.Count * 0.90;
+                var index = 0;
                 s.PointsInTime.ForEach(p =>
                 {
                     var candle = (Candle)p;
                     Color candleColor = (candle.Direction == CandleDirection.Up ? Color.Green : Color.DarkRed);
-                    this.DrawCandle(candle, candleColor, s.DrawShadow);
+                    this.DrawCandle(candle, candleColor, (index > drawShadowPoint || s.DrawShadow?true:false));
+
+                    index++;
                 });
             }
         }
@@ -504,9 +508,11 @@ namespace Midas.Core.Chart
 
             if (counts.Count > 0)
             {
-
                 ViewPort vp = GetViewPort(canvas);
                 var d = Graphics.FromImage(canvas);
+
+                //Voltar essa linha quando quisermos fazer o esquema de previsão novo
+                //d.FillRectangle(new SolidBrush(Color.White), 0, _offSetY, _Width,_Height);
 
                 var allSeriesOK = counts.Max() == counts.Average();
 
@@ -526,7 +532,7 @@ namespace Midas.Core.Chart
                         markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
                         d.DrawLine(markerPen, 0, Dot01Coord.y, canvas.Width, Dot01Coord.y);
 
-                        currentPrice += vp.MinAmount * 0.01;
+                        currentPrice += vp.MinAmount * (0.5 / 100);
                     }
                 }
 

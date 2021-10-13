@@ -38,6 +38,8 @@ namespace Midas.Core.Indicators
         protected FixedSizedQueue<IStockPointInTime> _currentWindow;        
 
         protected int _bufferSize, _windowSize;
+
+        private IStockPointInTime _lastPoint;
         public string Source
         {
             get;
@@ -50,6 +52,7 @@ namespace Midas.Core.Indicators
         public string Target { get; internal set; }
 
         public int Size { get; internal set; }
+        public IStockPointInTime LastPoint { get => _lastPoint; }
 
         public virtual void AddPoint(IStockPointInTime point)
         {
@@ -59,14 +62,14 @@ namespace Midas.Core.Indicators
 
                 if(_historical.GetList().Length > (_bufferSize*0.05))
                 {
-                    AddFramePoint(point);
+                    _lastPoint = AddFramePoint(point);
                 }
             }
             else
-                AddFramePoint(point);
+                _lastPoint = AddFramePoint(point);
         }
 
-        public abstract void AddFramePoint(IStockPointInTime point);
+        public abstract IStockPointInTime AddFramePoint(IStockPointInTime point);
 
         public abstract void AddIdentifedFramePoint(IStockPointInTime point, string identifier);
 

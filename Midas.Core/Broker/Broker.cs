@@ -172,7 +172,9 @@ namespace Midas.Core.Broker
 
         public abstract Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async);
 
-        public abstract BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, DateTime creationDate);
+        public abstract BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate);
+
+        public abstract Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate);
 
         public abstract BrokerOrder OrderStatus(string orderId, string asset, int timeOut);
 
@@ -208,7 +210,7 @@ namespace Midas.Core.Broker
         private string _priceTickerUri = "/api/v3/ticker/price?";
         private string _createMarketOrderQueryStringTemplate = "symbol={0}&side={1}&type={2}&quantity={3}&newClientOrderId={4}";
         private string _createLimitOrderQueryStringTemplate = "symbol={0}&side={1}&type={2}&timeInForce=GTC&quantity={3}&newClientOrderId={4}&price={5}&newOrderRespType=ACK";
-        private string _orderStatusQueryStringTemplate = "symbol={0}&newOrderRespType=FULL&origClientOrderId={1}";
+        private string _orderStatusQueryStringTemplate = "symbol={0}&origClientOrderId={1}";
         private string _cancelOrderQueryStringTemplate = "symbol={0}&origClientOrderId={1}";
         private string _cancelAllOrdersQueryStringTemplate = "symbol={0}";
         private string _symbolPriceTicker = "symbol={0}";
@@ -368,7 +370,6 @@ namespace Midas.Core.Broker
             //Passar o relative now para todos os BrokerOrders para poder calcular o timeout relativo.
             BrokerOrder order = new BrokerOrder(this, direction, type, orderId, creationDate);
             order.Status = BrokerOrderStatus.None;
-            order.OrderId = orderId;
             order.Quantity = qty;
 
             string errorMsg = null;
@@ -409,9 +410,18 @@ namespace Midas.Core.Broker
                     order.InError = true;
                     order.ErrorCode = "EXPIRED";
                 }
+                else if(status != null)
+                {
+                    order.Status = ParseRawStatus(order.RawStatus);
+                }
             }
 
             return order;
+        }
+
+        private BrokerOrderStatus ParseRawStatus(string rawStatus)
+        {
+            return (BrokerOrderStatus) Enum.Parse(typeof(BrokerOrderStatus), rawStatus);
         }
 
         public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut,double desiredPrice,DateTime creationDate, bool async = false)
@@ -429,6 +439,7 @@ namespace Midas.Core.Broker
             BrokerOrder order = null;
             Task t = Task.Run(() => {
                 order = MarketOrder(orderId,asset,direction,qty,timeOut,desiredPrice,creationDate,async);
+                order.DesiredPrice = desiredPrice;
             });
 
             await t;
@@ -436,10 +447,23 @@ namespace Midas.Core.Broker
             return order;
         }
 
-        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, DateTime creationDate)
+        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
             return NewOrder(orderId, asset, OrderType.LIMIT, direction, qty, price, timeOut, creationDate);
         }
+
+        public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
+        {
+            BrokerOrder order = null;
+            Task t = Task.Run(() => {
+                order = LimitOrder(orderId, asset, direction,qty,timeOut, price, currentPrice,  creationDate);
+                order.DesiredPrice = currentPrice;
+            });
+
+            await t;
+
+            return order;
+        }        
 
         public override BrokerOrder OrderStatus(string orderId, string asset, int timeOut)
         {
@@ -467,7 +491,7 @@ namespace Midas.Core.Broker
             else
             {
                 order.RawStatus = status;
-                order.Status = (BrokerOrderStatus) Enum.Parse(typeof(BrokerOrderStatus), status);
+                order.Status = ParseRawStatus(status);
                 order.BrokerOrderId = Convert.ToString(res.orderId);
                 order.AverageValue = Convert.ToDouble(res.price);
             }
@@ -497,7 +521,7 @@ namespace Midas.Core.Broker
                         newPrice *= factor;
                     }
 
-                    var lastOrder = LimitOrder(orderId, asset, direction, qty, timeOut, newPrice, creationDate);
+                    var lastOrder = LimitOrder(orderId, asset, direction, qty, timeOut, newPrice, newPrice, creationDate);
                     if (lastOrder.InError)
                         throw new BrokerException("Error on LimitOrder first step - " + lastOrder.ErrorMsg, null);
                     else
@@ -686,11 +710,11 @@ namespace Midas.Core.Broker
         }
         public override void CancelAllOpenOrders(string asset, int timeOut)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
         public override void CancelAllOpenOrdersAsync(string asset, int timeOut)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
@@ -701,17 +725,32 @@ namespace Midas.Core.Broker
             return 42533;
         }
 
-        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, DateTime creationDate)
+        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
             BrokerOrder order = null;
             order = new BrokerOrder(this, direction, OrderType.LIMIT, orderId, creationDate);
-            order.AverageValue = price;
-            order.RawStatus = "NEW";
+            order.DesiredPrice = price;
+            order.AverageValue = currentPrice;
+            order.RawStatus = "FILLED";
+            order.Status = BrokerOrderStatus.FILLED;
             order.InError = false;
             order.Quantity = qty;
             base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
             return order;
         }
+
+        public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
+        {
+            BrokerOrder order = null;
+            Task t = Task.Run(() => {
+                order = LimitOrder(orderId, asset, direction,qty,timeOut, price, currentPrice, creationDate);
+            });
+
+            await t;
+
+            return order;
+        }      
+
         public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
         {
             var order = new BrokerOrder(this, direction, OrderType.MARKET, orderId, creationDate);

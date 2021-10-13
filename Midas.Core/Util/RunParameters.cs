@@ -323,6 +323,7 @@ namespace Midas.Core
             if (stuff.DelayedTriggerEnabled != null)
                 DelayedTriggerEnabled = Convert.ToBoolean(stuff.DelayedTriggerEnabled);
 
+            DrawShadow = true;
             if (stuff.DrawShadow != null)
                 DrawShadow = Convert.ToBoolean(stuff.DrawShadow);
 

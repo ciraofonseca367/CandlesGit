@@ -23,16 +23,16 @@
 
     "Assets": [
         {
-            "Asset": "BTCBUSD",
-            "CandleType": "HOUR1",
+            "Asset": "BTCUSDT",
+            "CandleType": "MIN15",
             "ScoreThresholdByAvg": 0.5,
-            "ScoreThresholdByPrice": 0.75,
+            "ScoreThresholdByPrice": 0.45,
             "FundName": "BNBBUSD_HOUR1",
-            "AtrStopLoss": 0.10,
+            "AtrStopLoss": 1,
             "StopLossCompSoftness": 0.01,
             "AvgCompSoftness": 0.5,
-            "FollowPricePerc": 0.3,
-            "GainSoftStopTrigger": 1
+            "FollowPricePerc": 1.1,
+            "GainSoftStopTrigger": 0.75
         }
     ],
 
@@ -110,6 +110,16 @@
             "Color": "Pink"
         },
         {
+            "Name": "LN",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.LowNoiseIndicator",
+            "Params": [30],
+            "Source": "Main",
+            "Target": "NONE",
+            "ChartType": "Line",
+            "Color": "Pink"
+        },
+        {
             "Name": "MA144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
@@ -134,18 +144,22 @@
         "Host": "testnet.binance.vision",
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
+        "MAKER_SELL_DISCOUNT": 0.03,
         "PurchaseSteps": [
             {
                 "Units": 2,
-                "GainTrigger": 0
+                "GainTrigger": 0,
+                "Comment": "First Group"
             },
             {
-                "Units": 6,
-                "GainTrigger": 0.2
+                "Units": 4,
+                "GainTrigger": 0.05,
+                "Comment": "Second Group"
             },
             {
-                "Units": 2,
-                "GainTrigger": 0.4
+                "Units": 4,
+                "GainTrigger": 0.1,
+                "Comment": "Thirdd Group"
             }
         ]
     },

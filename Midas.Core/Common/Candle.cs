@@ -252,6 +252,14 @@ namespace Midas.Core.Common
             return c;
         }
 
+        internal double GetLowNoise()
+        {
+            return (this.Direction == CandleDirection.Up ?
+                Math.Abs(this.OpenValue - this.LowestValue) :
+                Math.Abs(this.CloseValue - this.LowestValue)
+                );
+        }
+
         internal void Replace(Candle tmpCandle)
         {
             this.OpenTime = tmpCandle.OpenTime;

@@ -259,12 +259,12 @@ namespace Midas.Core.Card
             double limitToPredictShort = -0.5;
             double limitToPredictZero = 0.5;
 
-            status = "IGNORED";
+            status = "AVG_IGNORED";
 
-            var ATR = _params.Indicators.Where(i => i.Name == "ATR").First();
-            var range = new DateRange(_beginWindow, _endWindow);
-            var stopLossShort = ((ATR.TakeSnapShot(range).Last().CloseValue / currentValue) * 100);
+            var stopLossShort = _ratr/2;
             var stopLossLong = stopLossShort * -1;
+
+            var goodRange = _ratr*1.5;
 
             var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
 
@@ -272,14 +272,14 @@ namespace Midas.Core.Card
 
             if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) <= limitToPredictZero &&
                 forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) >= limitToPredictZero * -1)
-                status = "ZERO";
+                status = "AVG_ZERO";
 
 
             if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= limitToPredictLong)
             {
                 if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0 &&
                     forecastOnPrice.GetLowestDifferente(1, Convert.ToInt32(_params.ForecastWindow / 2)) > stopLossLong)
-                    status = "LONG";
+                    status = "AVG_LONG";
             }
 
 
@@ -287,15 +287,46 @@ namespace Midas.Core.Card
             {
                 if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < 0 &&
                     forecastOnPrice.GetHighestDifference(1, Convert.ToInt32(_params.ForecastWindow / 2)) < stopLossShort)
-                    status = "SHORT";
+                    status = "AVG_SHORT";
             }
 
             return status;
         }
 
-        private string GetForecastOnAtrAvg6(double currentValue, DateTime presentTime)
+        private string GetForecastOnAnAverageAtr(double currentValue, DateTime presentTime, string averageName)
         {
-            string status = "IGNORED";
+            string status = "AVG_IGNORED";
+
+            var range = new DateRange(_beginWindow, _endWindow);
+
+            var goodRange = _ratr*1.5;
+
+            var forecastOnAverage = GetCompleteForecastOnAnAverage(presentTime, averageName);
+
+            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) <= goodRange/3 &&
+                forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) >= (goodRange/3) * -1)
+                status = "AVG_ZERO";
+
+
+            if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) >= goodRange)
+            {
+                if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) > 0)
+                    status = "AVG_LONG";
+            }
+
+
+            if (forecastOnAverage.GetLowestDifferente(1, _params.ForecastWindow) <= goodRange)
+            {
+                if (forecastOnAverage.GetHighestDifference(1, _params.ForecastWindow) < 0)
+                    status = "AVG_SHORT";
+            }
+
+            return status;
+        }        
+
+        private string GetForecastOnPriceTrend(double currentValue, DateTime presentTime)
+        {
+            string status = "PRICE_IGNORED";
 
             var range = new DateRange(_beginWindow, _endWindow);
             var stopLossShort = _ratr/2;
@@ -310,19 +341,19 @@ namespace Midas.Core.Card
 
                 if (forecastOnPrice.GetHighestCloseDifference(1,_params.ForecastWindow) <= goodRange/3.5 &&
                     forecastOnPrice.GetLowestCloseDifferente(1,_params.ForecastWindow) >= (goodRange/3.5) * -1)
-                    status = "ZERO";
+                    status = "PRICE_ZERO";
 
                 if (forecastOnPrice.CountGreatherCloseDifference(currentValue, 1, _params.ForecastWindow, goodRange) >= 6)
                 {
                     if (forecastOnPrice.GetLowestCloseDifferente(1, Convert.ToInt32(_params.ForecastWindow / 2)) > 0)
-                        status = "LONG";
+                        status = "PRICE_LONG";
                 }
 
 
                 if (forecastOnPrice.CountLesserCloseDifference(currentValue, 1, _params.ForecastWindow, goodRange * -1) >= 6)
                 {
                     if (forecastOnPrice.GetHighestCloseDifference(1, Convert.ToInt32(_params.ForecastWindow / 2)) < 0)
-                        status = "SHORT";
+                        status = "PRICE_SHORT";
                 }
 
                 // double diff = 0;
@@ -380,11 +411,14 @@ namespace Midas.Core.Card
 
         public string GetTag(double closeValue, DateTime closeTime)
         {
-            return this.GetForecastOnAtrAvg6(closeValue, closeTime);
+            return this.GetForecastOnPriceTrend(closeValue, closeTime);
         }
         public string GetTag(double closeValue, DateTime closeTime, string averageName)
         {
-            return this.GetForecastOnAnAverage(closeValue, closeTime, averageName);
+            var tagAvg = GetForecastOnAnAverageAtr(closeValue,closeTime, averageName);
+            var tagPrice = GetForecastOnPriceTrend(closeValue,closeTime);
+
+            return $"{tagAvg},{tagPrice}";
         }
 
         public string GetFileName(string tag)

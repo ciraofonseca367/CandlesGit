@@ -16,9 +16,10 @@ namespace Midas.Core.Indicators
         public MovingAverageIndicator(object[] args) : base(args)
         { }
 
-        public override void AddFramePoint(IStockPointInTime point)
+        public override IStockPointInTime AddFramePoint(IStockPointInTime point)
         {
             var buffer = base._historical.GetList();
+            var curretWindow = base._currentWindow.GetList();
             var ma = buffer.Average(p => p.CloseValue);
 
             var newPoint = new Indicator()
@@ -28,7 +29,17 @@ namespace Midas.Core.Indicators
                 PointInTime_Close = point.PointInTime_Close
             };
 
-            base._currentWindow.Enqueue(newPoint);
+            var last = curretWindow.LastOrDefault();
+            if(last != null && last.PointInTime_Open == newPoint.PointInTime_Open)
+            {
+                last.AmountValue = ma;
+            }
+            else
+            {
+                base._currentWindow.Enqueue(newPoint);                
+            }
+
+            return newPoint;
         }
 
         public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
@@ -45,10 +56,11 @@ namespace Midas.Core.Indicators
         public ATRIndicator(object[] args) : base(args)
         { }
 
-        public override void AddFramePoint(IStockPointInTime point)
+        public override IStockPointInTime AddFramePoint(IStockPointInTime point)
         {
             var buffer = base._historical.GetList();
             List<double> atrs = new List<double>();
+            IStockPointInTime last = null;
 
             Candle p = null;
             if (buffer.Count() > 1)
@@ -82,8 +94,12 @@ namespace Midas.Core.Indicators
                     PointInTime_Close = point.PointInTime_Close
                 };
 
+                last = newPoint;
+
                 base._currentWindow.Enqueue(newPoint);
             }
+
+            return last;
         }
 
         public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
@@ -101,7 +117,7 @@ namespace Midas.Core.Indicators
         public MaxAverageIndicator(object[] args) : base(args)
         { }
 
-        public override void AddFramePoint(IStockPointInTime point)
+        public override IStockPointInTime AddFramePoint(IStockPointInTime point)
         {
             var buffer = base._historical.GetList();
             var ma = buffer.Max(p => p.CloseValue);
@@ -114,11 +130,62 @@ namespace Midas.Core.Indicators
             };
 
             base._currentWindow.Enqueue(newPoint);
+
+            return newPoint;
         }
 
         public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
         {
 
         }
-    }        
+    }
+
+    public class LowNoiseIndicator : CalculatedIndicator
+    {
+
+        public LowNoiseIndicator(string bufferSize, string windowSize) : base(bufferSize, windowSize)
+        { }
+
+        public LowNoiseIndicator(object[] args) : base(args)
+        { }
+
+        public override IStockPointInTime AddFramePoint(IStockPointInTime point)
+        {
+            var buffer = base._historical.GetList();
+            List<double> lowNoises = new List<double>();
+            IStockPointInTime last = null;
+
+            if (buffer.Count() > 1)
+            {
+                foreach (Candle c in buffer)
+                {
+                    lowNoises.Add(c.GetLowNoise());
+                }
+
+                var lowNoise = lowNoises.Average();
+
+                var newPoint = new Indicator()
+                {
+                    AmountValue = lowNoise,
+                    PointInTime_Open = point.PointInTime_Open.AddMilliseconds(
+                        (point.PointInTime_Close - point.PointInTime_Open).TotalMilliseconds / 2
+                    ),
+
+                    PointInTime_Close = point.PointInTime_Close
+                };
+
+                last = newPoint;
+
+                base._currentWindow.Enqueue(newPoint);
+            }
+
+            return last;
+        }
+
+        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
+        {
+
+        }
+    }
+
 }
