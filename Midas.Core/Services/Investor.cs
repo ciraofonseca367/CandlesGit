@@ -276,10 +276,19 @@ namespace Midas.Core.Services
             var allOperationsReverse = allOperations.OrderByDescending(op => op.ExitDate).ToList();
 
             StringBuilder sb = new StringBuilder(500);
+            double successRate = 0;
 
+            var total = allOperationsReverse.Count();
+            var success = 0;
             allOperationsReverse.Take(number).ToList().ForEach(op =>
             {
-                var emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
+                var emoji = TelegramEmojis.PERSON_SHRUGGING;
+                if(op.State == TradeOperationState.Profit || op.State == TradeOperationState.Stopped)
+                    emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
+
+                if(op.Gain > 0)
+                    success++;
+
                 var duration = (op.ExitDate - op.EntryDate);
 
                 sb.Append($"{op.EntryDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
@@ -289,8 +298,14 @@ namespace Midas.Core.Services
 
             if(allOperationsReverse.Count() == 0)
                 sb.Append("No records in the last 48 hrs");
+            else
+            {
+                successRate = (success / total)*100;
+            }
 
-            return sb.ToString();
+            var header = $"Sucsess Rate: <b>{successRate:0.00}%</b>\n\n";
+
+            return header + sb.ToString();
         }
 
 

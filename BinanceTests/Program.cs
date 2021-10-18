@@ -73,11 +73,11 @@ namespace BinanceTests
 
         private static void DownloadCoinFiles()
         {
-            string remoteUriMask = "https://data.binance.vision/data/spot/monthly/klines/{0}/1h/{0}-1h-{1}-{2}.zip";
-            string folderMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-HOUR1/";
-            string fileNameMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-HOUR1/{0}-1h-{1}-{2}.zip";
+            string remoteUriMask = "https://data.binance.vision/data/spot/daily/klines/{0}/15m/{0}-15m-{1}-{2}-{3}.zip";
+            string folderMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-MIN15/";
+            string fileNameMask = "/Users/cironola/Documents/CandlesFace Projects/Storage/{0}-MIN15/{0}-15m-{1}-{2}-{3}.zip";
 
-            string[] pairs = new string[] { "BTCUSDT", "ETHUSDT", "BNBUSDT"};
+            string[] pairs = new string[] { "BTCUSDT"};
 
             List<Task> downloads = new List<Task>();
 
@@ -89,11 +89,11 @@ namespace BinanceTests
                 Task t = Task.Run(() =>
                 {
 
-                    DateTime current = new DateTime(2018, 1, 1);
+                    DateTime current = new DateTime(2021, 10, 1);
                     while (current < DateTime.Now)
                     {
-                        var remoteUri = String.Format(remoteUriMask, pair, current.Year, current.Month.ToString("00"));
-                        var fileName = String.Format(fileNameMask, pair, current.Year, current.Month.ToString("00"));
+                        var remoteUri = String.Format(remoteUriMask, pair, current.Year, current.Month.ToString("00"), current.Day.ToString("00"));
+                        var fileName = String.Format(fileNameMask, pair, current.Year, current.Month.ToString("00"), current.Day.ToString("00"));
                         try
                         {
                             WebClient myWebClient = new WebClient();
@@ -105,7 +105,7 @@ namespace BinanceTests
                             Console.WriteLine(err.Message);
                         }
 
-                        current = current.AddMonths(1);
+                        current = current.AddDays(1);
                     }
                 });
 

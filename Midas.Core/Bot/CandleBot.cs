@@ -117,10 +117,10 @@ namespace Midas.Core.Telegram
             }
             catch (Exception exception)
             {
-                if(update != null && update.Message != null)
+                if (update != null && update.Message != null)
                     await botClient.SendTextMessageAsync(chatId: update.Message.Chat.Id,
                                                                 text: $"General error: {exception.Message}",
-                                                                replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);   
+                                                                replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);
 
                 await HandleErrorAsync(botClient, exception, cancellationToken);
             }
@@ -148,7 +148,7 @@ namespace Midas.Core.Telegram
                 case "Config":
 
                     var msg = String.Concat(_myService.GetAssetsConfig());
-                    
+
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: msg,
                                                                 replyMarkup: new ReplyKeyboardRemove(), parseMode: ParseMode.Html);
@@ -161,11 +161,11 @@ namespace Midas.Core.Telegram
                     currentTrader = null;
                     session.Data["Trader"] = null;
 
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Stop requested...");   
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Stop requested...");
 
                     _myService.StopTraders();
 
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());   
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());
 
                     break;
 
@@ -173,9 +173,9 @@ namespace Midas.Core.Telegram
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     currentTrader = null;
-                    session.Data["Trader"] = null;                    
+                    session.Data["Trader"] = null;
 
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Restart requested...");   
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Restart requested...");
 
                     _myService.RestartTraders();
 
@@ -187,14 +187,14 @@ namespace Midas.Core.Telegram
                     currentTrader = null;
                     session.Data["Trader"] = null;
 
-                    if((DateTime.Now - _lastShutDown).TotalSeconds < 60)
+                    if ((DateTime.Now - _lastShutDown).TotalSeconds < 60)
                     {
-                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Bye!", replyMarkup: new ReplyKeyboardRemove()); 
+                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Bye!", replyMarkup: new ReplyKeyboardRemove());
                         _myService.Stop();
                     }
                     else
                     {
-                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Are you sure? You have 60s to send Shutdown again otherwise I will reset I didn't hear you..."); 
+                        await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Are you sure? You have 60s to send Shutdown again otherwise I will reset I didn't hear you...");
                     }
 
                     _lastShutDown = DateTime.Now;
@@ -213,7 +213,7 @@ namespace Midas.Core.Telegram
                         {
                             await botClient.SendTextMessageAsync(
                                 chatId: message.Chat.Id,
-                                text: trend,parseMode: ParseMode.Html);
+                                text: trend, parseMode: ParseMode.Html);
 
                             using (MemoryStream ms = new MemoryStream())
                             {
@@ -246,9 +246,6 @@ namespace Midas.Core.Telegram
                     {
                         var state = currentTrader.GetState();
 
-                        if (state == null)
-                            state = "No state";
-
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
                             text: state);
@@ -265,15 +262,49 @@ namespace Midas.Core.Telegram
                 case "Open Positions":
                     var stateAll = _myService.GetAllTradersStatus();
 
+                    var msgs = stateAll.Split('|');
 
-                    await botClient.SendTextMessageAsync(
-                        chatId: message.Chat.Id,
-                        text: stateAll);
+                    if (msgs.Count() > 0)
+                    {
 
-                    break;                    
+                        foreach (string singleOp in msgs)
+                        {
+                            if (!String.IsNullOrEmpty(singleOp.Trim()))
+                                await botClient.SendTextMessageAsync(
+                                    chatId: message.Chat.Id,
+                                    text: singleOp);
+                        }
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "No positions opened...");
+                    }
+
+                    break;
+                case "Slots":
+
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    if (currentTrader != null)
+                    {
+                        var dumpRes = currentTrader.GetSlotDump();
+
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: dumpRes, parseMode: ParseMode.Html);
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "No asset selected");
+                    }
+                    break;
                 case "Try Enter":
-                    
-                   await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     if (currentTrader != null)
                     {
@@ -284,9 +315,9 @@ namespace Midas.Core.Telegram
                         var enterResult = currentTrader.SetPrediction();
                         bool goodToEnter = currentTrader.GoodToEnter();
 
-                        enterResult +=$"\n\nGood to enter? {goodToEnter}";
+                        enterResult += $"\n\nGood to enter? {goodToEnter}";
 
-                        if(enterResult == String.Empty)
+                        if (enterResult == String.Empty)
                             enterResult = "Nothing to report";
 
                         await botClient.SendTextMessageAsync(
@@ -299,8 +330,8 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "No asset selected");
                     }
-                    
-                    break;                    
+
+                    break;
                 case "P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -319,7 +350,7 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "No asset selected");
                     }
-                    break;                  
+                    break;
 
                 case "General P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -361,7 +392,7 @@ namespace Midas.Core.Telegram
                         chatId: message.Chat.Id,
                         text: fullReport, parseMode: ParseMode.Html);
 
-                    break;     
+                    break;
 
                 case "Last Transactions":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -369,7 +400,7 @@ namespace Midas.Core.Telegram
                     string lastTrans = String.Empty;
                     try
                     {
-                        lastTrans = _myService.GetLastOperations(10);
+                        lastTrans = _myService.GetLastOperations(30);
                     }
                     catch (Exception err)
                     {
@@ -380,7 +411,7 @@ namespace Midas.Core.Telegram
                         chatId: message.Chat.Id,
                         text: lastTrans, parseMode: ParseMode.Html);
 
-                    break;                                        
+                    break;
                 case "Balance":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -403,10 +434,10 @@ namespace Midas.Core.Telegram
                 case "Force Sell":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
-                    var ret = currentTrader.ForceMaketOrder();
+                    var retForce = currentTrader.ForceMaketOrder();
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
-                                                                text: ret);
+                                                                text: retForce);
 
                     break;
                 case "Close Position":
@@ -417,12 +448,12 @@ namespace Midas.Core.Telegram
                                                                 text: "It can take a a couple of minutes to close the operation, wait...");
 
                     bool hardIndication = true;
-                    if(message.Text == "Ask To Close Position")
+                    if (message.Text == "Ask To Close Position")
                         hardIndication = false;
 
                     string text;
-                    var op = currentTrader.CloseOperationIfAny(hardIndication);
-                    if(op != null)
+                    var hasOps = currentTrader.CloseAllOperationIfAny(hardIndication);
+                    if (hasOps)
                     {
                         text = "Done!";
                     }
@@ -481,8 +512,8 @@ namespace Midas.Core.Telegram
             var replyKeyboardMarkup = new ReplyKeyboardMarkup(
                 new KeyboardButton[][]
                 {
+                    new KeyboardButton[] { "Snapshot","State", "Slots" },
                     new KeyboardButton[] { "Try Enter" },
-                    new KeyboardButton[] { "Snapshot","State" },
                     new KeyboardButton[] { "Close Position", "Ask To Close Position" },
                     new KeyboardButton[] { "Back"}
                 })
@@ -500,12 +531,12 @@ namespace Midas.Core.Telegram
         {
             List<KeyboardButton[]> buttonsLines = new List<KeyboardButton[]>();
             buttonsLines.Add(new KeyboardButton[] { "General P&L", "Full Report", "Last Transactions" });
-            buttonsLines.Add(new KeyboardButton[] { "Open Positions"});
+            buttonsLines.Add(new KeyboardButton[] { "Open Positions" });
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
             buttonsLines.Add(new KeyboardButton[] { "Balance", "Config" });
-            buttonsLines.Add(new KeyboardButton[] { "Stop", "Restart", "Shutdown"  });
-            buttonsLines.Add(new KeyboardButton[] { "Clear" });            
+            buttonsLines.Add(new KeyboardButton[] { "Stop", "Restart", "Shutdown" });
+            buttonsLines.Add(new KeyboardButton[] { "Clear" });
 
             var assetButtons = buttonsLines.ToArray();
 

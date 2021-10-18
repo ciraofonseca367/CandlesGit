@@ -14,6 +14,7 @@ using Midas.Core.Util;
 using Midas.FeedStream;
 using Midas.Core.Common;
 using System.Collections.Concurrent;
+using Midas.Core.Trade;
 
 namespace Midas.Core.Broker
 {
@@ -178,6 +179,8 @@ namespace Midas.Core.Broker
 
         public abstract BrokerOrder OrderStatus(string orderId, string asset, int timeOut);
 
+        public abstract Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut);
+
         public abstract List<BalanceRecord> AccountBalance(int timeOut);
 
         public abstract bool CancelOrder(string orderId, string asset, int timeOut);
@@ -187,6 +190,18 @@ namespace Midas.Core.Broker
         public abstract void CancelAllOpenOrders(string asset, int timeOut);
 
         public abstract Task<BrokerOrder> SmartOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, PriceBias bias, DateTime creationDate);
+
+        public static BrokerOrder GetFakeOrder(string orderId, OrderDirection direction, OrderType type, double qty, double price, DateTime creationDate)
+        {
+            var fakeOrder = new BrokerOrder(null,direction, type, orderId, creationDate);
+            fakeOrder.Status = BrokerOrderStatus.NEW;
+            fakeOrder.RawStatus = "NEW";
+            fakeOrder.DesiredPrice = price;
+            fakeOrder.AverageValue = price;
+            fakeOrder.InError = false;
+
+            return fakeOrder;
+        }
     }
 
     public class BrokerException : ApplicationException
@@ -465,6 +480,18 @@ namespace Midas.Core.Broker
             return order;
         }        
 
+        public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
+        {
+            BrokerOrder order = null;
+            Task t = Task.Run(() => {
+                order = OrderStatus(orderId, asset, timeOut);
+            });
+
+            await t;
+
+            return order;
+        }
+
         public override BrokerOrder OrderStatus(string orderId, string asset, int timeOut)
         {
             string queryString = String.Format(
@@ -700,6 +727,7 @@ namespace Midas.Core.Broker
     public class TestBroker : Broker
     {
         private Dictionary<string, BrokerOrder> _pendingOrders;
+
         public TestBroker() : base()
         {
             _pendingOrders = new Dictionary<string, BrokerOrder>();
@@ -718,7 +746,10 @@ namespace Midas.Core.Broker
         }
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
-            throw new NotImplementedException();
+            var assetInfo = AssetPriceHub.GetTicker(asset);
+            assetInfo.CancelOrder(orderId);
+
+            return true;
         }
         public override double GetPriceQuote(string asset)
         {
@@ -731,10 +762,14 @@ namespace Midas.Core.Broker
             order = new BrokerOrder(this, direction, OrderType.LIMIT, orderId, creationDate);
             order.DesiredPrice = price;
             order.AverageValue = currentPrice;
-            order.RawStatus = "FILLED";
-            order.Status = BrokerOrderStatus.FILLED;
+            order.RawStatus = "NEW";
+            order.Status = BrokerOrderStatus.NEW;
             order.InError = false;
             order.Quantity = qty;
+
+            var assetInfo = AssetPriceHub.GetTicker(asset);
+            assetInfo.WatchOrder(order);
+
             base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
             return order;
         }
@@ -777,18 +812,20 @@ namespace Midas.Core.Broker
             return order;
         }
 
+        public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
+        {
+            BrokerOrder order = null;
+            Task t = Task.Run(() => {
+                order = OrderStatus(orderId, asset, timeOut);
+            });
 
+            await t;
+
+            return order;
+        }
         public override BrokerOrder OrderStatus(string orderId, string asset, int timeOut)
         {
-            var order = new BrokerOrder(this,orderId, DateTime.UtcNow);
-            order.DesiredPrice = 0;
-            order.AverageValue = 0;
-            order.RawStatus = "FILLED";
-            order.Status = BrokerOrderStatus.FILLED;
-            order.InError = false;
-            order.Quantity = 0;
-            order.ErrorMsg = "This is the test broker!";
-            base.LogMessage("Test Broker", "Checking status");
+            var order = AssetPriceHub.GetTicker(asset).GetOrder(orderId);
             return order;
         }
 

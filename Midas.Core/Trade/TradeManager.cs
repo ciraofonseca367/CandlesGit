@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
@@ -45,14 +47,19 @@ namespace Midas.Trading
 
         private string _experiment;
 
+        private FundSlotManager _slotManager;
 
+        /* DEBUG VARS */
+        private StreamWriter _debugInfo; 
+        private int _sequencialId;
+        /* END DEBUG VARS */
 
         static TradeOperationManager()
         {
             _managers = new Dictionary<string, TradeOperationManager>(11);
         }
 
-        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName,string brokerName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
+        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName, string brokerName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
         {
             TradeOperationManager man = null;
 
@@ -78,7 +85,7 @@ namespace Midas.Trading
         public TradeOperationManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment, string brokerName)
         {
             _currentOperation = null;
-            _allOperations = new List<TradeOperation>();
+            _allOperations = new ConcurrentBag<TradeOperation>();
             _conString = conString;
             _brokerName = brokerName;
 
@@ -104,28 +111,34 @@ namespace Midas.Trading
             _brokerConfig = brokerConfig;
 
             GetFunds();
+
+            _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
+
+            _sequencialId = 0;
+
+            _debugInfo = new StreamWriter(File.Open($"{this._asset}_Operations.csv", FileMode.Create, FileAccess.Write, FileShare.Read));
         }
 
-        public TradeOperation RestoreState()
-        {
-            List<TradeOperationDto> ops = null;
-            ops = GetOpenOperations();
-            TradeOperation state = null;
+        // public TradeOperation RestoreState()
+        // {
+        //     List<TradeOperationDto> ops = null;
+        //     ops = GetOpenOperations();
+        //     TradeOperation state = null;
 
-            if (ops.Count > 0)
-            {
-                if (ops.Count > 1)
-                {
-                    TraceAndLog.GetInstance().Log("Restore State", "Be aware, got more then one transaction in a IN State");
-                }
+        //     if (ops.Count > 0)
+        //     {
+        //         if (ops.Count > 1)
+        //         {
+        //             TraceAndLog.GetInstance().Log("Restore State", "Be aware, got more then one transaction in a IN State");
+        //         }
 
-                _currentOperation = new TradeOperation(ops.First(), _fund, this, _conString, _brokerName,  _brokerConfig);
-                state = _currentOperation;
-                _allOperations.Add(_currentOperation);
-            }
+        //         _currentOperation = new TradeOperation(ops.First(), 0, this, _conString, _brokerName, _brokerConfig);
+        //         state = _currentOperation;
+        //         _allOperations.Add(_currentOperation);
+        //     }
 
-            return state;
-        }
+        //     return state;
+        // }
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
@@ -153,7 +166,7 @@ namespace Midas.Trading
 
         public PriceDirection GetPriceDirection()
         {
-            return _logger.GetDirection(new TimeSpan(0,5,0));
+            return _logger.GetDirection(new TimeSpan(0, 5, 0));
         }
 
         internal void GetFunds()
@@ -169,6 +182,8 @@ namespace Midas.Trading
                 return _fund;
             }
         }
+
+        public FundSlotManager SlotManager { get => _slotManager; }
 
         public List<TradeOperationDto> GetOpenOperations()
         {
@@ -194,27 +209,27 @@ namespace Midas.Trading
             return query.ToList();
         }
 
-        public List<TradeOperation> GetActiveStoredOperations(string asset, CandleType candleType,string experiment, DateTime relativeNow)
+        public List<TradeOperation> GetActiveStoredOperations(string asset, CandleType candleType, string experiment, DateTime relativeNow)
         {
-            var query = InvestorService.SearchActiveOperations(_conString, asset, candleType,experiment, relativeNow);
+            var query = InvestorService.SearchActiveOperations(_conString, asset, candleType, experiment, relativeNow);
 
             List<TradeOperation> localAllTransactions;
             localAllTransactions = new List<TradeOperation>();
             query.ForEach(o =>
             {
-                var op = new TradeOperation(o, _fund, this, _conString, _brokerName, _brokerConfig);
+                var op = new TradeOperation(o, null, this, _conString, _brokerName, _brokerConfig);
                 localAllTransactions.Add(op);
             });
 
             return localAllTransactions;
-        }        
+        }
 
         private TradeOperation _currentOperation;
-        private List<TradeOperation> _allOperations;
+        private ConcurrentBag<TradeOperation> _allOperations;
 
         internal void SendMessage(string thread, string message)
         {
-            TelegramBot.SendMessageBuffered(thread,message);
+            TelegramBot.SendMessageBuffered(thread, message);
         }
 
         public void LoadOperations()
@@ -227,9 +242,10 @@ namespace Midas.Trading
             return _allOperations.Where(op => op.EntryDate > validDate).ToList();
         }
 
-        internal void OperationFinished(TradeOperation op, Candle cc)
+        internal void OperationFinished(TradeOperation op, Candle cc, FundSlot slot)
         {
             _lastTrade = op;
+            _slotManager.ReturnSlot(slot.Id);
             _trader.SaveSnapshot(cc);
         }
 
@@ -237,12 +253,12 @@ namespace Midas.Trading
         private bool IsBlocked(DateTime relativeNow)
         {
             bool blocked = false;
-            if(_lastTrade != null)
+            if (_lastTrade != null)
             {
-                if(_lastTrade.IsClassic())
+                if (_lastTrade.IsClassic())
                 {
                     var howLongAgo = relativeNow - _lastTrade.ExitDate;
-                    if(howLongAgo.TotalHours < 30)
+                    if (howLongAgo.TotalHours < 30)
                         blocked = true;
                 }
             }
@@ -261,10 +277,17 @@ namespace Midas.Trading
         {
             return _allOperations.OrderByDescending(op => op.EntryDate).FirstOrDefault(op => op.IsIn);
         }
-
-        public TradeOperation GetLastRecentOperation()
+        public IEnumerable<TradeOperation> GetAllActiveOperations()
         {
-            return _allOperations.OrderByDescending(op => op.EntryDate).FirstOrDefault(op => op.EntryDate >= DateTime.UtcNow.AddHours(-30));
+            return _allOperations.OrderByDescending(op => op.EntryDate).Where(op => op.IsIn);
+        }
+
+        public IEnumerable<TradeOperation> GetLastRecentOperations()
+        {
+            return _allOperations
+            .Where(o => o.IsIn)
+            .OrderByDescending(op => op.EntryDate)
+            .Take(10);
         }
 
         public void Signal(TrendType signal)
@@ -277,33 +300,42 @@ namespace Midas.Trading
         {
             TradeOperation ret = null;
 
-            //if (!IsBlocked(pointInTime))
-            //{
-                if (_currentOperation == null)
-                {
-                    _currentOperation = new TradeOperation(this, _fund, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
-                    _allOperations.Add(_currentOperation);
-                }
-                else
-                {
-                    if (_currentOperation.IsCompleted)
-                    {
-                        _currentOperation = new TradeOperation(this, _fund, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
-                        _allOperations.Add(_currentOperation);
-                    }
-                }
-            //}
 
-            if (_currentOperation != null)
+            if (_allOperations.Count() > 50)
             {
-                if (_currentOperation.State == TradeOperationState.Initial)
+                lock (_allOperations)
                 {
-                    _currentOperation.Enter(value, pointInTime, ln, modelName);
-                    ret = _currentOperation;
+                    if (_allOperations.Count() > 50)
+                    {
+                        var tmpIn = _allOperations.Where(o => o.IsIn);
+                        _allOperations = new ConcurrentBag<TradeOperation>(tmpIn);
+                        Console.WriteLine("CLEANING UP");
+                    }
                 }
             }
 
+            var slot = SlotManager.TryGetSlot();
+            if(slot != null)
+            {
+                _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
+                _allOperations.Add(_currentOperation);
+                _sequencialId++;
+
+                _currentOperation.Enter(value, pointInTime, ln, modelName);
+                ret = _currentOperation;
+            }
+            else
+            {
+                Console.WriteLine("===== SEM SLOTS ======");
+            }
+
             _lastAttempt = DateTime.Now;
+
+            var activeOps = _allOperations.Where(o => o.IsIn);
+            
+            Console.WriteLine("Operações ativas: " + activeOps.Count());
+            _debugInfo.WriteLine($"{_sequencialId},{activeOps.Count()},{_allOperations.Count()}");
+            _debugInfo.Flush();
 
             return ret;
         }
@@ -316,9 +348,11 @@ namespace Midas.Trading
 
         public void OnCandleUpdate(Candle c)
         {
-            _logger.AddTrade(c.OpenTime,c.AmountValue);
-            if (_currentOperation != null && _currentOperation.IsIn)
-                _currentOperation.OnCandleUpdateAsync(c);
+            _logger.AddTrade(c.OpenTime, c.AmountValue);
+
+            var activeOps = _allOperations.Where(o => o.IsIn);
+            foreach (var op in activeOps)
+                op.OnCandleUpdateAsync(c);
         }
     }
 

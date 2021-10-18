@@ -61,6 +61,8 @@ namespace Midas.FeedStream
 
         protected SocketInfo _socketInfo;
 
+        protected SocketInfo _socketEnd;
+
         public void OnUpdate(SocketEvent socketEvent)
         {
             _socketUpdate += socketEvent;
@@ -73,6 +75,11 @@ namespace Midas.FeedStream
         {
             _socketInfo += socketEvent;
         }
+
+        public void OnSocketEnd(SocketInfo socketEndEvent)
+        {
+            _socketEnd += socketEndEvent;
+        }        
         public abstract Candle ParseCandle(string buffer);
 
         public abstract void OpenSocket(string asset);
@@ -170,6 +177,9 @@ namespace Midas.FeedStream
                     Thread.Sleep(20000);
                 }
             }
+
+            if(_socketEnd != null)
+                _socketEnd("fim","fim");
 
             _state = MidasSocketState.Closed;
         }

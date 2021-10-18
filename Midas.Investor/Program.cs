@@ -10,8 +10,8 @@ namespace Midas.InVestor
         private static InvestorService _investor;
         static void Main(string[] args)
         {
-            ThreadPool.SetMaxThreads(100, 100);
-            ThreadPool.SetMinThreads(6, 6);
+            ThreadPool.SetMaxThreads(500, 500);
+            ThreadPool.SetMinThreads(50, 50);
 
             RunParameters runParams = RunParameters.CreateInstace(args);
             _investor = new InvestorService(runParams);

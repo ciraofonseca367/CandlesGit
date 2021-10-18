@@ -74,6 +74,22 @@ namespace Midas.Core.Broker
             set;
         }
 
+        public bool IsPending
+        {
+            get
+            {
+                return Status == BrokerOrderStatus.NEW || Status == BrokerOrderStatus.None || Status == BrokerOrderStatus.PARTIALLY_FILLED;
+            }
+        }
+
+        public bool IsFilled(double currentPrice)
+        {
+            return (
+                (currentPrice > this.DesiredPrice && this.Direction == OrderDirection.SELL) ||
+                currentPrice < this.DesiredPrice && this.Direction == OrderDirection.BUY);
+       
+        }
+
         public bool InError
         {
             get;

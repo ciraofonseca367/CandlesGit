@@ -99,6 +99,8 @@ namespace Midas.FeedStream
             {
                 var currentDay = c.PointInTime_Open.ToString("yyyy-MM-dd HH");
 
+                var hours = (c.PointInTime_Open - firstDay.PointInTime_Open).TotalHours;
+
                 if (previous != null)
                 {
                     var seedCandle = new Candle()
@@ -129,14 +131,12 @@ namespace Midas.FeedStream
                     var amountFactor = diff / factor;
                     var secondsFactor = c.CandleAge.TotalSeconds / factor;
 
-                    Random r = new Random();
-                    Thread.Sleep(r.Next(300,350));
+                    // Random r = new Random();
+                    // Thread.Sleep(r.Next(50,70));
 
                     _socketNew("Test", previous, seedCandle);
 
-                    int sleep=0;
-                    if((c.PointInTime_Open - firstDay.PointInTime_Open).TotalDays > 2)
-                        sleep = 200;
+                    int sleep= (hours > 8 ? 10 : 0);
 
                     for(int i=1;i<=factor;i++)
                     {
@@ -153,7 +153,7 @@ namespace Midas.FeedStream
 
                         nc.PointInTime_Close = close;
 
-                        //Thread.Sleep(sleep);
+                        Thread.Sleep(sleep);
 
                         _socketUpdate("test", "test", nc);
                     }
@@ -169,6 +169,7 @@ namespace Midas.FeedStream
             }
 
             Console.WriteLine("End of stream...");
+            _socketEnd("Fim","Fim");
 
             _state = MidasSocketState.Closed;
 

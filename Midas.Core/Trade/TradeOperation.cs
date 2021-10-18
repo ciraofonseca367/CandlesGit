@@ -30,9 +30,11 @@ namespace Midas.Trading
 
         private float MAKER_SELL_DISCOUNT = 0.03f;
 
-        private static bool TEST_MODE = true;
+        private float TARGET_GAIN = 0.5f;
 
-        private double _fund;
+        private static bool TEST_MODE = false;
+
+        private FundSlot _fundSlot;
 
         private double _stopLossMarker;
         private double _softStopLossMarker;
@@ -76,6 +78,10 @@ namespace Midas.Trading
 
         private MatchMaker _matchMaker;
 
+        private int _sequentialId;
+
+        private ConcurrentDictionary<string, BrokerOrder> _buyToSellMap;
+
         public TradeOperation(TradeOperationManager man, string connectionString, string brokerType, dynamic config)
         {
             _myMan = man;
@@ -88,6 +94,7 @@ namespace Midas.Trading
             TIMEOUT_BUY = Convert.ToInt32(config.TIMEOUT_BUY);
             TIMEOUT_SELL = Convert.ToInt32(config.TIMEOUT_SELL);
             MAKER_SELL_DISCOUNT = Convert.ToSingle(config.MAKER_SELL_DISCOUNT);
+            TARGET_GAIN = Convert.ToSingle(config.TARGET_GAIN);
 
             _exitDateStart = DateTime.MinValue;
 
@@ -95,6 +102,8 @@ namespace Midas.Trading
 
             _logs = new List<TraceEntry>();
             _orders = new ConcurrentBag<BrokerOrder>();
+            _sequentialId = 0;
+            _buyToSellMap = new ConcurrentDictionary<string, BrokerOrder>();
         }
 
         private void Log(string module, string description)
@@ -110,6 +119,12 @@ namespace Midas.Trading
             TraceAndLog.StaticLog(module, description);
         }
 
+        public string GetNextOrderId()
+        {
+            Interlocked.Increment(ref _sequentialId);
+            return $"{this._myStrId}{_sequentialId}";
+        }
+
         public bool IsClassic()
         {
             return GetGain() > 2 && OperationDurationInPeriods > 6;
@@ -123,7 +138,7 @@ namespace Midas.Trading
             }
         }
 
-        public TradeOperation(TradeOperationManager man, double fund, DateTime forecastPeriod, string connectionString, dynamic config,
+        public TradeOperation(TradeOperationManager man, FundSlot fund, DateTime forecastPeriod, string connectionString, dynamic config,
         string asset, CandleType candleType, string brokerType) : this(man, connectionString, brokerType, (JObject)config)
         {
             var objId = ObjectId.GenerateNewId(DateTime.Now);
@@ -132,9 +147,9 @@ namespace Midas.Trading
 
             _lastMaxValue = -1;
 
-            _fund = fund;
+            _fundSlot = fund;
 
-            _stepMan = new PurchaseStepManager(_fund, config.PurchaseSteps);
+            _stepMan = new PurchaseStepManager(_fundSlot.SlotAmount, config.PurchaseSteps);
             ChangeState(TradeOperationState.Initial);
 
             _exitDate = DateTime.MaxValue;
@@ -145,13 +160,13 @@ namespace Midas.Trading
 
             int windowSize = Convert.ToInt32(config.MSI_WINDOW_SIZE_SECONDS);
 
-            if(!TEST_MODE)
+            if (!TEST_MODE)
                 _matchMaker = new MatchMaker(_asset);
         }
 
-        public TradeOperation(TradeOperationDto state, double fund, TradeOperationManager man, string connectionString, string brokerType, dynamic config) : this(man, connectionString, brokerType, (JObject)config)
+        public TradeOperation(TradeOperationDto state, FundSlot fundSlot, TradeOperationManager man, string connectionString, string brokerType, dynamic config) : this(man, connectionString, brokerType, (JObject)config)
         {
-            _fund = fund;
+            _fundSlot = fundSlot;
             _softStopLossMarker = state.SoftStopLossMarker;
             _state = state.State;
 
@@ -247,7 +262,7 @@ namespace Midas.Trading
                 ChangeState(TradeOperationState.In);
                 TradeRunner();
 
-                if(_matchMaker != null)
+                if (_matchMaker != null)
                     _matchMaker.Start();
             }
             else
@@ -276,50 +291,44 @@ namespace Midas.Trading
             await AskToCloseOperation(hard);
         }
 
-        private async Task AskToCloseOperation(bool hardStopped = true)
+        private void CancelAllOpenOrders()
+        {
+            foreach (var o in _orders.Where(o => o.IsPending))
+            {
+                _broker.CancelOrder(o.OrderId, _asset, TIMEOUT_BUY);
+            }
+        }
+
+        private async Task AskToCloseOperation(bool hardStopped = true, bool failedIn = false)
         {
             if (IsIn)
             {
                 if (ChangeState(TradeOperationState.WaitingOut))
                 {
-                    _broker.CancelAllOpenOrders(_asset, TIMEOUT_SELL);
+                    CancelAllOpenOrders();
 
-                    var amountPurchased = GetAmountPurchased();
-                    if (amountPurchased > 0)
+                    if (!failedIn)
                     {
-                        BrokerOrder sellOrder  = null;
-                        if (hardStopped)
-                            sellOrder = await _broker.MarketOrderAsync(_myStrId + "S1", _asset, OrderDirection.SELL, amountPurchased, TIMEOUT_SELL, LastValue, LastCloseDate, false);
-                        else
+                        var amountLeftToSell = GetAmountLeftToSell();
+                        if (amountLeftToSell > 0)
                         {
-                            double priceToSell = 0;
-                            if(TEST_MODE)
-                                priceToSell = LastValue;
+                            BrokerOrder sellOrder = null;
+                            sellOrder = await _broker.MarketOrderAsync(GetNextOrderId(), _asset, OrderDirection.SELL, amountLeftToSell, TIMEOUT_SELL, LastValue, LastCloseDate, false);
+
+                            if (!sellOrder.InError)
+                            {
+                                _orders.Add(sellOrder);
+
+                                if (_exitDateStart == DateTime.MinValue)
+                                {
+                                    _exitDateStart = _lastCandle.CloseTime;
+                                    _exitDateStartInUtc = DateTime.UtcNow;
+                                }
+                            }
                             else
                             {
-                                //priceToSell = _matchMaker.GetPurchasePrice(amountPurchased);
-                                priceToSell = LastValue * (1 - (MAKER_SELL_DISCOUNT/100));
+                                LogMessage("Order", "Error when closing - " + sellOrder.ErrorMsg);
                             }
-
-                            if (priceToSell > 0)
-                                sellOrder = await _broker.LimitOrderAsync(_myStrId + "S1", _asset, OrderDirection.SELL, amountPurchased, TIMEOUT_SELL, priceToSell, LastValue, LastCloseDate);
-                            else
-                                ChangeState(TradeOperationState.In);
-                        }
-
-                        if (!sellOrder.InError)
-                        {
-                            _orders.Add(sellOrder);
-
-                            if (_exitDateStart == DateTime.MinValue)
-                            {
-                                _exitDateStart = _lastCandle.CloseTime;
-                                _exitDateStartInUtc = DateTime.UtcNow;
-                            }
-                        }
-                        else
-                        {
-                            LogMessage("Order", "Error when closing - " + sellOrder.ErrorMsg);
                         }
                     }
                 }
@@ -349,7 +358,7 @@ namespace Midas.Trading
             bool mustStop = false;
 
             var ma = _myMan.Trader.GetMAValue("MA6");
-            if (LastLongSignalDurationInPeriods >= 6) //Timeout da operação, desde o inicio ou último sinal de long
+            if (OperationDurationInPeriods >= 15) //Timeout da operação, desde o inicio ou último sinal de long
             {
                 if (LastValue > PriceEntryAverage)
                     shouldStop = true;
@@ -540,13 +549,26 @@ namespace Midas.Trading
             return amountPurchased;
         }
 
+        public double GetAmountLeftToSell()
+        {
+            var amountPurchased = _orders
+            .Where(o => o.Direction == OrderDirection.BUY && o.Status == BrokerOrderStatus.FILLED)
+            .Sum(o => o.Quantity);
+
+            var amountSold = _orders
+            .Where(o => o.Direction == OrderDirection.SELL && o.Status == BrokerOrderStatus.FILLED)
+            .Sum(o => o.Quantity);
+
+            return amountPurchased - amountSold;
+        }
+
         public double GetRelativeAmountPurchased(BrokerOrderStatus status)
         {
             var amountPurchased = _orders
             .Where(o => o.Direction == OrderDirection.BUY && o.Status == status)
             .Sum(o => o.Quantity);
 
-            return (amountPurchased / _fund) * 100;
+            return (amountPurchased / _fundSlot.SlotAmount) * 100;
         }
 
         public string PurchaseStatusDescription
@@ -574,7 +596,7 @@ namespace Midas.Trading
                         Thread.Sleep(1000);
                     }
 
-                    if(_matchMaker != null)
+                    if (_matchMaker != null)
                         _matchMaker.Dispose();
 
                     Console.WriteLine("Trade runner leaving...");
@@ -589,12 +611,11 @@ namespace Midas.Trading
         private bool FailedEntryCheck()
         {
             bool ret = false;
-            var pendingPurchaseOrders = _orders.Where(o => o.Direction == OrderDirection.BUY && o.Status == BrokerOrderStatus.NEW);
+            var confirmedOrders = _orders.Where(o => o.Direction == OrderDirection.BUY && o.Status == BrokerOrderStatus.FILLED);
 
-            if (pendingPurchaseOrders.Count() > 0)
+            if (confirmedOrders.Count() == 0) // Não temos ordens confirmadas ainda
             {
-                var ordersInTimeout = pendingPurchaseOrders.Where(p => p.WaitDuration(LastCloseDate).TotalMilliseconds > TIMEOUT_BUY);
-                if (ordersInTimeout.Count() > 1)
+                if (OperationDurationInPeriods > 15)
                     ret = true;
             }
 
@@ -615,7 +636,7 @@ namespace Midas.Trading
             return ret;
         }
 
-        private async Task<bool> OperationClosedCheck()
+        private bool OperationClosedCheck()
         {
             bool ret = false;
 
@@ -628,19 +649,10 @@ namespace Midas.Trading
             .Sum(o => o.Quantity);
 
 
-            if (quantityBought.ToString("0.0000") == quantitySold.ToString("0.0000"))
+            if (quantityBought > 0 && quantitySold > 0 && quantityBought.ToString("0.0000") == quantitySold.ToString("0.0000"))
             {
-                if (quantityBought == 0 && quantitySold == 0)
-                {
-                    if (OperationDurationUTC.TotalMinutes >= 60)
-                    {
-                        await AskToCloseOperation();
-                    }
-                }
-                else
-                    ret = true;
+                ret = true;
             }
-
 
             return ret;
         }
@@ -648,20 +660,21 @@ namespace Midas.Trading
         private async void ProcessOperationStatus()
         {
             var copiesOrders = _orders.OrderBy(o => o.CreationDate).ToList();
-            copiesOrders.ForEach(o =>
+            foreach (var o in copiesOrders)
             {
                 if (o.Status == BrokerOrderStatus.None || o.Status == BrokerOrderStatus.NEW || o.Status == BrokerOrderStatus.PARTIALLY_FILLED)
                 {
                     try
                     {
-                        var order = _broker.OrderStatus(o.OrderId, _asset, TIMEOUT_BUY);
+                        var order = await _broker.OrderStatusAsync(o.OrderId, _asset, TIMEOUT_BUY);
                         if (!order.InError)
                         {
                             o.Status = order.Status;
                             o.RawStatus = order.RawStatus;
                             o.AverageValue = order.AverageValue;
 
-                            Console.WriteLine($"Status orderId:{order.BrokerOrderId} - {order.RawStatus} - {order.Quantity} - {o.AverageValue}");
+                            if (order.Status == BrokerOrderStatus.FILLED)
+                                Console.WriteLine($"Status orderId:{order.BrokerOrderId} - {order.RawStatus} - {order.Quantity} - {o.AverageValue}");
                         }
                         else
                         {
@@ -673,38 +686,95 @@ namespace Midas.Trading
                         LogMessage("TradeRunner", "General error checking status - " + err.Message);
                     }
                 }
-            });
 
-            if (await OperationClosedCheck())
+                if (o.Status == BrokerOrderStatus.FILLED && o.Direction == OrderDirection.BUY)
+                {
+                    if (!_buyToSellMap.ContainsKey(o.OrderId))
+                    {
+                        lock (_buyToSellMap)
+                        {
+                            if (!_buyToSellMap.ContainsKey(o.OrderId))
+                            {
+                                var priceSell = o.AverageValue * (1 + (TARGET_GAIN / 100));
+                                var orderId = this.GetNextOrderId();
+
+                                var sellOrder = _broker.LimitOrder(orderId, _asset, OrderDirection.SELL, o.Quantity, TIMEOUT_SELL, priceSell, priceSell, LastCloseDate);
+                                if (!sellOrder.InError)
+                                {
+                                    _orders.Add(sellOrder);
+                                    _buyToSellMap[o.OrderId] = sellOrder;
+                                }
+                                else
+                                    LogMessage("Order", "Error when setting limit orders to sell - " + sellOrder.ErrorMsg);
+                            }
+                        }
+
+                    }
+                }
+
+            };
+
+            if (OperationClosedCheck())
             {
                 lock (this)
                 {
                     if (this.IsIn)
                     {
-                        _myMan.OperationFinished(this, _lastCandle);
-
-                        if (PriceExitAverage >= PriceEntryAverage)
-                            ChangeState(TradeOperationState.Profit);
-                        else
-                            ChangeState(TradeOperationState.Stopped);
-
-                        string prefix = _state == TradeOperationState.Profit ? TelegramEmojis.MoneyBag : TelegramEmojis.MeanSmirking;
-
-                        _exitDateInUtc = DateTime.UtcNow;
-                        _exitDate = LastCloseDate;
-
-                        Console.WriteLine(this.ToString());
-                        if (_myMan != null)
-                            _myMan.SendMessage(this._asset, prefix + " - Concluindo operação - " + this.ToString());
+                        CancelAllOpenOrders();
+                        ExecuteCloseOperationTasks();
                     }
                 }
             }
 
-            if (FailedExitCheck())
+            if (FailedEntryCheck())
             {
-                ChangeState(TradeOperationState.In);
-                await AskToCloseOperation(true);
+
+                lock (this)
+                {
+                    if (this.IsIn)
+                    {
+                        CancelAllOpenOrders();
+                        ExecuteCloseOperationTasks(true);
+                    }
+                }
             }
+
+            // if (FailedExitCheck())
+            // {
+            //     ChangeState(TradeOperationState.In);
+            //     await AskToCloseOperation(true);
+            // }
+        }
+
+        private void ExecuteCloseOperationTasks(bool hasFailed = false)
+        {
+            Console.WriteLine("Iniciando saida: \n");
+            _myMan.OperationFinished(this, _lastCandle, _fundSlot);
+
+            _exitDateInUtc = DateTime.UtcNow;
+            _exitDate = LastCloseDate;
+
+            string prefix = TelegramEmojis.PERSON_SHRUGGING;
+            if (!hasFailed)
+            {
+                if (PriceExitAverage >= PriceEntryAverage)
+                {
+                    ChangeState(TradeOperationState.Profit);
+                    prefix = TelegramEmojis.MoneyBag;
+                }
+                else
+                {
+                    ChangeState(TradeOperationState.Stopped);
+                    prefix = TelegramEmojis.MeanSmirking;
+                }
+            }
+            else
+                ChangeState(TradeOperationState.FailedIn);
+
+
+            Console.WriteLine("Terminando saida\n" + this.ToString());
+            if (_myMan != null)
+                _myMan.SendMessage(this._asset, prefix + " - Concluindo operação - " + this.ToString());
         }
 
         public async void OnCandleUpdateAsync(Candle newCandle)
@@ -733,8 +803,8 @@ namespace Midas.Trading
                         try
                         {
                             double suggestedPrice = 0;
-                            
-                            if(TEST_MODE)
+
+                            if (TEST_MODE)
                                 suggestedPrice = LastValue;
                             else
                                 suggestedPrice = _matchMaker.GetPurchasePrice(currentStep.TotalUnits);
@@ -743,7 +813,7 @@ namespace Midas.Trading
                             {
                                 currentStep.SetUsed();
 
-                                order = await _broker.LimitOrderAsync(_myStrId + $"B{currentStep.Number}", _asset, OrderDirection.BUY, currentStep.TotalUnits, TIMEOUT_BUY, suggestedPrice,LastValue, LastCloseDate);
+                                order = await _broker.LimitOrderAsync(this.GetNextOrderId(), _asset, OrderDirection.BUY, currentStep.TotalUnits, TIMEOUT_BUY, suggestedPrice, LastValue, LastCloseDate);
 
                                 if (!order.InError)
                                     _orders.Add(order);
@@ -757,29 +827,22 @@ namespace Midas.Trading
                         }
                     }
 
-                    if (LastMaxGain >= _myMan.Trader.AssetParams.GainSoftStopTrigger)
-                    {
-                        // double chasePerc = _myMan.Trader.AssetParams.FollowPricePerc;
-                        // var diff = ((LastMaxGain - _myMan.Trader.AssetParams.GainSoftStopTrigger) / _myMan.Trader.AssetParams.GainSoftStopTrigger) / 2;
+                    //if (LastMaxGain >= _myMan.Trader.AssetParams.GainSoftStopTrigger)
+                    //{
+                    // double chasePerc = _myMan.Trader.AssetParams.FollowPricePerc;
+                    // var diff = ((LastMaxGain - _myMan.Trader.AssetParams.GainSoftStopTrigger) / _myMan.Trader.AssetParams.GainSoftStopTrigger) / 2;
 
-                        // chasePerc = Math.Min(chasePerc * (1 + diff), 0.6);
+                    // chasePerc = Math.Min(chasePerc * (1 + diff), 0.6);
 
-                        // _softStopLossMarker = _priceEntry * (1 + ((LastMaxGain * chasePerc) / 100));
-                        _softStopLossMarker = LastValue;
-                    }
+                    // _softStopLossMarker = _priceEntry * (1 + ((LastMaxGain * chasePerc) / 100));
+                    //}
 
-                    var mustStopByAvg = ShouldStopByMovingAverage();
+                    // var mustStopByAvg = ShouldStopByMovingAverage();
 
-                    var mustStopBySoftStop = LastValue <= _softStopLossMarker;
+                    // var mustStopBySoftStop = LastValue <= _softStopLossMarker;
 
-                    if (mustStopBySoftStop ||
-                        _myMan.TradeLogger.SoftCompare(_stopLossMarker, LastValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan || //StopLoss
-                        mustStopByAvg)
-                    {
-                        bool hardStop = mustStopBySoftStop;
-
-                        await AskToCloseOperation(hardStop);
-                    }
+                    if (_myMan.TradeLogger.SoftCompare(_stopLossMarker, LastValue, _myMan.Trader.AssetParams.StopLossCompSoftness) == CompareType.LessThan)
+                        await AskToCloseOperation(true);
 
                     ProcessOperationStatus();
                 }
@@ -832,7 +895,7 @@ namespace Midas.Trading
             }
 
             var gain = ((compareValue - PriceEntryAverage) / PriceEntryAverage) * 100;
-            var percPurchased = GetAmountPurchased() / _fund;
+            var percPurchased = GetAmountPurchased() / _fundSlot.SlotAmount;
 
             return gain * percPurchased;
         }
@@ -851,7 +914,7 @@ namespace Midas.Trading
                 Experiment = _myMan.Experiment,
                 LastUpdate = _lastUpdate,
                 CandleType = _candleType,
-                Amount = _fund,
+                Amount = _fundSlot.SlotAmount,
                 Amount_USD = _transactionAmount,
                 ExitDate = this.ExitDate,
                 EntryDate = this.EntryDate,
@@ -918,7 +981,6 @@ namespace Midas.Trading
                     item => item._id == myDto._id,
                     myDto,
                     new ReplaceOptions { IsUpsert = true });
-
             }
             catch (Exception err)
             {

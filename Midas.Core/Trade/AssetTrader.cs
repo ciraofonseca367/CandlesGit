@@ -57,6 +57,8 @@ namespace Midas.Core.Trade
             _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
 
             _operationMap = new ConcurrentDictionary<string, TradeOperation>();
+
+            AssetPriceHub.InitAssetPair(asset);
         }
 
         public override string ToString()
@@ -145,6 +147,17 @@ namespace Midas.Core.Trade
             _stream.OnUpdate(new SocketEvent(this.OnCandleUpdate_UpdateManager));
             _stream.OnNewInfo(this.NewInfo);
 
+            _stream.OnSocketEnd((param1, param2) =>
+            {
+                Console.WriteLine("Termininando em 5 segundos");
+                Thread.Sleep(5000);
+
+                var pairInfo = AssetPriceHub.GetTicker(_asset);
+                pairInfo.DumpInfo();
+
+                _manager.SlotManager.Dump();
+            });
+
             if (_params.FeedStreamType != "Historical")
             {
                 _stream.OnUpdate((id, message, cc) =>
@@ -163,16 +176,16 @@ namespace Midas.Core.Trade
             TraceAndLog.StaticLog(_myName, String.Format("Starting runner with {0} cached candles", cacheCandles.Count()));
         }
 
-        private void RestoreOpIfAny()
-        {
-            var op = _manager.RestoreState();
+        // private void RestoreOpIfAny()
+        // {
+        //     var op = _manager.RestoreState();
 
-            if (op != null)
-            {
-                TraceAndLog.StaticLog(GetIdentifier(), $"Restored state: {op.ToString()}");
-                TelegramBot.SendMessage($"Restored state: {op.ToString()}");
-            }
-        }
+        //     if (op != null)
+        //     {
+        //         TraceAndLog.StaticLog(GetIdentifier(), $"Restored state: {op.ToString()}");
+        //         TelegramBot.SendMessage($"Restored state: {op.ToString()}");
+        //     }
+        // }
 
         internal List<CalculatedIndicator> Indicators
         {
@@ -371,6 +384,7 @@ namespace Midas.Core.Trade
             try
             {
                 _manager.OnCandleUpdate(cc);
+                AssetPriceHub.UpdatePrice(_asset, cc.CloseValue);
             }
             catch (Exception err)
             {
@@ -394,7 +408,7 @@ namespace Midas.Core.Trade
                 // if (_lastKey != cc.GetCompareStamp() && rest == 0)
                 //     SetPrediction(cc, true);
 
-                _lastKey = cc.CloseTime.ToString("yyyy-MM-dd HH:")+minutes.ToString("00");
+                _lastKey = cc.CloseTime.ToString("yyyy-MM-dd HH:") + minutes.ToString("00");
 
                 var ma6 = GetMAValue("MA6");
                 var ma200 = GetMAValue("MA200");
@@ -490,6 +504,12 @@ namespace Midas.Core.Trade
             return configs;
         }
 
+        public string GetSlotDump()
+        {
+            var price = AssetPriceHub.GetTicker(this._asset)?.LastPrice ?? 0;
+            return _manager.SlotManager.DumpState(price);
+        }
+
         internal void SaveSnapshot(Candle cc)
         {
             var outputDir = Directory.CreateDirectory(
@@ -530,38 +550,43 @@ namespace Midas.Core.Trade
 
                 DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                var currentOperation = _manager.GetLastRecentOperation();
-                if (currentOperation != null)
+                var operations = _manager.GetLastRecentOperations();
+                if (operations != null)
                 {
                     List<VolumeIndicator> newVolumes = volumes.ToList();
 
-                    var operation = currentOperation;
                     var predictionSerie = new Serie();
-                    var forecastPoint = new TradeOperationCandle()
+                    foreach (var op in operations)
                     {
 
-                        AmountValue = operation.PriceEntryAverage,
-                        LowerBound = operation.PriceEntryAverage * (1 + (0.75 / 100)),
-                        UpperBound = operation.PriceEntryAverage * (1 + (1.25 / 100)),
-                        Gain = operation.GetGain(cc.CloseValue),
-                        ExitValue = operation.PriceExitAverage,
-                        StopLossMark = operation.StopLossMark,
-                        SoftStopMark = operation.SoftStopLossMarker,
-                        Volume = 1,
-                        State = $"{operation.State.ToString()} [{operation.PurchaseStatusDescription}] ",
-                        PointInTime_Open = operation.EntryDate,
-                        PointInTime_Close = operation.ExitDate
-                    };
-                    if (!operation.IsIn)
-                        forecastPoint.Gain = operation.GetGain();
+                        var operation = op;
+                        
+                        var forecastPoint = new TradeOperationCandle()
+                        {
 
-                    predictionSerie.PointsInTime.Add(forecastPoint);
+                            AmountValue = operation.PriceEntryAverage,
+                            LowerBound = operation.PriceEntryAverage * (1 + (0.4 / 100)),
+                            UpperBound = operation.PriceEntryAverage * (1 + (0.6 / 100)),
+                            Gain = operation.GetGain(cc.CloseValue),
+                            ExitValue = operation.PriceExitAverage,
+                            StopLossMark = operation.StopLossMark,
+                            SoftStopMark = operation.SoftStopLossMarker,
+                            Volume = 1,
+                            State = $"{operation.State.ToString()} [{operation.PurchaseStatusDescription}] ",
+                            PointInTime_Open = operation.EntryDate,
+                            PointInTime_Close = operation.ExitDate
+                        };
+                        if (!operation.IsIn)
+                            forecastPoint.Gain = operation.GetGain();
 
-                    newVolumes.Add(new VolumeIndicator(forecastPoint));
+                        predictionSerie.PointsInTime.Add(forecastPoint);
 
-                    predictionSerie.Name = "Predictions";
-                    predictionSerie.Color = Color.LightBlue;
-                    predictionSerie.Type = SeriesType.Forecast;
+                        newVolumes.Add(new VolumeIndicator(forecastPoint));
+
+                        predictionSerie.Name = "Predictions";
+                        predictionSerie.Color = Color.LightBlue;
+                        predictionSerie.Type = SeriesType.Forecast;
+                    }
 
                     imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
                 }
@@ -743,21 +768,31 @@ namespace Midas.Core.Trade
             return ret;
         }
 
-        public TradeOperation CloseOperationIfAny(bool hard=true)
+        public bool CloseAllOperationIfAny(bool hard = true)
         {
-            TradeOperation op = _manager.GetOneActiveOperation();
-            if (op != null)
+            var haveSome = false;
+            var allActiveOps = _manager.GetAllActiveOperations();
+            foreach(var op in allActiveOps)
+            {
+                haveSome = true;
                 op.CloseOperationAsync(hard);
+            }
 
-            return op;
+            return haveSome;
         }
 
 
         internal string GetState()
         {
-            var op = _manager.GetOneActiveOperation();
+            string state = "";
+            var allOps = _manager.GetAllActiveOperations();
+            foreach (var op in allOps)
+            {
+                state += (op != null ? op.ToString() : $"{this.GetIdentifier()} has no operation");
+                state += "\n|";
+            }
 
-            return (op != null ? op.ToString() : $"{this.GetIdentifier()} has no operation");
+            return state;
         }
 
         private void FeedIndicators(IStockPointInTime point, string source)
@@ -813,8 +848,6 @@ namespace Midas.Core.Trade
 
             return ret;
         }
-
-
 
         private LiveAssetFeedStream GetLiveStream()
         {
