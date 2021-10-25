@@ -117,7 +117,12 @@ namespace Midas.Core.Trade
 
         public string ToString(double assetPrice)
         {
-            return $"{Id} - {SlotAmount}:${assetPrice*SlotAmount:0.00} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
+            return $"{Id} - {SlotAmount:0.00000}:${assetPrice*SlotAmount:0.00} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
+        }
+
+        public override string ToString()
+        {
+            return $"{Id} - {SlotAmount:0.00000} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
         }
     }
 }

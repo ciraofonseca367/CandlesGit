@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Midas.Core.Binance;
 
 namespace Midas.Core.Broker
 {
@@ -15,6 +16,8 @@ namespace Midas.Core.Broker
 
         private DateTime _creationDate;
 
+        private List<TradeStreamItem> _trades;
+
         public BrokerOrder(Broker broker, OrderDirection direction, OrderType type, string orderId, DateTime creationDate)
         {
             _type = type;
@@ -24,6 +27,7 @@ namespace Midas.Core.Broker
             InError = false;
             _creationDate = creationDate;
             HasTimeouted = false;
+            _trades = new List<TradeStreamItem>();            
         }
 
 
@@ -54,6 +58,11 @@ namespace Midas.Core.Broker
             set;
         }
 
+        internal void AddTrade(TradeStreamItem tradeItem)
+        {
+            _trades.Add(tradeItem);
+        }
+
         public double Quantity
         {
             get; set;
@@ -74,11 +83,36 @@ namespace Midas.Core.Broker
             set;
         }
 
+        public BrokerOrderStatus CalculatedStatus
+        {
+            get
+            {
+                var executedQdy = _trades.Sum(t => t.Qdy);
+                BrokerOrderStatus ret = BrokerOrderStatus.None;
+                if(executedQdy == 0)
+                    ret = BrokerOrderStatus.NEW;
+                else if(executedQdy.ToString("0.000000") == Quantity.ToString("0.000000"))
+                    ret = BrokerOrderStatus.FILLED;
+                else if(executedQdy < Quantity && executedQdy > 0)
+                    ret = BrokerOrderStatus.PARTIALLY_FILLED;
+
+                return ret;
+            }
+        }
+
+        public double CalculatedAverageValue
+        {
+            get
+            {
+                return (_trades.Count() == 0 ? 0 : _trades.Average(t => t.Price));
+            }
+        }
+
         public bool IsPending
         {
             get
             {
-                return Status == BrokerOrderStatus.NEW || Status == BrokerOrderStatus.None || Status == BrokerOrderStatus.PARTIALLY_FILLED;
+                return CalculatedStatus == BrokerOrderStatus.NEW || CalculatedStatus == BrokerOrderStatus.None || CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED;
             }
         }
 
@@ -127,7 +161,7 @@ namespace Midas.Core.Broker
 
         public override string ToString()
         {
-            return $"{Direction}({Type})) {Quantity:0.000} by ${AverageValue:0.00}={Status} ({((AverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
+            return $"{Direction}({Type})) {Quantity:0.0000} by ${AverageValue:0.00}= {Status}:{CalculatedStatus} ({((AverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
         }
     }
 

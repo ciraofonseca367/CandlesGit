@@ -428,7 +428,7 @@ namespace Midas.Core.Telegram
 
                     await botClient.SendTextMessageAsync(
                         chatId: message.Chat.Id,
-                        text: Truncate(allCoins, 1000));
+                        text: allCoins, parseMode: ParseMode.Html);
 
                     break;
                 case "Force Sell":

@@ -207,11 +207,14 @@ namespace Midas.Core.Services
             if (state != TradeOperationState.None)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.State, state));
 
+            var fieldsBuilder = Builders<TradeOperationDto>.Projection;
+            var fields = fieldsBuilder.Exclude(o => o.Logs);
+
             var filter = filterBuilder1.And(filterDefinition.ToArray());
 
-            var query = dbCol.Find(filter).ToList();
+            var query = dbCol.Find(filter).Project<TradeOperationDto>(fields).ToList();
 
-            return query.ToList();
+            return query;
         }
 
         public static List<OperationsSummary> SummariseResult(List<TradeOperationDto> allOperations)
@@ -278,7 +281,7 @@ namespace Midas.Core.Services
             StringBuilder sb = new StringBuilder(500);
             double successRate = 0;
 
-            var total = allOperationsReverse.Count();
+            var total = 0;
             var success = 0;
             allOperationsReverse.Take(number).ToList().ForEach(op =>
             {
@@ -286,21 +289,22 @@ namespace Midas.Core.Services
                 if(op.State == TradeOperationState.Profit || op.State == TradeOperationState.Stopped)
                     emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
 
+                total++;
                 if(op.Gain > 0)
                     success++;
 
                 var duration = (op.ExitDate - op.EntryDate);
 
-                sb.Append($"{op.EntryDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
+                sb.Append($"{op.ExitDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
                 sb.Append($"IN: {op.PriceEntryReal:0.00} OUT: {op.PriceExitReal:0.00}\n");
                 sb.Append($"{TimeSpanPlus.ToString(duration)}\n\n");
             });
 
-            if(allOperationsReverse.Count() == 0)
+            if(total == 0)
                 sb.Append("No records in the last 48 hrs");
             else
             {
-                successRate = (success / total)*100;
+                successRate = (success / total) * 100;
             }
 
             var header = $"Sucsess Rate: <b>{successRate:0.00}%</b>\n\n";
@@ -414,8 +418,36 @@ namespace Midas.Core.Services
                 }
             });
 
+            double inWallet = balances.Sum(b => b.TotalUSDAmount);
             balanceReport += "\n";
-            balanceReport += $"Total: ${balances.Sum(b => b.TotalUSDAmount).ToString("0.00")}";
+            balanceReport += $"Total in Wallet: ${inWallet:0.00}";
+
+            double inOrderAmount = 0;
+            foreach(var traderPair in _traders)
+            {
+
+                var openOrders = b.OpenOrders(traderPair.Value.Asset, 20000);
+                foreach(var order in openOrders)
+                {
+                    double price = 0;
+                    if(traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
+                        price = priceBTC;
+                    else if(traderPair.Value.Asset == "ETHBUSD")
+                        price = priceETH;
+                    else if(traderPair.Value.Asset == "BNBBUSD")
+                        price = priceBNB;
+                    else if(traderPair.Value.Asset == "ADABUSD")
+                        price = priceADA;
+
+                    inOrderAmount += order.Quantity * price;
+                }
+            }
+
+            balanceReport += "\n";
+            balanceReport += $"Total in Orders: ${inOrderAmount:0.00}";
+
+            balanceReport += "\n";
+            balanceReport += $"Grand Total: <b>${(inOrderAmount+inWallet):0.00}</b>";
 
             return balanceReport;
         }

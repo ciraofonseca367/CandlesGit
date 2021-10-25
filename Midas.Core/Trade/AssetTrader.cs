@@ -204,13 +204,7 @@ namespace Midas.Core.Trade
             if (_running)
             {
                 if (closeOp)
-                {
-                    var currentOp = _manager.GetOneActiveOperation();
-                    if (currentOp != null)
-                    {
-                        currentOp.CloseOperationAsync();
-                    }
-                }
+                    CloseAllOperationIfAny(true);
 
                 _running = false;
 
@@ -219,6 +213,9 @@ namespace Midas.Core.Trade
 
                 if (_streamLog != null)
                     _streamLog.Dispose();
+
+                if(_manager != null)
+                    _manager.Dispose();
             }
         }
 
@@ -428,29 +425,29 @@ namespace Midas.Core.Trade
                     bool delayedTriggerCheck = CheckDelayedTrigger(_predictionBox.CandleThatPredicted, currentCandle);
 
                     if (delayedTriggerCheck && !_operationMap.ContainsKey(_predictionBox.CandleThatPredicted.GetCompareStamp()))
-                    {
+                    {                        
                         try
                         {
                             var candlesToDraw = _candleMovieRoll.GetList();
                             DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                            _lastAtr = ln;
+                            _lastAtr = atr;
 
                             var op = _manager.SignalEnter(
                                 cc.CloseValue,
                                 cc.OpenTime,
                                 cc.CloseTime.AddHours(3),
-                                ln,
+                                atr,
                                 goodToEnterRes.Item2
                                 );
+
+                            _operationMap[_predictionBox.CandleThatPredicted.GetCompareStamp()] = op;                                
 
                             if (op != null)
                             {
                                 Console.WriteLine("Entrando pelo modelo - " + goodToEnterRes.Item2);
                                 TelegramBot.SendMessage($"Iniciando operação {Telegram.TelegramEmojis.CrossedFingers} em {this.GetIdentifier()}, no modelo {goodToEnterRes.Item2}");
                             }
-
-                            _operationMap[_predictionBox.CandleThatPredicted.GetCompareStamp()] = op;
                         }
                         catch (Exception err)
                         {

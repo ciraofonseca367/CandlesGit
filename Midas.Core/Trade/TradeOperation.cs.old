@@ -601,7 +601,7 @@ namespace Midas.Trading
             }
             catch (Exception err)
             {
-                TraceAndLog.StaticLog("TradeOperation", $"Error when buying, the current state will be maintained for subsequent attempts... BuyTimeOut:{TIMEOUT_BUY}" + err.ToString());
+                TraceAndLog.StaticLog("TradeOperation", $", the current state will be maintained for subsequent attempts... BuyTimeOut:{TIMEOUT_BUY}" + err.ToString());
             }
 
             return ret;

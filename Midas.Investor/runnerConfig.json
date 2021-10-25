@@ -27,8 +27,8 @@
             "CandleType": "MIN15",
             "ScoreThresholdByAvg": 0.5,
             "ScoreThresholdByPrice": 0.45,
-            "FundName": "BNBBUSD_HOUR1",
-            "AtrStopLoss": 10,
+            "FundName": "BTCBUSD_MIN15",
+            "AtrStopLoss": 1,
             "StopLossCompSoftness": 0.01,
             "AvgCompSoftness": 0.5,
             "FollowPricePerc": 1.1,
@@ -135,33 +135,37 @@
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
 
-    "FundName": "TestFund",
-
     "BrokerParameters": {
         "ApiKey": "Egocw2priEukckugyrsEzlb0z6KFo1MNFM0SxEdBlT5RUh4rN6PYL9z9kWX9nqh2",
         "ApiSecret": "rIoZfJYGmo0lIZ2l8P26T9udYWPG0f7NDL3VR098TCGVk3woMzkfFDioDR0Fl5nG",
         "EndPoint": "https://testnet.binance.vision",
+        "WebSocket": "wss://testnet.binance.vision/ws",
         "Host": "testnet.binance.vision",
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
         "MAKER_SELL_DISCOUNT": 0.03,
         "TARGET_GAIN": 0.5,
-        "NumberOfSlots": 10,
+        "NumberOfSlots": 6,
         "PurchaseSteps": [
             {
                 "Units": 2,
-                "GainTrigger": 0,
+                "GainTrigger": -1,
+                "Comment": "Zero Group"
+            },
+            {
+                "Units": 1,
+                "GainTrigger": 0.001,
                 "Comment": "First Group"
             },
             {
-                "Units": 5,
+                "Units": 4,
                 "GainTrigger": 0.03,
                 "Comment": "Second Group"
             },
             {
                 "Units": 3,
                 "GainTrigger": 0.06,
-                "Comment": "Thirdd Group"
+                "Comment": "Third Group"
             }
         ]
     },

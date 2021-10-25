@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
+using Midas.Core;
 using Midas.Core.Broker;
 using Midas.Core.Common;
 using Midas.Core.Services;
@@ -21,7 +22,7 @@ namespace Midas.Trading
 
     public delegate void RunnerAction(Candle c, TradeOperationManager manager, string activity, Bitmap img);
 
-    public class TradeOperationManager
+    public class TradeOperationManager : IDisposable
     {
         private string _conString;
         private string _brokerName;
@@ -49,10 +50,7 @@ namespace Midas.Trading
 
         private FundSlotManager _slotManager;
 
-        /* DEBUG VARS */
-        private StreamWriter _debugInfo; 
-        private int _sequencialId;
-        /* END DEBUG VARS */
+        private OrderWatcher _orderWatcher; 
 
         static TradeOperationManager()
         {
@@ -113,10 +111,13 @@ namespace Midas.Trading
             GetFunds();
 
             _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
+            string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
-            _sequencialId = 0;
-
-            _debugInfo = new StreamWriter(File.Open($"{this._asset}_Operations.csv", FileMode.Create, FileAccess.Write, FileShare.Read));
+            if(!RunParameters.GetInstance().IsTesting)
+            {
+                _orderWatcher = new OrderWatcher(endPoint, _asset);
+                _orderWatcher.StartWatching();
+            }
         }
 
         // public TradeOperation RestoreState()
@@ -184,6 +185,8 @@ namespace Midas.Trading
         }
 
         public FundSlotManager SlotManager { get => _slotManager; }
+
+        public OrderWatcher OrderWatcher { get => _orderWatcher; }
 
         public List<TradeOperationDto> GetOpenOperations()
         {
@@ -319,7 +322,6 @@ namespace Midas.Trading
             {
                 _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                 _allOperations.Add(_currentOperation);
-                _sequencialId++;
 
                 _currentOperation.Enter(value, pointInTime, ln, modelName);
                 ret = _currentOperation;
@@ -334,8 +336,6 @@ namespace Midas.Trading
             var activeOps = _allOperations.Where(o => o.IsIn);
             
             Console.WriteLine("Operações ativas: " + activeOps.Count());
-            _debugInfo.WriteLine($"{_sequencialId},{activeOps.Count()},{_allOperations.Count()}");
-            _debugInfo.Flush();
 
             return ret;
         }
@@ -353,6 +353,12 @@ namespace Midas.Trading
             var activeOps = _allOperations.Where(o => o.IsIn);
             foreach (var op in activeOps)
                 op.OnCandleUpdateAsync(c);
+        }
+
+        public void Dispose()
+        {
+            if(_orderWatcher != null)
+                _orderWatcher.Dispose();
         }
     }
 

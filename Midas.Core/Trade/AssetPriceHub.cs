@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Midas.Core.Binance;
 using Midas.Core.Broker;
 
 namespace Midas.Core.Trade
@@ -63,31 +64,47 @@ namespace Midas.Core.Trade
             _processedOrders = new ConcurrentDictionary<string, BrokerOrder>();
             _lastPrice = -1;
 
-            Task.Run(() =>
+            if (RunParameters.GetInstance().IsTesting)
             {
-                while (true)
+                Task.Run(() =>
                 {
-                    List<BrokerOrder> toRemove = new List<BrokerOrder>();
-
-                    foreach (var pair in _ordersBeingWatched)
+                    while (true)
                     {
-                        if (_lastPrice != -1 && pair.Value.IsFilled(_lastPrice))
+                        List<BrokerOrder> toRemove = new List<BrokerOrder>();
+
+                        foreach (var pair in _ordersBeingWatched)
                         {
-                            pair.Value.Status = BrokerOrderStatus.FILLED;
-                            pair.Value.RawStatus = "FILLED";
+                            if (_lastPrice != -1 && pair.Value.IsFilled(_lastPrice))
+                            {
+                                SetOrderFilled(pair.Value);
 
-                            Console.WriteLine("FILLED - "+pair.Value.ToString());
+                                Console.WriteLine("FILLED - " + pair.Value.ToString());
 
-                            toRemove.Add(pair.Value);
+                                toRemove.Add(pair.Value);
 
-                            _processedOrders[pair.Key] = pair.Value;
+                                _processedOrders[pair.Key] = pair.Value;
+                            }
                         }
-                    }
 
-                    BrokerOrder order = null;
-                    toRemove.ForEach(o => _ordersBeingWatched.TryRemove(o.OrderId, out order));
-                    Thread.Sleep(2);
-                }
+                        BrokerOrder order = null;
+                        toRemove.ForEach(o => _ordersBeingWatched.TryRemove(o.OrderId, out order));
+                        Thread.Sleep(2);
+                    }
+                });
+            }
+        }
+
+        private void SetOrderFilled(BrokerOrder order)
+        {
+            order.Status = BrokerOrderStatus.FILLED;
+            order.RawStatus = "FILLED";
+
+            order.AddTrade(new TradeStreamItem()
+            {
+                BuyerId = "TESTE",
+                SellerId = "TESTE",
+                Qdy = order.Quantity,
+                Price = order.AverageValue
             });
         }
 
@@ -103,13 +120,12 @@ namespace Midas.Core.Trade
         {
             if (_lastPrice != -1 && order.IsFilled(_lastPrice))
             {
-                order.Status = BrokerOrderStatus.FILLED;
-                order.RawStatus = "FILLED";
+                SetOrderFilled(order);
 
                 _processedOrders[order.OrderId] = order;
 
-                Debug.WriteLine("FILLED"+order.ToString());
-                Console.WriteLine("FILLED"+order.ToString());                
+                Debug.WriteLine("FILLED" + order.ToString());
+                Console.WriteLine("FILLED" + order.ToString());
             }
             else
             {
@@ -130,8 +146,8 @@ namespace Midas.Core.Trade
                 _ordersBeingWatched.TryRemove(order.OrderId, out order);
                 _processedOrders[order.OrderId] = order;
 
-                Debug.WriteLine("CANCELLED: "+order.ToString());
-                Console.WriteLine("CANCELLED: "+order.ToString());
+                Debug.WriteLine("CANCELLED: " + order.ToString());
+                Console.WriteLine("CANCELLED: " + order.ToString());
 
             }
             else

@@ -62,11 +62,11 @@ namespace Midas.Core.Trade
             return p;
         }
 
-        public PurchaseStep GetStep(double gain)
+        public List<PurchaseStep> GetSteps(double gain)
         {
-            var stepToUse = _steps.Where(s => gain >= s.GainTrigger && !s.Used).FirstOrDefault();
+            var stepsToUse = _steps.Where(s => gain >= s.GainTrigger && !s.Used).ToList();
 
-            return stepToUse;
+            return stepsToUse;
         }
 
     }

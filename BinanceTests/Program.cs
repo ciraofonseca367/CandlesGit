@@ -18,47 +18,60 @@ namespace BinanceTests
     public class Program
     {
         private static BookView _lastView;
+        private static string mainUri = "wss://stream.binance.com:9443/ws";
         static void Main(string[] args)
         {
-            // string mainUri = "wss://stream.binance.com:9443/ws";
-            // var bookSocket = new BinanceBookWebSocket(mainUri, 10000, "BTCBUSD", 10);
+            var tradeSocket = new TradeStreamWebSocket(mainUri,"BTCUSDT", 10000);
 
-            // var sockBTCBUSD = new BinanceWebSocket(mainUri, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN5);
+            tradeSocket.OnNewTrade((TradeStreamItem item) => {
+                Console.WriteLine(item.ToString());
+            });
 
-            // var btcStream = sockBTCBUSD.OpenAndSubscribe();
+            tradeSocket.Open();
 
-            // bookSocket.Open();
+            Console.WriteLine("Ouvindo...");
+            Console.Read();            
 
-            // //bookSocket.OnNewInfo(socketInfo);
-            // bookSocket.OnNewBookView((bookView) => {
-            //     // Console.WriteLine($"Best Bid: {bookView.Bids.Last().Qty} - {bookView.Bids.Last().Price}");
-            //     // Console.WriteLine($"Best Ask: {bookView.Asks.Last().Qty} - {bookView.Asks.Last().Price}");
+            tradeSocket.Dispose();
+        }
 
-            //     _lastView = bookView;
-            // });
+        private static void BookSocketTest()
+        {
+            var bookSocket = new BinanceBookWebSocket(mainUri, 10000, "BTCBUSD", 10);
 
-            // btcStream.OnUpdate((info, info2, candle) => {
-            //     Console.WriteLine("PASSEI AQUI!");
+            var sockBTCBUSD = new BinanceWebSocket(mainUri, 100000, "BTCBUSD", Midas.Core.Common.CandleType.MIN5);
 
-            //     var localView = _lastView;
-            //     var priceBuy = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Ask);
-            //     var priceSell = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Bid);
+            var btcStream = sockBTCBUSD.OpenAndSubscribe();
 
-            //     var diffBuy = ((priceBuy - candle.CloseValue) / candle.CloseValue) * 100;
-            //     var diffSell = ((priceSell - candle.CloseValue) / candle.CloseValue) * 100;
+            bookSocket.Open();
 
-            //     Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceBuy:0.000} - {diffBuy:0.0000}%");
-            //     Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceSell:0.000} - {diffSell:0.0000}%");
-            // });
+            //bookSocket.OnNewInfo(socketInfo);
+            bookSocket.OnNewBookView((bookView) => {
+                // Console.WriteLine($"Best Bid: {bookView.Bids.Last().Qty} - {bookView.Bids.Last().Price}");
+                // Console.WriteLine($"Best Ask: {bookView.Asks.Last().Qty} - {bookView.Asks.Last().Price}");
 
-            // Console.WriteLine("Ouvindo...");
-            // Console.Read();
+                _lastView = bookView;
+            });
 
-            // bookSocket.Dispose();
-            // btcStream.Dispose();
+            btcStream.OnUpdate((info, info2, candle) => {
+                Console.WriteLine("PASSEI AQUI!");
 
-            DownloadCoinFiles();
+                var localView = _lastView;
+                var priceBuy = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Ask);
+                var priceSell = MatchMaker.GetPrice(_lastView, 0.024, OfferType.Bid);
 
+                var diffBuy = ((priceBuy - candle.CloseValue) / candle.CloseValue) * 100;
+                var diffSell = ((priceSell - candle.CloseValue) / candle.CloseValue) * 100;
+
+                Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceBuy:0.000} - {diffBuy:0.0000}%");
+                Console.WriteLine($"Price ${candle.CloseValue:0.000}  - Candidate: ${priceSell:0.000} - {diffSell:0.0000}%");
+            });
+
+            Console.WriteLine("Ouvindo...");
+            Console.Read();
+
+            bookSocket.Dispose();
+            btcStream.Dispose();            
         }
 
         private static void socketInfo(string identification, string info)

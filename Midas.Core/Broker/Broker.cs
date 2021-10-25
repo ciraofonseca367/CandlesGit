@@ -15,6 +15,7 @@ using Midas.FeedStream;
 using Midas.Core.Common;
 using System.Collections.Concurrent;
 using Midas.Core.Trade;
+using Midas.Core.Binance;
 
 namespace Midas.Core.Broker
 {
@@ -26,15 +27,15 @@ namespace Midas.Core.Broker
 
         public static Broker GetBroker(string identification)
         {
-            return GetBroker(identification, null, null,  null);
+            return GetBroker(identification, null, null, null);
         }
         public static Broker GetBroker(string identification, dynamic config)
         {
-            return GetBroker(identification, config, null,  null);
+            return GetBroker(identification, config, null, null);
         }
         public static Broker GetBroker(string identification, dynamic config, ILogger logger)
         {
-            return GetBroker(identification, config, logger,  null);
+            return GetBroker(identification, config, logger, null);
         }
 
         public static Broker GetBroker(string identification, dynamic config, ILogger logger, LiveAssetFeedStream stream)
@@ -107,7 +108,8 @@ namespace Midas.Core.Broker
                 if (jsonResponse.Wait(timeOut))
                 {
                     parsedResponse = JsonConvert.DeserializeObject(jsonResponse.Result);
-                    LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
+                    if (action != "GET")
+                        LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
                 }
                 else
                 {
@@ -179,6 +181,8 @@ namespace Midas.Core.Broker
 
         public abstract BrokerOrder OrderStatus(string orderId, string asset, int timeOut);
 
+        public abstract IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut);
+
         public abstract Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut);
 
         public abstract List<BalanceRecord> AccountBalance(int timeOut);
@@ -193,7 +197,7 @@ namespace Midas.Core.Broker
 
         public static BrokerOrder GetFakeOrder(string orderId, OrderDirection direction, OrderType type, double qty, double price, DateTime creationDate)
         {
-            var fakeOrder = new BrokerOrder(null,direction, type, orderId, creationDate);
+            var fakeOrder = new BrokerOrder(null, direction, type, orderId, creationDate);
             fakeOrder.Status = BrokerOrderStatus.NEW;
             fakeOrder.RawStatus = "NEW";
             fakeOrder.DesiredPrice = price;
@@ -216,7 +220,7 @@ namespace Midas.Core.Broker
         private static double BIAS_DIFF_FORBUY = 1 - 0.0001;
         private static double BIAS_DIFF_FORSELL = 1 + 0.0001;
 
-        private string _MarketOrderUri = "/api/v3/order?";
+        private string _marketOrderUri = "/api/v3/order?";
 
         private string _openOrdersUri = "/api/v3/openOrders?";
 
@@ -226,6 +230,7 @@ namespace Midas.Core.Broker
         private string _createMarketOrderQueryStringTemplate = "symbol={0}&side={1}&type={2}&quantity={3}&newClientOrderId={4}";
         private string _createLimitOrderQueryStringTemplate = "symbol={0}&side={1}&type={2}&timeInForce=GTC&quantity={3}&newClientOrderId={4}&price={5}&newOrderRespType=ACK";
         private string _orderStatusQueryStringTemplate = "symbol={0}&origClientOrderId={1}";
+        private string _openOrdersQueryStringTemplate = "symbol={0}";
         private string _cancelOrderQueryStringTemplate = "symbol={0}&origClientOrderId={1}";
         private string _cancelAllOrdersQueryStringTemplate = "symbol={0}";
         private string _symbolPriceTicker = "symbol={0}";
@@ -267,7 +272,7 @@ namespace Midas.Core.Broker
 
             _exchangeRates.TryGetValue(key, out quote);
 
-            if(quote == 0)
+            if (quote == 0)
             {
                 var ret = Get(
                     _priceTickerUri,
@@ -283,7 +288,7 @@ namespace Midas.Core.Broker
             }
 
             return quote;
-        }     
+        }
 
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
@@ -295,7 +300,7 @@ namespace Midas.Core.Broker
                 asset, orderId
             );
 
-            var res = Delete(_MarketOrderUri, queryString, null, timeOut);
+            var res = Delete(_marketOrderUri, queryString, null, timeOut);
 
             string errorMsg = null;
             string status = null;
@@ -360,7 +365,7 @@ namespace Midas.Core.Broker
             }
         }
 
-        public BrokerOrder NewOrder(string orderId, string asset, OrderType type, OrderDirection direction, double qty, double price, int timeOut,DateTime creationDate, bool async=false)
+        public BrokerOrder NewOrder(string orderId, string asset, OrderType type, OrderDirection direction, double qty, double price, int timeOut, DateTime creationDate, bool async = false)
         {
             string queryString;
 
@@ -371,7 +376,7 @@ namespace Midas.Core.Broker
                     asset, direction.ToString(), type.ToString(), qty.ToString("0.0000").Replace(",", "."), orderId
                 );
 
-                if(async)
+                if (async)
                     queryString += "&newOrderRespType=ACK";
             }
             else
@@ -380,7 +385,7 @@ namespace Midas.Core.Broker
                     asset, direction.ToString(), type.ToString(), qty.ToString("0.0000").Replace(",", "."), orderId, price.ToString("0.00")
                 );
 
-            var res = Post(_MarketOrderUri, queryString, "", timeOut);
+            var res = Post(_marketOrderUri, queryString, "", timeOut);
 
             //Passar o relative now para todos os BrokerOrders para poder calcular o timeout relativo.
             BrokerOrder order = new BrokerOrder(this, direction, type, orderId, creationDate);
@@ -409,6 +414,9 @@ namespace Midas.Core.Broker
             {
                 order.RawStatus = status;
                 order.BrokerOrderId = Convert.ToString(res.orderId);
+
+                Console.WriteLine($"===== BrokerOrderId: {order.BrokerOrderId}");
+
                 if (status == "FILLED")
                 {
                     order.Status = BrokerOrderStatus.FILLED;
@@ -425,7 +433,7 @@ namespace Midas.Core.Broker
                     order.InError = true;
                     order.ErrorCode = "EXPIRED";
                 }
-                else if(status != null)
+                else if (status != null)
                 {
                     order.Status = ParseRawStatus(order.RawStatus);
                 }
@@ -436,13 +444,22 @@ namespace Midas.Core.Broker
 
         private BrokerOrderStatus ParseRawStatus(string rawStatus)
         {
-            return (BrokerOrderStatus) Enum.Parse(typeof(BrokerOrderStatus), rawStatus);
+            return (BrokerOrderStatus)Enum.Parse(typeof(BrokerOrderStatus), rawStatus);
         }
 
-        public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut,double desiredPrice,DateTime creationDate, bool async = false)
+        public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async = false)
         {
-            var order = NewOrder(orderId, asset, OrderType.MARKET, direction, qty, 0, timeOut,creationDate, async);
+            var order = NewOrder(orderId, asset, OrderType.MARKET, direction, qty, 0, timeOut, creationDate, async);
             order.DesiredPrice = desiredPrice;
+
+            //For market orders, if it is Filled, we automatically add a fake trade for the calculated status
+            order.AddTrade(new TradeStreamItem()
+            {
+                BuyerId = "MARKET_ORDER",
+                SellerId = "MARKET_ORDER",
+                Qdy = qty,
+                Price = order.AverageValue
+            });
 
             Console.WriteLine($"Market order {order.BrokerOrderId} - {order.Quantity} - {order.AverageValue}");
 
@@ -452,8 +469,9 @@ namespace Midas.Core.Broker
         public override async Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
-                order = MarketOrder(orderId,asset,direction,qty,timeOut,desiredPrice,creationDate,async);
+            Task t = Task.Run(() =>
+            {
+                order = MarketOrder(orderId, asset, direction, qty, timeOut, desiredPrice, creationDate, async);
                 order.DesiredPrice = desiredPrice;
             });
 
@@ -470,20 +488,22 @@ namespace Midas.Core.Broker
         public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
-                order = LimitOrder(orderId, asset, direction,qty,timeOut, price, currentPrice,  creationDate);
+            Task t = Task.Run(() =>
+            {
+                order = LimitOrder(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
                 order.DesiredPrice = currentPrice;
             });
 
             await t;
 
             return order;
-        }        
+        }
 
         public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
+            Task t = Task.Run(() =>
+            {
                 order = OrderStatus(orderId, asset, timeOut);
             });
 
@@ -499,7 +519,7 @@ namespace Midas.Core.Broker
                 asset, orderId
             );
 
-            var res = Get(_MarketOrderUri, queryString, timeOut);
+            var res = Get(_marketOrderUri, queryString, timeOut);
 
             BrokerOrder order = new BrokerOrder(this, orderId, DateTime.MinValue);
 
@@ -525,6 +545,28 @@ namespace Midas.Core.Broker
 
 
             return order;
+        }
+
+        public override IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut)
+        {
+            string queryString = String.Format(
+                _openOrdersQueryStringTemplate,
+                asset
+            );
+
+            var res = Get(_openOrdersUri, queryString, timeOut);
+            foreach (var item in res)
+            {
+                string orderId = Convert.ToString(item.clientOrderId);
+                BrokerOrder order = new BrokerOrder(this, orderId, DateTime.MinValue);
+                order.Quantity = Convert.ToDouble(item.origQty);
+                order.RawStatus = Convert.ToString(item.status);
+                order.Status = ParseRawStatus(order.RawStatus);
+                order.BrokerOrderId = Convert.ToString(item.orderId);
+                order.DesiredPrice = Convert.ToDouble(item.price);
+
+                yield return order;
+            }
         }
 
         public override async Task<BrokerOrder> SmartOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, PriceBias bias, DateTime creationDate)
@@ -777,14 +819,15 @@ namespace Midas.Core.Broker
         public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
-                order = LimitOrder(orderId, asset, direction,qty,timeOut, price, currentPrice, creationDate);
+            Task t = Task.Run(() =>
+            {
+                order = LimitOrder(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
             });
 
             await t;
 
             return order;
-        }      
+        }
 
         public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
         {
@@ -796,15 +839,25 @@ namespace Midas.Core.Broker
             order.InError = false;
             order.Quantity = qty;
             order.ErrorMsg = "This is the test broker!";
+
+            order.AddTrade(new TradeStreamItem()
+            {
+                BuyerId = "TESTE",
+                SellerId = "TESTE",
+                Qdy = order.Quantity,
+                Price = order.AverageValue
+            });
+
             base.LogMessage("Test Broker", $"Market Order {qty} - {direction}");
             return order;
         }
 
-       public override async Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
+        public override async Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
-                order = MarketOrder(orderId,asset,direction,qty,timeOut,desiredPrice,creationDate,async);
+            Task t = Task.Run(() =>
+            {
+                order = MarketOrder(orderId, asset, direction, qty, timeOut, desiredPrice, creationDate, async);
             });
 
             await t;
@@ -815,7 +868,8 @@ namespace Midas.Core.Broker
         public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() => {
+            Task t = Task.Run(() =>
+            {
                 order = OrderStatus(orderId, asset, timeOut);
             });
 
@@ -838,7 +892,7 @@ namespace Midas.Core.Broker
         {
             //stream.OnUpdate(new SocketEvent(this.CandleUpdate));
         }
-        
+
         private Candle _lastCandle;
 
         private void CandleUpdate(string info, string message, Candle newCandle)
@@ -860,6 +914,11 @@ namespace Midas.Core.Broker
             });
             await t;
             return order;
+        }
+
+        public override IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut)
+        {
+            throw new NotImplementedException();
         }
     }
 
