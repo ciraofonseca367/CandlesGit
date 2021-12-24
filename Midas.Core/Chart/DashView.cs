@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 
 using Midas.Core.Common;
+using Midas.Core.Util;
 
 namespace Midas.Core.Chart
 {
@@ -59,8 +60,15 @@ namespace Midas.Core.Chart
 
         public Bitmap GetImage(ref bool isSimmetric)
         {
+            return GetImagePlus(ref isSimmetric).RawImage;
+        }
+
+        public CandleFaceImage GetImagePlus(ref bool isSimmetric)
+        {
             isSimmetric = false;
             List<int> allStatus = new List<int>();
+
+            CandleFaceImage cfImage = new CandleFaceImage();
 
             var dashCanvas = new Bitmap(_Width,_Height);
 
@@ -69,8 +77,11 @@ namespace Midas.Core.Chart
             //Paint the full canvas as blank
             g.FillRectangle(new SolidBrush(Color.White), 0, 0, _Width, _Height);
 
+            _views.Reverse();
+            
             foreach(var v in _views)
             {
+                //TODO: Ir fazendo merge dos Dictionaries de features
                 var value = 0;
                 if(v.ChartView.Draw(dashCanvas))
                     value = 1;
@@ -80,7 +91,10 @@ namespace Midas.Core.Chart
 
             isSimmetric = (allStatus.Count == allStatus.Sum()); //Set it to false when it is not symmetric
 
-            return dashCanvas;
+            cfImage.RawImage = dashCanvas;
+            cfImage.FeatureList = null;
+
+            return cfImage;
         }
     }
 
@@ -96,6 +110,19 @@ namespace Midas.Core.Chart
         {
             get;
             set;
+        }
+    }
+
+    public class CandleFaceImage
+    {
+        public Bitmap RawImage
+        {
+            get;set;
+        }
+
+        public Dictionary<DateTime,List<FeatureCoordinate>> FeatureList
+        {
+            get;set;
         }
     }
 }

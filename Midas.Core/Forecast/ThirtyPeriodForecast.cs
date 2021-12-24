@@ -39,7 +39,7 @@ namespace Midas.Core.Forecast
             return Convert.ToBase64String(ms.ToArray());
         }
 
-        public async Task<List<PredictionResult>> PredictAsync(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime)
+        public async Task<List<PredictionResult>> PredictAsync(Bitmap image, string asset, float scoreThreshold, double currentValue, DateTime currentTime)
         {
             List<PredictionResult> previewTags = null;
             var payload = TransformImageToBase64(image);
@@ -63,7 +63,7 @@ namespace Midas.Core.Forecast
 
             var jsonResponse = await res.Content.ReadAsStringAsync();
 
-            TraceAndLog.GetInstance().LogTraceHttpAction("RestPredictionClient", "POST", _httpClient.DefaultRequestHeaders, res.Headers, url, jsonResponse);
+            //TraceAndLog.GetInstance().LogTraceHttpAction("RestPredictionClient", "POST", _httpClient.DefaultRequestHeaders, res.Headers, url, jsonResponse);
 
             dynamic parsedResponse = JsonConvert.DeserializeObject(jsonResponse);
 
@@ -148,9 +148,9 @@ namespace Midas.Core.Forecast
             return tags;
         }
 
-        public List<PredictionResult> Predict(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime)
+        public List<PredictionResult> Predict(Bitmap image, string asset,float scoreThreshold, double currentValue, DateTime currentTime)
         {
-            var t = this.PredictAsync(image, scoreThreshold, currentValue, currentTime);
+            var t = this.PredictAsync(image, asset, scoreThreshold, currentValue, currentTime);
 
             if (t.Wait(20000))
                 return t.Result;
@@ -160,11 +160,11 @@ namespace Midas.Core.Forecast
             }
         }
 
-        public Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime)
+        public Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime)
         {
             Prediction predictionResult = null;
 
-            var predictions = PredictAsync(image, 0.1f, currentValue, currentTime);
+            var predictions = PredictAsync(image, asset, 0.1f, currentValue, currentTime);
             if (predictions.Wait(60000))
             {
                 predictionResult = Prediction.ParseRawResult(predictions.Result);
@@ -237,35 +237,37 @@ namespace Midas.Core.Forecast
             {
                 predictionResult = new Prediction();
 
-                var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
-                var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
-                var predictionZero = result.Where(p => p.Tag == "ZERO").FirstOrDefault();
+                // var predictionLong = result.Where(p => p.Tag == "LONG").FirstOrDefault();
+                // var predictionShort = result.Where(p => p.Tag == "SHORT").FirstOrDefault();
+                // var predictionZero = result.Where(p => p.Tag == "ZERO").FirstOrDefault();
 
-                int rankShort = 0;
-                int rankLong = 0;
-                int rankZero = 0;
-                double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
-                for (int i = 0; i < result.Count; i++)
-                {
-                    if (result[i].Tag == "SHORT")
-                        rankShort = i + 1;
+                // int rankShort = 0;
+                // int rankLong = 0;
+                // int rankZero = 0;
+                // double scoreLong = predictionLong == null ? 0 : predictionLong.Score;
+                // for (int i = 0; i < result.Count; i++)
+                // {
+                //     if (result[i].Tag == "SHORT")
+                //         rankShort = i + 1;
 
-                    if (result[i].Tag == "LONG")
-                        rankLong = i + 1;
+                //     if (result[i].Tag == "LONG")
+                //         rankLong = i + 1;
 
-                    if (result[i].Tag == "ZERO")
-                        rankZero = i + 1;
-                }
+                //     if (result[i].Tag == "ZERO")
+                //         rankZero = i + 1;
+                // }
 
-                predictionResult.Long = predictionLong;
-                predictionResult.Short = predictionShort;
-                predictionResult.Zero = predictionZero;
+                // predictionResult.Long = predictionLong;
+                // predictionResult.Short = predictionShort;
+                // predictionResult.Zero = predictionZero;
 
-                predictionResult.RankShort = rankShort;
-                predictionResult.RankLong = rankLong;
-                predictionResult.RankZero = rankZero;
+                // predictionResult.RankShort = rankShort;
+                // predictionResult.RankLong = rankLong;
+                // predictionResult.RankZero = rankZero;
 
-                predictionResult.AllPredictions = result;
+                // predictionResult.AllPredictions = result;
+
+                predictionResult.CurrentTrend = result[0].Tag;
             }
 
             return predictionResult;

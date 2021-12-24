@@ -64,13 +64,14 @@ namespace Midas.FeedStream
                 do
                 {
                     fileInfo = new FileInfo(_files[_filePosition]);
+                    Console.WriteLine($"\nReading file: {_files[_filePosition]}");
                     _filePosition++;
                 }
                 while(!fileInfo.Exists && _filePosition < _files.Length);
 
                 if(fileInfo.Exists)
                 {
-                    _activeFile = File.Open(_files[_filePosition], FileMode.Open, FileAccess.Read, FileShare.Read);
+                    _activeFile = File.Open(fileInfo.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
                     _currentStream = new StreamReader(_activeFile);
                 }
                 else

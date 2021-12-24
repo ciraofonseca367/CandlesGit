@@ -14,7 +14,7 @@ namespace Midas.Core.Forecast
         {
             Console.WriteLine("Test forecast active");
         }
-        public List<PredictionResult> Predict(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime)
+        public List<PredictionResult> Predict(Bitmap image, string asset, float scoreThreshold, double currentValue, DateTime currentTime)
         {
             var previewTags = new List<PredictionResult>();
             Console.WriteLine("Generating test prediction in 5 seconds...");
@@ -23,7 +23,7 @@ namespace Midas.Core.Forecast
 
             var testResult = new PredictionResult()
             {
-                Tag = "LONG",
+                Tag = "JacOpen",
                 FromAmount = currentValue,
                 Score = 0.99f,
                 CreationDate = currentTime,
@@ -43,11 +43,11 @@ namespace Midas.Core.Forecast
             return previewTags;
         }
 
-        public async Task<List<PredictionResult>> PredictAsync(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime)
+        public async Task<List<PredictionResult>> PredictAsync(Bitmap image, string asset, float scoreThreshold, double currentValue, DateTime currentTime)
         {
             List<PredictionResult> res = null;
             var t = Task<List<PredictionResult>>.Run(() => {
-                res = Predict(image, scoreThreshold, currentValue, currentTime);
+                res = Predict(image, asset, scoreThreshold, currentValue, currentTime);
             });
 
             await t;
@@ -55,11 +55,11 @@ namespace Midas.Core.Forecast
             return res;
         }
 
-        public Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime)
+        public Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime)
         {
             Prediction predictionResult = null;
 
-            var predictions = PredictAsync(image, 0.1f, currentValue, currentTime);
+            var predictions = PredictAsync(image, asset, 0.1f, currentValue, currentTime);
             if (predictions.Wait(60000))
             {
                 predictionResult = Prediction.ParseRawResult(predictions.Result);

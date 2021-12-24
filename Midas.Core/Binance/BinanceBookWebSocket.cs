@@ -294,7 +294,8 @@ namespace Midas.Core.Binance
         public virtual void Close(bool fromGC = false)
         {
             _active = false;
-            _threadRunner.Join(5000);
+            if(_threadRunner != null && _threadRunner.ThreadState == ThreadState.Running)
+                _threadRunner.Join(5000);
 
             if(_socket != null)
                 _socket.Dispose();

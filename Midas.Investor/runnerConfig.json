@@ -2,13 +2,14 @@
     "RunMode": "Invest",
     "ExperimentName": "Investing",
     "Asset": "BTCBUSD",
-    "StartDate": "2021-09-01 00:00:00",
-    "EndDate": "2021-09-15 23:59:59",
-    "CandleType": "HOUR1",
-    "WindowSize": 30,
-    "CardWidth": 1600,
-    "CardHeight": 1600,
+    "StartDate": "2021-11-01 00:00:00",
+    "EndDate": "2021-11-15 23:59:59",
+    "CandleType": "MIN5",
+    "WindowSize": 45,
+    "CardWidth": 250,
+    "CardHeight": 250,
     "IsTesting": true,
+    "DrawShadow": false,    
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
@@ -16,26 +17,26 @@
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
-    "Forecaster": "ThirtyPeriodForecast",
-    "FeedStreamType": "Historical",
-    "BrokerName": "TestBroker",
-    "PreloadCandles": false,
+    "Forecaster": "TestForecast",
+    "FeedStreamType": "Live",
+    "BrokerName": "Binance",
+    "PreloadCandles": true,
 
     "Assets": [
         {
             "Asset": "BTCUSDT",
-            "CandleType": "MIN15",
-            "ScoreThresholdByAvg": 0.5,
-            "ScoreThresholdByPrice": 0.45,
+            "CandleType": "MIN5",
+            "ScoreThresholdByAvg": 1,
+            "ScoreThresholdByPrice": 0.76,
+            "ScoreThresholdByPrice_OtherOptions": [0.42],
             "FundName": "BTCBUSD_MIN15",
             "AtrStopLoss": 1,
-            "StopLossCompSoftness": 0.01,
-            "AvgCompSoftness": 0.5,
-            "FollowPricePerc": 1.1,
-            "GainSoftStopTrigger": 0.5
+            "StopLossCompSoftness": 0.001,
+            "AvgCompSoftness": 0.05,
+            "FollowPricePerc": 0.3,
+            "GainSoftStopTrigger": 0.9
         }
     ],
-
 
     "Indicators": [
         {
@@ -46,7 +47,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 7
+            "Size": 2
         },
         {
             "Name": "MA100",
@@ -56,7 +57,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 7 
+            "Size": 2
         },
         {
             "Name": "MA50",
@@ -66,7 +67,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 7  
+            "Size": 2
         },
         {
             "Name": "MA12",
@@ -76,7 +77,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
-            "Size": 7         
+            "Size": 2
         },
         {
             "Name": "MA6",
@@ -86,39 +87,18 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 7
-        },
-        {
-            "Name": "MA9",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [9],
-            "Source": "Main",
-            "Target": "NONE",
-            "ChartType": "Line",
-            "Color": "Black",
-            "Size": 7
+            "Size": 2
         },
         {
             "Name": "ATR",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.ATRIndicator",
-            "Params": [30],
+            "Params": [14],
             "Source": "Main",
             "Target": "NONE",
             "ChartType": "Line",
             "Color": "Pink"
-        },
-        {
-            "Name": "LN",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.LowNoiseIndicator",
-            "Params": [30],
-            "Source": "Main",
-            "Target": "NONE",
-            "ChartType": "Line",
-            "Color": "Pink"
-        },
+        },        
         {
             "Name": "MA144",
             "AssemblyName": "Midas.Core",
@@ -127,9 +107,10 @@
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 7
-        }    
+            "Size": 2
+        }        
     ],
+
 
     "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
@@ -144,32 +125,27 @@
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
         "MAKER_SELL_DISCOUNT": 0.03,
-        "TARGET_GAIN": 0.5,
-        "NumberOfSlots": 6,
+        "TARGET_GAIN": 0.7,
+        "NumberOfSlots": 1,
         "PurchaseSteps": [
             {
-                "Units": 2,
-                "GainTrigger": -1,
-                "Comment": "Zero Group"
-            },
-            {
-                "Units": 1,
-                "GainTrigger": 0.001,
+                "Units": 4,
+                "GainTrigger": 0.00,
                 "Comment": "First Group"
             },
             {
-                "Units": 4,
-                "GainTrigger": 0.03,
-                "Comment": "Second Group"
+                "Units": 3,
+                "GainTrigger": 0.05,
+                "Comment": "First Group"
             },
             {
                 "Units": 3,
-                "GainTrigger": 0.06,
-                "Comment": "Third Group"
+                "GainTrigger": 0.1,
+                "Comment": "First Group"
             }
         ]
     },
 
-    "UrlPriceModel" : "http://vps32867.publiccloud.com.br:443",
-    "UrlAvgModel" : "http://vps32867.publiccloud.com.br"
+    "UrlPriceModel" : "http://10.0.0.188:81",
+    "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
 }

@@ -17,17 +17,14 @@ namespace Midas.Core.Indicators
         public CalculatedIndicator(object[] args)
         {
             if(args.Length < 2)
-                throw new ArgumentException("MAI needs two arguments [0] = BufferSize [1] = WindowSize");
+                throw new ArgumentException("MA needs two arguments [0] = BufferSize [1] = WindowSize");
             else
             {
                 _bufferSize = Convert.ToInt32(args[0]);
                 _windowSize = Convert.ToInt32(args[1]);
             }
 
-            if(_bufferSize > 0)
-                _historical = new FixedSizedQueue<IStockPointInTime>(_bufferSize);
-            else
-                _historical = null;
+            _historical = new FixedSizedQueue<IStockPointInTime>(_bufferSize);
 
             _currentWindow = new FixedSizedQueue<IStockPointInTime>(_windowSize);
 
@@ -56,22 +53,15 @@ namespace Midas.Core.Indicators
 
         public virtual void AddPoint(IStockPointInTime point)
         {
-            if(_historical != null)
-            {
-                _historical.Enqueue(point);
+            _historical.Enqueue(point);
 
-                if(_historical.GetList().Length > (_bufferSize*0.05))
-                {
-                    _lastPoint = AddFramePoint(point);
-                }
-            }
-            else
+            if(_historical.GetList().Length == _bufferSize)
+            {
                 _lastPoint = AddFramePoint(point);
+            }
         }
 
         public abstract IStockPointInTime AddFramePoint(IStockPointInTime point);
-
-        public abstract void AddIdentifedFramePoint(IStockPointInTime point, string identifier);
 
         public virtual IEnumerable<IStockPointInTime> TakeSnapShot(DateRange range)
         {
@@ -79,11 +69,5 @@ namespace Midas.Core.Indicators
             var ret = _currentWindow.GetList().Where(p => range.IsInside(p.PointInTime_Open));
             return ret;
         }
-
-        public virtual IEnumerable<IStockPointInTime> TakeSnapShot()
-        {
-            var list = _currentWindow.GetList();
-            return list;
-        }        
     }
 }

@@ -9,11 +9,10 @@ namespace Midas.Core.Forecast
 {
     public interface IForecast
     {
-        Task<List<PredictionResult>> PredictAsync(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime);
+        Task<List<PredictionResult>> PredictAsync(Bitmap image,string asset, float scoreThreshold, double currentValue, DateTime currentTime);
 
-        List<PredictionResult> Predict(Bitmap image, float scoreThreshold, double currentValue, DateTime currentTime);
-
-        Prediction GetPrediction(Bitmap image, double currentValue, DateTime currentTime);
+        List<PredictionResult> Predict(Bitmap image,string asset, float scoreThreshold, double currentValue, DateTime currentTime);
+        Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime);
     }
 
     public class ForecastFactory
@@ -24,6 +23,8 @@ namespace Midas.Core.Forecast
             {
                 case "ThirtyPeriodForecast":
                     return new ThirtyPeriodForecast(url);
+                case "FaceLabelForecast":
+                    return new FaceLabelForecast(url);
                 case "TestForecast":
                     return new TestForecast();
                 default:

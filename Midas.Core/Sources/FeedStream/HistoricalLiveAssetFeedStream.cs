@@ -126,7 +126,7 @@ namespace Midas.FeedStream
                         seedCandle.CloseValue = c.HighestValue;
                     }
 
-                    int factor = 100;
+                    int factor = 50;
 
                     var amountFactor = diff / factor;
                     var secondsFactor = c.CandleAge.TotalSeconds / factor;
@@ -136,7 +136,7 @@ namespace Midas.FeedStream
 
                     _socketNew("Test", previous, seedCandle);
 
-                    int sleep= (hours > 8 ? 10 : 0);
+                    int sleep= (hours > 3 ? 20 : 0);
 
                     for(int i=1;i<=factor;i++)
                     {
@@ -153,7 +153,7 @@ namespace Midas.FeedStream
 
                         nc.PointInTime_Close = close;
 
-                        Thread.Sleep(sleep);
+                        //Thread.Sleep(sleep);
 
                         _socketUpdate("test", "test", nc);
                     }

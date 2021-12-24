@@ -1,0 +1,50 @@
+{
+    "Name": "MA200",
+    "AssemblyName": "Midas.Core",
+    "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+    "Params": [200],
+    "Source": "Main",
+    "ChartType": "Line",
+    "Color": "Orange",
+    "Size": 7
+},
+{
+    "Name": "MA100",
+    "AssemblyName": "Midas.Core",
+    "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+    "Params": [100],
+    "Source": "Main",
+    "ChartType": "Line",
+    "Color": "Brown",
+    "Size": 7
+},
+{
+    "Name": "MA50",
+    "AssemblyName": "Midas.Core",
+    "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+    "Params": [50],
+    "Source": "Main",
+    "ChartType": "Line",
+    "Color": "Blue",
+    "Size": 7
+},
+{
+    "Name": "MA12",
+    "AssemblyName": "Midas.Core",
+    "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+    "Params": [12],
+    "Source": "Main",
+    "ChartType": "Line",
+    "Color": "DarkGray",
+    "Size": 7  
+},
+{
+    "Name": "ATR",
+    "AssemblyName": "Midas.Core",
+    "FullClassName": "Midas.Core.Indicators.ATRIndicator",
+    "Params": [14],
+    "Source": "Main",
+    "Target": "NONE",
+    "ChartType": "Line",
+    "Color": "Pink"
+},

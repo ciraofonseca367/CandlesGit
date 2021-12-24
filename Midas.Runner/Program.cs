@@ -11,6 +11,7 @@ using Midas.Core;
 using Midas.Core.Chart;
 using System.Collections.Generic;
 using Midas.Core.Indicators;
+using System.Drawing.Imaging;
 
 namespace Midas
 {
@@ -69,11 +70,9 @@ namespace Midas
 
             _indicators = runParams.Indicators;
 
-            RoundRobinNumber robin = new RoundRobinNumber(10);
+            int imgSequenceCluster = 1;
 
-            Candle lastLong = null;
-
-            using (var csvFile = File.Open(Path.Combine(rootOutputDir.FullName, runParams.OutputFile), FileMode.Append, FileAccess.Write, FileShare.Read))
+            using (var csvFile = File.Open(Path.Combine(rootOutputDir.FullName, runParams.OutputFile), FileMode.Create, FileAccess.Write, FileShare.Read))
             {
                 StreamWriter csvWriter = new StreamWriter(csvFile);
 
@@ -95,7 +94,7 @@ namespace Midas
                     FeedIndicators(v, "Volume");
 
                 var beginWindow = runParams.Range.Start;
-                var endWindow = beginWindow.AddMinutes(Convert.ToInt32(runParams.CandleType) * runParams.WindowSize);
+                var endWindow = beginWindow.AddMinutes(Convert.ToInt32(runParams.CandleType) * runParams.WindowSize).AddSeconds(-1);
 
                 if (inicialCandles.Length > 0)
                 {
@@ -114,9 +113,8 @@ namespace Midas
                         var candles = bufferCandles.Where(c => currentRange.IsInside(c.PointInTime_Open));
                         var volumes = candles.Select(p => new VolumeIndicator(p));
 
-                        if (candles.Count() >= runParams.WindowSize)
+                        if (candles.Count() == runParams.WindowSize)
                         {
-
                             var wholeWindowRange = new DateRange(beginWindow, futureWindow);
 
                             var img = GetImage(runParams, candles, volumes, currentRange, true);
@@ -124,30 +122,69 @@ namespace Midas
                             if (img != null)
                             {
                                 var firstSecond = candles.ElementAt(0).PointInTime_Open;
-                                var currentCandle = (Candle) candles.ElementAt(candles.Count() - 1);
+                                var currentCandle = (Candle)candles.ElementAt(candles.Count() - 1);
                                 var lastSecond = currentCandle.PointInTime_Close;
                                 var progressSpan = lastSecond - runParams.Range.Start;
 
                                 progress.setProgress(progressSpan.TotalMinutes);
 
-                                Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams.Indicators, runParams, currentCandle);
-                                if (runParams.RunMode == RunModeType.Create)
+                                Card c = new Card(img, bufferCandles.ToArray(), firstSecond, beginWindow, endWindow, futureWindow, runParams, currentCandle);
+                                if (runParams.RunMode == RunModeType.Create || runParams.RunMode == RunModeType.Label)
                                 {
-                                    var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
-                                    if (tag != "IGNORED")
+                                    if (runParams.RunMode == RunModeType.Create)
                                     {
-                                        DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
-                                        var fileName = c.SaveToFile(dirInfo.FullName, tag);
+                                        var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
 
+                                        DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
+                                        var fileName = c.SaveFiles(dirInfo.FullName, tag, imgSequenceCluster);
 
                                         csvWriter.Write($"gs://candlebucket/{runParams.ExperimentName}/{runParams.Asset}/{fileName},{tag}");
                                         csvWriter.WriteLine();
+                                    }
+                                    else
+                                    {
+                                        var prediction = c.GetPrediction(img.RawImage);
 
-                                        if(tag == "LONG")
-                                            lastLong = currentCandle;
+                                        if(c.HasRecentPeakVolume_byAvg())
+                                        {
+                                            DirectoryInfo dirInfo = new DirectoryInfo( Path.Join(rootOutputDir.FullName, prediction) );
+                                            dirInfo.Create();
+
+                                            string name = c.GetFileName("","");
+
+                                            img.RawImage.Save(Path.Combine(dirInfo.FullName, $"{name}_predict.gif"), ImageFormat.Gif );
+
+                                            var fullImg = GetImage(runParams, candles, volumes, currentRange, true, false);
+
+                                            fullImg.RawImage.Save(Path.Combine(dirInfo.FullName, $"{name}_full.gif"), ImageFormat.Gif );
+                                        }
+                                    }   
+                                }
+                                else
+                                {
+                                    var predictionData = c.GetPredictionData();
+
+                                    if (predictionData != null)
+                                    {
+                                        csvWriter.Write(predictionData);
+                                        csvWriter.WriteLine();
+                                        csvWriter.Flush();
+
+                                        var cpDirInfo = new DirectoryInfo(Path.Combine(outputDir.FullName, "CheckPredictions"));
+                                        cpDirInfo.Create();
+
+                                        var wholeCandles = bufferCandles.Where(c => wholeWindowRange.IsInside(c.PointInTime_Open));
+                                        var volumesFull = wholeCandles.Select(p => new VolumeIndicator(p));
+
+                                        var bigPicture = GetImage(runParams, wholeCandles, volumesFull, wholeWindowRange, false);
+
+                                        img.RawImage.Save(Path.Combine(cpDirInfo.FullName, c.GetFileName("PP", runParams.Asset)));
+                                        bigPicture.RawImage.Save(Path.Combine(cpDirInfo.FullName, c.GetFileName("BP", runParams.Asset)));
                                     }
                                 }
                             }
+                            else
+                                imgSequenceCluster++;
                         }
 
                         var oneCandle = res.Read(1);
@@ -161,7 +198,7 @@ namespace Midas
                         }
 
                         beginWindow = beginWindow.AddMinutes(Convert.ToInt32(runParams.CandleType));
-                        endWindow = beginWindow.AddMinutes(Convert.ToInt32(runParams.CandleType) * runParams.WindowSize);
+                        endWindow = beginWindow.AddMinutes(Convert.ToInt32(runParams.CandleType) * runParams.WindowSize).AddSeconds(-1);
 
                     }
                 }
@@ -169,8 +206,6 @@ namespace Midas
                 {
                     Console.WriteLine("No records found...");
                 }
-
-
 
                 csvWriter.Flush();
             }
@@ -192,31 +227,50 @@ namespace Midas
             }
         }
 
-        private static Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, bool onlySim = true)
+       public static CandleFaceImage GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, bool onlySim = true, bool forPrediction=true)
         {
-            Bitmap img = null;
-            DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
+            int cardWidth = runParams.CardWidth;
+            int cardHeight = runParams.CardHeight;
+
+            if(!forPrediction)
+            {
+                cardWidth = 1000;
+                cardHeight = 1000;
+            }
+
+            DashView dv = new DashView(cardWidth, cardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            frameMap.Add("BlankHigh", dv.AddChartFrame(20));
-            frameMap.Add("Main", dv.AddChartFrame(40));
-            frameMap.Add("BlankLow", dv.AddChartFrame(20));
-            frameMap.Add("Volume", dv.AddChartFrame(20));
+            if(forPrediction)
+            {
+                frameMap.Add("VoidC", dv.AddChartFrame(20));
+                frameMap.Add("Main", dv.AddChartFrame(60));
+                frameMap.Add("VoidB", dv.AddChartFrame(20));
+            }
+            else
+            {
+                frameMap.Add("VoidC", dv.AddChartFrame(20));
+                frameMap.Add("Main", dv.AddChartFrame(50));
+                frameMap.Add("Volume", dv.AddChartFrame(30));
+            }
 
             frameMap["Main"].AddSerie(new Serie()
             {
                 PointsInTime = candles.ToList(),
                 Name = "Main",
-                DrawShadow = runParams.DrawShadow
+                DrawShadow = !forPrediction
             });
 
-            frameMap["Volume"].AddSerie(new Serie()
+            if(!forPrediction)
             {
-                PointsInTime = volumes.ToList<IStockPointInTime>(),
-                Name = "Volume",
-                Color = Color.LightBlue,
-                Type = SeriesType.Bar
-            });
+                frameMap["Volume"].AddSerie(new Serie()
+                {
+                    PointsInTime = volumes.ToList<IStockPointInTime>(),
+                    Name = "Volume",
+                    Color = Color.LightBlue,
+                    Type = SeriesType.Bar,
+                });
+            }
 
             var grouped = _indicators.GroupBy(i => i.Target);
             foreach (var group in grouped)
@@ -231,15 +285,11 @@ namespace Midas
                         s.Color = ind.Color;
                         s.Type = ind.Type;
                         s.LineSize = ind.Size;
+                        if(!forPrediction)
+                            s.LineSize = s.LineSize * 3;
 
-                        if (s.Name == "MA200")
-                            s.RelativeXPos = 0.95;
-                        else if (s.Name == "MA100")
-                            s.RelativeXPos = 0.85;
-                        else if (s.Name == "MA50")
-                            s.RelativeXPos = 0.75;
 
-                        if (s.Name != "MA144" && s.Name != "MA309")
+                        if (s.Name != "MA144")
                             s.Frameble = false;
 
                         frameMap[group.Key].AddSerie(s);
@@ -248,7 +298,7 @@ namespace Midas
             }
 
             bool isSim = false;
-            img = dv.GetImage(ref isSim);
+            var img = dv.GetImagePlus(ref isSim);
 
             if (onlySim && !isSim)
                 img = null;

@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 
 using Midas.Core.Common;
+using Midas.Core.Util;
 
 namespace Midas.Core.Chart
 {
@@ -143,9 +144,10 @@ namespace Midas.Core.Chart
             _painter = Graphics.FromImage(_canvas);
         }
 
-        internal void DrawLineSeries(Serie s, Color c)
+        internal Dictionary<DateTime,List<FeatureCoordinate>> DrawLineSeries(Serie s, Color c)
         {
             IStockPointInTime previousPoint = null;
+            var featureMap = new Dictionary<DateTime, List<FeatureCoordinate>>();
             int size = 30;
 
             var maxPY = _minAmount;
@@ -192,26 +194,31 @@ namespace Midas.Core.Chart
             {
                 foreach (var p in s.PointsInTime)
                 {
-                    if (previousPoint != null)
-                        this.DrawLine(previousPoint, p, c, s.LineSize);
-
+                    var featureCoordinate = this.DrawLine(previousPoint ?? p, p, c, s.LineSize);
                     previousPoint = p;
                 }
             }
 
+            return featureMap;
         }
 
-        internal void DrawBarSeries(Serie s, Color c)
+        internal Dictionary<DateTime, List<FeatureCoordinate>> DrawBarSeries(Serie s, Color c)
         {
+            var featureMap = new Dictionary<DateTime, List<FeatureCoordinate>>();
+
             foreach (var p in s.PointsInTime)
             {
                 Color barColor = (p.Direction == CandleDirection.Up ? Color.Green : Color.DarkRed);                
-                this.DrawBar(p, barColor);
+                var featureCoordinate = this.DrawBar(p, barColor);
             }
+
+            return featureMap;
         }
 
-        internal void DrawCandleSeries(Serie s)
+        internal Dictionary<DateTime,List<FeatureCoordinate>> DrawCandleSeries(Serie s)
         {
+            var featureMap = new Dictionary<DateTime, List<FeatureCoordinate>>();
+
             if (s.PointsInTime.Count > 0)
             {
                 var drawShadowPoint = s.PointsInTime.Count * 0.90;
@@ -220,11 +227,13 @@ namespace Midas.Core.Chart
                 {
                     var candle = (Candle)p;
                     Color candleColor = (candle.Direction == CandleDirection.Up ? Color.Green : Color.DarkRed);
-                    this.DrawCandle(candle, candleColor, (index > drawShadowPoint || s.DrawShadow?true:false));
+                    var features = this.DrawCandle(candle, candleColor, s.DrawShadow?true:false);
 
                     index++;
                 });
             }
+
+            return featureMap;
         }
 
         internal void DrawForecastSeries(Serie s)
@@ -253,18 +262,18 @@ namespace Midas.Core.Chart
             var c2 = Translate(timeStampClose, opc.UpperBound);
 
             var transparentColor = Color.Gray;
-            Pen p = new Pen(transparentColor, 5);
+            Pen p = new Pen(transparentColor, 3);
             p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
 
-            Pen slp = new Pen(Color.Red, 5);
+            Pen slp = new Pen(Color.Red, 3);
             slp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
-            Pen sslp = new Pen(Color.LightBlue, 5);
+            Pen sslp = new Pen(Color.LightBlue, 3);
             sslp.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;            
 
             var gain = opc.Gain;
             Color gainColor = (gain >= 0 ? Color.YellowGreen : Color.Red);
-            Pen stlp = new Pen(gainColor, 5);
+            Pen stlp = new Pen(gainColor, 3);
 
             var highBodyY = (c1.y > c2.y ? c1.y : c2.y);
             var lowBodyY = (c2.y < c1.y ? c2.y : c1.y);
@@ -291,28 +300,42 @@ namespace Midas.Core.Chart
                 var exitLine = Translate(timeStampOpen, opc.ExitValue);
                 _painter.DrawLine(stlp, c1.x + 1, exitLine.y, c2.x, exitLine.y);
 
-                _painter.FillEllipse(new SolidBrush(gainColor), centerPointX - 7,exitLine.y-7,15,14);
+                _painter.FillEllipse(new SolidBrush(gainColor), centerPointX - 2,exitLine.y-2,4,4);
             }
 
-            _painter.DrawString(
-                String.Format("{0}: {1:0.0000} %", opc.State, gain),
-                new Font("Arial", 12),
-                new SolidBrush(gainColor),
-                c1.x + 5,
-                lowBodyY + 10
-            );
+            // _painter.DrawString(
+            //     String.Format("{0}: {1:0.0000} %", opc.State, gain),
+            //     new Font("Arial", 12),
+            //     new SolidBrush(gainColor),
+            //     c1.x + 5,
+            //     lowBodyY + 10
+            // );
         }
 
-        internal void DrawCandle(Candle d, Color c, bool drawShadow)
+        internal CandleFeatures DrawCandle(Candle d, Color c, bool drawShadow)
         {
+            CandleFeatures feat = new CandleFeatures();
+
+            feat.Direction = new FeatureCoordinate()
+            {
+                x = Convert.ToInt32(d.Direction),
+                y = Convert.ToInt32(d.Direction)
+            };
+
             var point = d;
             var timeStampOpen = InSeconds(point.PointInTime_Open);
             var timeStampClose = InSeconds(point.PointInTime_Close);
             var c1 = Translate(timeStampOpen, point.OpenValue);
             var c2 = Translate(timeStampClose, point.CloseValue);
 
+            feat.Open = RelativeTranslate(timeStampOpen, point.OpenValue);
+            feat.Close = RelativeTranslate(timeStampClose, point.CloseValue);
+
             var s1 = Translate(timeStampOpen + (((timeStampClose - timeStampOpen) / 2) - 1), point.HighestValue);
             var s2 = Translate(timeStampOpen + (((timeStampClose - timeStampOpen) / 2) - 1), point.LowestValue);
+
+            feat.Highest = RelativeTranslate(timeStampOpen, point.HighestValue);
+            feat.Lowest = RelativeTranslate(timeStampOpen, point.LowestValue);
 
             var highBodyY = (c1.y > c2.y ? c1.y : c2.y);
             var lowBodyY = (c2.y < c1.y ? c2.y : c1.y);
@@ -332,22 +355,33 @@ namespace Midas.Core.Chart
             //Lower Shaddow
             if(drawShadow)
                 _painter.DrawLine(p, s2.x + 1, lowBodyY, s2.x + 1, s2.y);
+
+            return feat;
         }
-        private void DrawLine(IStockPointInTime pointA, IStockPointInTime pointB, Color c, int size)
+        private FeatureCoordinate DrawLine(IStockPointInTime pointA, IStockPointInTime pointB, Color c, int size)
         {
+            FeatureCoordinate feature = new FeatureCoordinate();
             var coordA = Translate(pointA);
             var coordB = Translate(pointB);
 
+            feature = RelativeTranslate(pointA);
+
             var p = new Pen(new SolidBrush(c), size);
             _painter.DrawLine(p, coordA.x, coordA.y, coordB.x, coordB.y);
+
+            return feature;
         }
 
-        private void DrawBar(IStockPointInTime pointA, Color c)
+        private FeatureCoordinate DrawBar(IStockPointInTime pointA, Color c)
         {
+            FeatureCoordinate feature = new FeatureCoordinate();
+
             var coordStart = Translate(pointA);
             IStockPointInTime pointB = pointA.Clone();
             pointB.PointInTime = pointA.PointInTime_Close; //
             pointB.AmountValue = 0;
+
+            feature = RelativeTranslate(pointA);
 
             var coordEnd = Translate(pointB);
 
@@ -358,6 +392,10 @@ namespace Midas.Core.Chart
                 coordEnd.x - (coordStart.x + 1),
                 coordStart.y - coordEnd.y
             );
+
+            feature.x = 0;
+
+            return feature;
         }
 
         private void DrawPoint(IStockPointInTime point, Color c)
@@ -411,6 +449,36 @@ namespace Midas.Core.Chart
                 c.y = Convert.ToInt32(
                     _Height * (1 - ((amount - MinAmount) / _amountRange))
                 ) + _offSetY;
+            }
+            else
+                c.y = 0;
+
+            return c;
+        }
+
+        internal FeatureCoordinate RelativeTranslate(IStockPointInTime point)
+        {
+            Int64 timeStamp = InSeconds(point.PointInTime);
+            double amount = point.AmountValue;
+
+            return RelativeTranslate(timeStamp, amount);
+        }        
+
+        internal FeatureCoordinate RelativeTranslate(Int64 timeStamp, double amount)
+        {
+            FeatureCoordinate c;
+            if (timeStamp > 0)
+            {
+                c.x = ((timeStamp - _minTimeStamp) / _periodRange);
+                c.x = Math.Round(c.x*100,2);
+            }
+            else
+                c.x = 0;
+
+            if (amount > 0)
+            {
+                c.y = ((amount - MinAmount) / _amountRange);
+                c.y = Math.Round(c.y*100,2);
             }
             else
                 c.y = 0;
@@ -479,14 +547,14 @@ namespace Midas.Core.Chart
 
                     if (s.AmountStyle == DrawAmountStyle.Relative)
                     {
-                        var tmpMinAmount = s.PointsInTime.Min(p => p.LowestValue);
+                        var tmpMinAmount = Math.Min(s.PointsInTime.Min(p => p.OpenValue),s.PointsInTime.Min(p => p.CloseValue));
                         if (tmpMinAmount < minAmount)
                             minAmount = tmpMinAmount;
                     }
                     else
                         minAmount = 0;
 
-                    var tmpMaxAmount = s.PointsInTime.Max(p => p.HighestValue);
+                    var tmpMaxAmount = Math.Max(s.PointsInTime.Max(p => p.OpenValue),s.PointsInTime.Max(p => p.CloseValue));
                     if (tmpMaxAmount > maxAmount)
                         maxAmount = tmpMaxAmount;
                 }
@@ -495,10 +563,16 @@ namespace Midas.Core.Chart
             return new ViewPort(canvas, minAmount, maxAmount, minTotalSeconds, maxTotalSeconds, _Width, _Height, _offSetX, _offSetY);
         }
 
+        private Dictionary<DateTime,List<FeatureCoordinate>> _featureList;
+
+        public Dictionary<DateTime, List<FeatureCoordinate>> FeatureList { get => _featureList; }
+
         public bool Draw(Bitmap canvas)
         {
             Color black = Color.Black;
             double priceLine = 0;
+
+            _featureList = new Dictionary<DateTime, List<FeatureCoordinate>>();
 
             List<int> counts = new List<int>();
             foreach (var serie in _Series)
@@ -514,7 +588,7 @@ namespace Midas.Core.Chart
                 //Voltar essa linha quando quisermos fazer o esquema de previsão novo
                 //d.FillRectangle(new SolidBrush(Color.White), 0, _offSetY, _Width,_Height);
 
-                var allSeriesOK = counts.Max() == counts.Average();
+                var allSeriesOK = counts.Max() == counts.Average(); 
 
                 var priceSerie = _Series.Where(s => s.Type == SeriesType.Candle);
                 if (priceSerie.Count() > 0 && priceSerie.First().PointsInTime.Count() > 0)
@@ -528,8 +602,7 @@ namespace Midas.Core.Chart
                     {
                         var Dot01Coord = vp.Translate(-1, currentPrice);
                         Pen markerPen = new Pen(Color.LightGray);
-                        markerPen.Width = 4;
-                        markerPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                        markerPen.Width = 1;
                         d.DrawLine(markerPen, 0, Dot01Coord.y, canvas.Width, Dot01Coord.y);
 
                         currentPrice += vp.MinAmount * (0.5 / 100);
@@ -539,6 +612,8 @@ namespace Midas.Core.Chart
                 //Draw Seriess
                 foreach (var serie in _Series)
                 {
+                    Dictionary<DateTime, List<FeatureCoordinate>> current = null;
+
                     if (serie.Type == SeriesType.Candle)
                     {
                         vp.DrawCandleSeries(serie);
@@ -551,16 +626,30 @@ namespace Midas.Core.Chart
                         vp.DrawForecastSeries(serie);
                     else
                         vp.DrawBarSeries(serie, serie.Color);
+
+                    if(current != null)
+                        _featureList = MLUtil.MergePeriodsFeatures(_featureList, current);
                 }
+
+                double cardVariationFeature = Math.Round(((vp.MaxAmount - vp.MinAmount) / vp.MaxAmount) * 100,2);
+                double priceFeature = 0;
 
                 //Draw Price Line
                 if (priceLine > 0)
                 {
                     var priceLineCoord = vp.Translate(-1, priceLine);
+                    var priceLineFeatureCoordinate = vp.RelativeTranslate(-1, priceLine);
                     Pen pricePen = new Pen(Color.Black);
-                    pricePen.Width = 5;
+                    pricePen.Width = 2;
                     d.DrawLine(pricePen, 0, priceLineCoord.y, canvas.Width, priceLineCoord.y);
+
+                    priceFeature = priceLineFeatureCoordinate.y;
                 }
+
+                // _featureList.Add(DateTime.MinValue, new List<FeatureCoordinate>()
+                // {
+                //     new FeatureCoordinate(0,priceFeature),
+                // });
 
                 return allSeriesOK;
             }
@@ -573,5 +662,27 @@ namespace Midas.Core.Chart
     {
         public int x;
         public int y;
+    }
+
+    public struct FeatureCoordinate
+    {
+        public FeatureCoordinate(double px, double py)
+        {
+            this.x = px;
+            this.y = py;
+        }
+        
+        public double x;
+        public double y;
+    }    
+
+    public struct CandleFeatures
+    {
+        public FeatureCoordinate Highest;
+        public FeatureCoordinate Open;
+        public FeatureCoordinate Close;
+        public FeatureCoordinate Lowest;
+
+        public FeatureCoordinate Direction;
     }
 }

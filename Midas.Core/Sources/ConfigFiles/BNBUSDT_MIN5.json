@@ -1,0 +1,11 @@
+{
+    "GroupLevel": "MIN5",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BNBUSDT_MIN5/",
+            "Mask": "'BNBUSDT-5M-'yyyy-MM'.csv'",
+            "DateStart": "2021-01-01 00:00:00",
+            "DateEnd": "2021-09-30 23:59:59"
+        }
+    ]
+}

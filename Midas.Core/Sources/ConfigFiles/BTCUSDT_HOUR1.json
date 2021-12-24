@@ -1,0 +1,11 @@
+{
+    "GroupLevel": "HOUR1",
+    "FileMapping": [
+        {
+            "File": "/Users/cironola/Documents/CandlesFace Projects/Storage/BTCUSDT_HOUR1/",
+            "Mask": "'BTCUSDT-1h-'yyyy-MM'.csv'",
+            "DateStart": "2019-01-01 00:00:00",
+            "DateEnd": "2021-09-30 23:59:59"
+        }
+    ]
+}

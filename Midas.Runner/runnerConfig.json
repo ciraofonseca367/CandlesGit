@@ -1,21 +1,21 @@
 {
-    "RunMode": "Create",
+    "RunMode": "Label",
     "IsTesting": "true",
-    "ExperimentName": "run200",
-    "Asset": "BTCUSDT",
+    "ExperimentName": "Run_Prediction",
+    "Asset": "BNBUSDT",
     "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-08-31 23:59:59",
-    "CandleType": "MIN15",
+    "EndDate": "2021-09-30 23:59:59",
+    "CandleType": "MIN5",
     "ScoreThreshold": 0.35,
-    "WindowSize": 30,
-    "ForecastWindow": 30,
+    "WindowSize": 45,
+    "ForecastWindow": 15,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "OutputFileResults": "Comparativo1.csv",
-    "CardWidth": 1600,
-    "CardHeight": 1600,
+    "CardWidth": 250,
+    "CardHeight": 250,
     "DrawShadow": false,
     "OutputMode": "All",
-    "AverageToForecast": "MA6",
+    "AverageToForecast": "MA12",
 
     "StopLoss": -1,
     "AverageVerification": "MA 200 periodos",
@@ -30,7 +30,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 7
+            "Size": 2
         },
         {
             "Name": "MA100",
@@ -40,7 +40,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Brown",
-            "Size": 7 
+            "Size": 2
         },
         {
             "Name": "MA50",
@@ -50,7 +50,17 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
-            "Size": 7  
+            "Size": 2
+        },
+        {
+            "Name": "MA12",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [12],
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Pink",
+            "Size": 2
         },
         {
             "Name": "MA6",
@@ -60,7 +70,7 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
-            "Size": 7
+            "Size": 2
         },
         {
             "Name": "ATR",
@@ -71,7 +81,7 @@
             "Target": "NONE",
             "ChartType": "Line",
             "Color": "Pink"
-        },
+        },        
         {
             "Name": "MA144",
             "AssemblyName": "Midas.Core",
@@ -80,7 +90,7 @@
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
-            "Size": 3
-        }
+            "Size": 2
+        }        
     ]
 }

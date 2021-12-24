@@ -50,7 +50,7 @@ namespace Midas.Trading
 
         private FundSlotManager _slotManager;
 
-        private OrderWatcher _orderWatcher; 
+        private OrderWatcher _orderWatcher;
 
         static TradeOperationManager()
         {
@@ -113,7 +113,7 @@ namespace Midas.Trading
             _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
             string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
-            if(!RunParameters.GetInstance().IsTesting)
+            if (!RunParameters.GetInstance().IsTesting)
             {
                 _orderWatcher = new OrderWatcher(endPoint, _asset);
                 _orderWatcher.StartWatching();
@@ -299,7 +299,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ln, string modelName)
+        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName)
         {
             TradeOperation ret = null;
 
@@ -318,12 +318,12 @@ namespace Midas.Trading
             }
 
             var slot = SlotManager.TryGetSlot();
-            if(slot != null)
+            if (slot != null)
             {
                 _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                 _allOperations.Add(_currentOperation);
 
-                _currentOperation.Enter(value, pointInTime, ln, modelName);
+                _currentOperation.Enter(value, pointInTime, ratr, modelName);
                 ret = _currentOperation;
             }
             else
@@ -334,7 +334,7 @@ namespace Midas.Trading
             _lastAttempt = DateTime.Now;
 
             var activeOps = _allOperations.Where(o => o.IsIn);
-            
+
             Console.WriteLine("Operações ativas: " + activeOps.Count());
 
             return ret;
@@ -357,7 +357,7 @@ namespace Midas.Trading
 
         public void Dispose()
         {
-            if(_orderWatcher != null)
+            if (_orderWatcher != null)
                 _orderWatcher.Dispose();
         }
     }

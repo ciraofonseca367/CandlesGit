@@ -137,7 +137,7 @@ namespace Midas.Core.Trade
         {
             BrokerOrder order = null;
 
-            order = _ordersBeingWatched[orderId];
+            _ordersBeingWatched.TryGetValue(orderId, out order);
             if (order != null)
             {
                 order.Status = BrokerOrderStatus.CANCELED;

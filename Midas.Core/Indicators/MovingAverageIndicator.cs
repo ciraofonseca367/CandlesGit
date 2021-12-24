@@ -41,11 +41,6 @@ namespace Midas.Core.Indicators
 
             return newPoint;
         }
-
-        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
-        {
-
-        }
     }
 
     public class ATRIndicator : CalculatedIndicator
@@ -101,11 +96,6 @@ namespace Midas.Core.Indicators
 
             return last;
         }
-
-        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
-        {
-
-        }
     }
 
     public class MaxAverageIndicator : CalculatedIndicator
@@ -132,11 +122,6 @@ namespace Midas.Core.Indicators
             base._currentWindow.Enqueue(newPoint);
 
             return newPoint;
-        }
-
-        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
-        {
-
         }
     }
 
@@ -180,11 +165,6 @@ namespace Midas.Core.Indicators
             }
 
             return last;
-        }
-
-        public override void AddIdentifedFramePoint(IStockPointInTime point, string identifier)
-        {
-
         }
     }
 

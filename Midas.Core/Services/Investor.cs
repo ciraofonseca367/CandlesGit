@@ -232,6 +232,15 @@ namespace Midas.Core.Services
                        Convert.ToDouble(group.Count())
             });
 
+            double successOperationCost = 0.06;
+            double failedOperationCost = 0.13;
+            foreach(var s in summary)
+            {
+                var pairOpCost = ((s.SuccessRate * successOperationCost) + ((100-s.SuccessRate) * failedOperationCost))/100;
+                s.OperationsCost = pairOpCost*s.OperationsCount;
+                s.PAndL_AfterCosts = s.PAndL - s.OperationsCost;
+            }
+
             return summary.ToList();
         }
  
@@ -248,25 +257,25 @@ namespace Midas.Core.Services
 
             sb.Append("<code>");
 
-            sb.Append(String.Format("{0,6}{1,3}{2,7}{3,6}{4,4}\n", "ASSET", "E", "P&L", "Avg", "R"));
+            sb.Append(String.Format("{0,6}{1,5}{2,7}{3,6}{4,4}\n", "ASSET", "E", "P&L", "Avg", "R"));
             sb.Append(String.Format("-------------------------------\n"));
             summary.ForEach(s =>
             {
-                sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n",
+                sb.Append(String.Format("{0,6}{1,5}{2,7:0.000}%{3,6:0.00}%{4,4:00%}\n",
                     AssetTrader.GetShortIdentifier(s.Asset, s.CandleType),
                     s.OperationsCount,
-                    s.PAndL,
+                    s.PAndL_AfterCosts,
                     s.OperationAvg,
                     s.SuccessRate
                 ));
             });
 
             allCount = summary.Sum(s => s.OperationsCount);
-            allAvgPAndL = summary.Average(s => s.PAndL);
+            allAvgPAndL = summary.Average(s => s.PAndL_AfterCosts);
             allAvgPerTrans = summary.Average(s => s.OperationAvg);
             allRate = summary.Average(s => s.SuccessRate);
             sb.Append(String.Format("-------------------------------\n"));
-            sb.Append(String.Format("{0,6}{1,3}{2,7:0.00}%{3,6:0.00}%{4,4:00%}\n", "", allCount, allAvgPAndL, allAvgPerTrans, allRate));
+            sb.Append(String.Format("{0,6}{1,5}{2,7:0.000}%{3,6:0.00}%{4,4:00%}\n", "", allCount, allAvgPAndL, allAvgPerTrans, allRate));
 
             sb.Append("</code>");
 
@@ -367,6 +376,10 @@ namespace Midas.Core.Services
             get
             {
                 return _running;
+            }
+            set
+            {
+                _running = value;
             }
         }
         public string GetAllTradersStatus()
@@ -481,7 +494,29 @@ namespace Midas.Core.Services
                 }
             });
 
-            return balances.Sum(b => b.TotalUSDAmount);
+            double inOrderAmount = 0;
+            foreach(var traderPair in _traders)
+            {
+
+                var openOrders = b.OpenOrders(traderPair.Value.Asset, 20000);
+                foreach(var order in openOrders)
+                {
+                    double price = 0;
+                    if(traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
+                        price = priceBTC;
+                    else if(traderPair.Value.Asset == "ETHBUSD")
+                        price = priceETH;
+                    else if(traderPair.Value.Asset == "BNBBUSD")
+                        price = priceBNB;
+                    else if(traderPair.Value.Asset == "ADABUSD")
+                        price = priceADA;
+
+                    inOrderAmount += order.Quantity * price;
+                }
+            }
+
+
+            return balances.Sum(b => b.TotalUSDAmount) + inOrderAmount;
         }
 
         public void Stop()
@@ -544,7 +579,7 @@ namespace Midas.Core.Services
 
             while (_running)
             {
-                Thread.Sleep(60000);
+                Thread.Sleep(1000*60);
 
                 try
                 {
@@ -583,6 +618,8 @@ namespace Midas.Core.Services
         public double SuccessRate { get => _sucessRate; set => _sucessRate = value; }
         public string Asset { get => _asset; set => _asset = value; }
         public CandleType CandleType { get; set; }
+        public double OperationsCost { get; internal set; }
+        public double PAndL_AfterCosts { get; internal set; }
     }
 
     public class BalanceReport

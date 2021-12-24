@@ -22,7 +22,7 @@ namespace Midas.Core.Sources.RestSources
         {
             string formatUrl = "https://api.binance.com/api/v3/klines?symbol={0}&interval={1}&startTime={2}&endTime={3}";
 
-            var daysIncrement = 5;
+            var daysIncrement = 1;
 
             DateTime current = range.Start;
 

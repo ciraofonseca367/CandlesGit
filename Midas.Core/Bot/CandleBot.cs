@@ -262,18 +262,11 @@ namespace Midas.Core.Telegram
                 case "Open Positions":
                     var stateAll = _myService.GetAllTradersStatus();
 
-                    var msgs = stateAll.Split('|');
-
-                    if (msgs.Count() > 0)
+                    if (!String.IsNullOrEmpty(stateAll.Trim()))
                     {
-
-                        foreach (string singleOp in msgs)
-                        {
-                            if (!String.IsNullOrEmpty(singleOp.Trim()))
-                                await botClient.SendTextMessageAsync(
-                                    chatId: message.Chat.Id,
-                                    text: singleOp);
-                        }
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: stateAll);
                     }
                     else
                     {
@@ -301,36 +294,6 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "No asset selected");
                     }
-                    break;
-                case "Try Enter":
-
-                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
-
-                    if (currentTrader != null)
-                    {
-                        await botClient.SendTextMessageAsync(
-                            chatId: message.Chat.Id,
-                            text: "Wait while I get a prediction and check if it's advisible to open a position");
-
-                        var enterResult = currentTrader.SetPrediction();
-                        bool goodToEnter = currentTrader.GoodToEnter();
-
-                        enterResult += $"\n\nGood to enter? {goodToEnter}";
-
-                        if (enterResult == String.Empty)
-                            enterResult = "Nothing to report";
-
-                        await botClient.SendTextMessageAsync(
-                            chatId: message.Chat.Id,
-                            text: enterResult, parseMode: ParseMode.Html);
-                    }
-                    else
-                    {
-                        await botClient.SendTextMessageAsync(
-                            chatId: message.Chat.Id,
-                            text: "No asset selected");
-                    }
-
                     break;
                 case "P&L":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -382,6 +345,8 @@ namespace Midas.Core.Telegram
                         fullReport += "\n\n";
                         fullReport += "<b>WEEK</b>:\n\n";
                         fullReport += _myService.GetOperationsSummary(7);
+                        fullReport += "<b>Day</b>:\n\n";
+                        fullReport += _myService.GetOperationsSummary(1);
                     }
                     catch (Exception err)
                     {
@@ -431,6 +396,33 @@ namespace Midas.Core.Telegram
                         text: allCoins, parseMode: ParseMode.Html);
 
                     break;
+                case "Try Enter":
+
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    if (currentTrader != null)
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "Wait while I get a prediction and check if it's advisible to open a position");
+
+                        var enterResult = currentTrader.SetPrediction();
+
+                        if (enterResult == String.Empty)
+                            enterResult = "Nothing to report";
+
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: enterResult, parseMode: ParseMode.Html);
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "No asset selected");
+                    }
+
+                    break;                    
                 case "Force Sell":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 

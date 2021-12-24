@@ -68,40 +68,39 @@ namespace Midas.Core.Trade
 
         public double GetMAValue(string maName)
         {
+            var allCandles = _candleMovieRoll.GetList();
+            DateRange range = new DateRange(allCandles.First().OpenTime, allCandles.Last().OpenTime);
+
             var maSeries = _indicators.Where(i => i.Name == maName).FirstOrDefault();
 
-            double? maValue = 0;
+            double? maValue = null;
             if (maSeries != null)
-                maValue = maSeries?.LastPoint?.AmountValue;
+            {
+                var maWindow = maSeries.TakeSnapShot(range);
+                if(maWindow.Count() > 0)
+                    maValue = maWindow.Last()?.AmountValue;
+            }
 
             return (maValue == null ? 0 : (double)maValue);
         }
 
-        public double? GetFirstMAValue(string maName)
+        public List<IStockPointInTime> GetMAList(string maName)
         {
-            double? ret = 0;
+            var allCandles = _candleMovieRoll.GetList();
+            DateRange range = new DateRange(allCandles.First().OpenTime, allCandles.Last().OpenTime);
+            List<IStockPointInTime> result = null;
 
-            var indicator = _indicators.Where(i => i.Name == maName).FirstOrDefault();
-            if (indicator != null)
+            var maSeries = _indicators.Where(i => i.Name == maName).FirstOrDefault();
+
+            if (maSeries != null)
             {
-                ret = indicator.TakeSnapShot().FirstOrDefault()?.AmountValue;
+                var maWindow = maSeries.TakeSnapShot(range);
+                if(maWindow.Count() > 0)
+                    result = maWindow.ToList();
             }
 
-            return ret ?? 0;
-        }
-
-        public double GetDifferentFromPast(double currentAmount, DateTime min)
-        {
-            var candles = _candleMovieRoll.GetList();
-
-            var last = candles.Where(c => c.OpenTime >= min).ToList();
-
-            double diff = 0;
-            if (last.Count > 0)
-                diff = ((currentAmount - last.First().OpenValue) / last.First().OpenValue) * 100;
-
-            return diff;
-        }
+            return result;
+        }        
 
         public void Start()
         {
@@ -149,20 +148,19 @@ namespace Midas.Core.Trade
 
             _stream.OnSocketEnd((param1, param2) =>
             {
-                Console.WriteLine("Termininando em 5 segundos");
-                Thread.Sleep(5000);
-
                 var pairInfo = AssetPriceHub.GetTicker(_asset);
                 pairInfo.DumpInfo();
 
                 _manager.SlotManager.Dump();
+
+                _running = false;
+                _myService.Running = false;
             });
 
             if (_params.FeedStreamType != "Historical")
             {
                 _stream.OnUpdate((id, message, cc) =>
                 {
-
                     var img = GetSnapShot(cc);
 
                     img.Save(
@@ -229,7 +227,12 @@ namespace Midas.Core.Trade
 
             if (_predictionBox != null)
             {
-                ret = _predictionBox.ToString();
+                ret = _predictionBox.GetTrend(0,0).Item2;
+
+                if(ret == "Alligator Open")
+                {
+                    _predictionBox.ForceNextPrediction = true;
+                }
             }
 
             return ret;
@@ -237,6 +240,8 @@ namespace Midas.Core.Trade
 
         private void SetPrediction(Candle current, bool preview)
         {
+            _predictionBox = null;
+
             Candle recentClosedCandle = current;
             Candle[] candlesToDraw = null;
             if (!preview)
@@ -262,7 +267,7 @@ namespace Midas.Core.Trade
 
             DateRange range = new DateRange(candlesToDraw.First().OpenTime, candlesToDraw.Last().OpenTime);
 
-            _lastImg = GetImage(_params, candlesToDraw, volumes, range, null, !preview);
+            _lastImg = GetImage(_params, candlesToDraw, volumes, range, null, !preview, true);
 
             if (_lastImg != null)
             {
@@ -272,55 +277,42 @@ namespace Midas.Core.Trade
                     );
 
                 //Get a prediction
-                string urlAvgModel = _params.UrlAvgModel;
                 string urlPriceModel = _params.UrlPriceModel;
 
-                var avgForecaster = ForecastFactory.GetForecaster(_params.Forecaster, urlAvgModel);
                 var priceForecaster = ForecastFactory.GetForecaster(_params.Forecaster, urlPriceModel);
 
-                Prediction avgRes = null, priceRes = null;
-
-                var t1 = Task.Run(() =>
+                Prediction priceRes = null;
+                try
                 {
-                    try
-                    {
-
-                        avgRes = avgForecaster.GetPrediction(_lastImg, current.AmountValue, current.OpenTime);
-                    }
-                    catch (Exception err)
-                    {
-                        TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
-                    }
-                });
-                var t2 = Task.Run(() =>
+                    priceRes = priceForecaster.GetPrediction(_lastImg, _asset, current.AmountValue, current.OpenTime);
+                }
+                catch (Exception err)
                 {
-                    try
-                    {
-                        priceRes = priceForecaster.GetPrediction(_lastImg, current.AmountValue, current.OpenTime);
-                    }
-                    catch (Exception err)
-                    {
-                        TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
-                    }
-                });
+                    TraceAndLog.StaticLog("Prediction", "Erro when predicting: " + err.Message);
+                }
 
-                Task.WaitAll(t1, t2);
-
-                if (avgRes != null)
-                    avgRes.CandleThatPredicted = current;
 
                 if (priceRes != null)
                     priceRes.CandleThatPredicted = current;
 
-                //StorePrediction(_myName, predictions.Result);
-
-                var tempPredBox = new PredictionBox(_assetParams.ScoreByAvg, _assetParams.ScoreByPrice);
+                DateTime previousDate=DateTime.MinValue;
+                if(_predictionBox != null)
+                    previousDate = _predictionBox.PredictionDate;
+                var tempPredBox = new PredictionBox();
 
                 tempPredBox.ByPrice = priceRes;
-                tempPredBox.ByAvg = avgRes;
                 tempPredBox.CandleThatPredicted = current;
+                tempPredBox.SetPreviousPrediction(previousDate);
 
                 _predictionBox = tempPredBox;
+
+                var trend = _predictionBox.GetTrend(0,0);
+                if(trend.Item2 == "Alligator Open" || trend.Item2 == "BottomReserval")
+                {
+                    var imgToSend = GetImage(_params, candlesToDraw, volumes, range, null, !preview, false);
+
+                    TelegramBot.SendImage(imgToSend, $"Just got a {trend.Item2}");
+                }
             }
         }
 
@@ -330,21 +322,6 @@ namespace Midas.Core.Trade
             {
                 return _predictionBox;
             }
-        }
-
-        public bool GoodToEnter()
-        {
-            var ma6 = GetMAValue("MA6");
-            var atr = GetMAValue("ATR");
-            bool goodToEnter = false;
-
-            if (_predictionBox != null)
-            {
-                var ret = _predictionBox.GoodToEnter(ma6, atr);
-                goodToEnter = ret.Item1;
-            }
-
-            return goodToEnter;
         }
 
         private void OnNewCandle(string id, Candle previous, Candle current)
@@ -357,12 +334,13 @@ namespace Midas.Core.Trade
 
                 if (_predictionBox != null)
                 {
-                    var currentTrend = _predictionBox.GetTrend(_assetParams.ScoreByPrice, _assetParams.ScoreByAvg);
+                    var currentTrend = _predictionBox.GetTrend(_assetParams.ScoreByAvg, _assetParams.ScoreByPrice);
 
-                    _manager.Signal(currentTrend);
+                    _manager.Signal(currentTrend.Item1);
 
-                    Console.WriteLine("Trend: " + currentTrend);
-                    TelegramBot.SendMessage($"{GetIdentifier()} is " + currentTrend);
+                    Console.WriteLine("Trend: " + currentTrend.Item2);
+                    if(currentTrend.Item1 == TrendType.LONG)
+                        TelegramBot.SendMessage($"{GetIdentifier()} is " + currentTrend);
                 }
             }
             catch (Exception err)
@@ -389,7 +367,8 @@ namespace Midas.Core.Trade
             }
         }
 
-        private string _lastKey;
+        private DateTime _lastEntrance;
+        private DateTime _lastClose = DateTime.MinValue;
 
         private void OnCandleUpdate(string id, string message, Candle cc)
         {
@@ -398,55 +377,74 @@ namespace Midas.Core.Trade
 
             try
             {
-                //If we ever need this code to get previews
-                int minutes = (DateTime.UtcNow - cc.OpenTime).Minutes;
-
-                // int rest = minutes % 15;
-                // if (_lastKey != cc.GetCompareStamp() && rest == 0)
-                //     SetPrediction(cc, true);
-
-                _lastKey = cc.CloseTime.ToString("yyyy-MM-dd HH:") + minutes.ToString("00");
+                var candlesToDraw = _candleMovieRoll.GetList();
+                DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
                 var ma6 = GetMAValue("MA6");
-                var ma200 = GetMAValue("MA200");
-                double ln = GetMAValue("LN");
                 double atr = GetMAValue("ATR");
+                double ratr = atr / cc.CloseValue;
 
-                Tuple<bool, string> goodToEnterRes = null;
-
+                TrendType currentTrend = TrendType.NONE;
                 if (_predictionBox != null)
-                    goodToEnterRes = _predictionBox.GoodToEnter(ma6, ln);
+                {
+                    currentTrend = _predictionBox.GetTrend(_assetParams.ScoreByAvg, _assetParams.ScoreByPrice).Item1;
+                }
 
-                if (goodToEnterRes != null &&
-                    goodToEnterRes.Item1) //Delayed Trigger buffer
+                if (currentTrend == TrendType.LONG || currentTrend == TrendType.DOUBLE_LONG)
                 {
                     var currentCandle = cc;
 
-                    bool delayedTriggerCheck = CheckDelayedTrigger(_predictionBox.CandleThatPredicted, currentCandle);
+                    bool delayedTriggerCheck = CheckDelayedTrigger(_predictionBox.CandleThatPredicted, currentCandle); //Delayed Trigger buffer
 
-                    if (delayedTriggerCheck && !_operationMap.ContainsKey(_predictionBox.CandleThatPredicted.GetCompareStamp()))
-                    {                        
+                    if(!delayedTriggerCheck)
+                        Console.WriteLine("Rejected by the delayed trigger.");
+
+                    var hasPeek = HasRecentPeakVolume_byAvg(cc);
+
+                    var spread6to200 = GetAvg6To200Spread();
+
+
+                    if (_predictionBox.ForceNextPrediction ||
+                        (
+                            delayedTriggerCheck && //Old delayed trigger technology
+                            !_operationMap.ContainsKey(_predictionBox.CandleThatPredicted.GetCompareStamp()) && //This applies only when we enable preview enter
+                            hasPeek && //Enter only if we are in the volume peak
+                            //Is200AvgUp() &&
+                            //spread6to200 < 4 &&
+                            (cc.OpenTime - _lastEntrance).TotalMinutes > 60 && //Ignore signals from the same "moment"
+                            (cc.OpenTime - _lastClose).TotalMinutes > 60 && //Ignore signals close the last close op
+                            GetWindowVariation(cc) > 1.5)
+                        )
+                    {        
+
+                        _predictionBox.ForceNextPrediction = false;                
+
+                        var outputDir = Directory.CreateDirectory(
+                            Path.Combine(_params.OutputDirectory, _params.ExperimentName)
+                            );
+
+                        var fileName = Path.Combine(outputDir.FullName, $"{GetIdentifier()}_{cc.OpenTime:yyyy-MM-dd HH-mm}_entry_{spread6to200:0.00}.png");
+
+                        _lastImg.Save(fileName, System.Drawing.Imaging.ImageFormat.Png);
+
                         try
                         {
-                            var candlesToDraw = _candleMovieRoll.GetList();
-                            DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
-
                             _lastAtr = atr;
+                            _lastEntrance = cc.OpenTime;
 
                             var op = _manager.SignalEnter(
                                 cc.CloseValue,
                                 cc.OpenTime,
-                                cc.CloseTime.AddHours(3),
-                                atr,
-                                goodToEnterRes.Item2
+                                cc.CloseTime.AddHours(1),
+                                ratr,
+                                "PRICE"
                                 );
 
                             _operationMap[_predictionBox.CandleThatPredicted.GetCompareStamp()] = op;                                
 
                             if (op != null)
                             {
-                                Console.WriteLine("Entrando pelo modelo - " + goodToEnterRes.Item2);
-                                TelegramBot.SendMessage($"Iniciando operação {Telegram.TelegramEmojis.CrossedFingers} em {this.GetIdentifier()}, no modelo {goodToEnterRes.Item2}");
+                                TelegramBot.SendMessage($"Iniciando operação {Telegram.TelegramEmojis.CrossedFingers} em {this.GetIdentifier()}");
                             }
                         }
                         catch (Exception err)
@@ -465,6 +463,64 @@ namespace Midas.Core.Trade
 
         }
 
+        private bool Is200AvgUp()
+        {
+            var avg200List = GetMAList("MA200");
+
+            if(avg200List != null)  
+                return avg200List.Last().AmountValue >= avg200List.First().AmountValue;
+            else
+                return true;
+        }
+
+        private double GetAvg6To200Spread()
+        {
+            var avg6 = GetMAValue("MA6");
+            var avg200 = GetMAValue("MA200");
+
+            return ((avg6 - avg200)/avg200)*100;
+        }
+
+        private bool HasRecentPeakVolume_byAvg(Candle currentCandle)
+        {
+            var candlesToDraw = _candleMovieRoll.GetList().Union(new Candle[] { currentCandle });
+            var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
+
+            var currentRange = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
+            var avgVolumes = _indicators.Where(i => i.Name == "MA144")?.FirstOrDefault()?.TakeSnapShot(currentRange);
+
+            bool inPeek = false;
+            double lastAvgVolume = 0;
+            if(avgVolumes.Count() > 0)
+            {
+                lastAvgVolume = avgVolumes.Last().AmountValue;
+
+                var windowCandles = candlesToDraw;
+
+                var twentyPercentLast = windowCandles.TakeLast(4).ToList();
+
+                twentyPercentLast.ForEach(c =>
+                {
+                    var ratio = c.Volume / lastAvgVolume;
+
+                    if (ratio > 4)
+                        inPeek = true;
+                });
+            }
+
+            return inPeek;
+        }
+
+        public double GetWindowVariation(Candle cc)
+        {
+            var windowCandles = _candleMovieRoll.GetList().Union(new Candle[] { cc });
+
+            var diff = Math.Abs(windowCandles.Max(c => c.HighestValue) - windowCandles.Min(c => c.LowestValue));
+            var firstCandle = windowCandles.First();
+
+            return (diff / firstCandle.CloseValue) * 100;
+        }        
+
         private double GetCurrentAtr(DateRange range)
         {
             var atrInd = _indicators.Where(i => i.Name == "ATR").First();
@@ -481,7 +537,7 @@ namespace Midas.Core.Trade
             else
             {
                 if (candleThatPredicted.Direction == CandleDirection.Down &&
-                    currentCandle.CandleAge.TotalMinutes > 13 && currentCandle.GetIndecisionThreshold() > 0.2)
+                    currentCandle.CandleAge.TotalMinutes > 4 && currentCandle.GetIndecisionThreshold() > 0.2)
                     ret = true;
                 else if (candleThatPredicted.Direction == CandleDirection.Up)
                     ret = true;
@@ -509,11 +565,12 @@ namespace Midas.Core.Trade
 
         internal void SaveSnapshot(Candle cc)
         {
+            _lastClose = cc.CloseTime;
             var outputDir = Directory.CreateDirectory(
                 Path.Combine(_params.OutputDirectory, _params.ExperimentName)
                 );
 
-            var fileName = Path.Combine(outputDir.FullName, $"{GetIdentifier()}_{cc.OpenTime:yyyy-MM-dd HH-mm}");
+            var fileName = Path.Combine(outputDir.FullName, $"{GetIdentifier()}_{cc.OpenTime:yyyy-MM-dd HH-mm}.png");
 
             var img = GetSnapShot(cc);
 
@@ -585,11 +642,11 @@ namespace Midas.Core.Trade
                         predictionSerie.Type = SeriesType.Forecast;
                     }
 
-                    imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
+                    imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false, false);
                 }
                 else
                 {
-                    imgToBroadcast = GetImage(_params, candlesToDraw, volumes, range, null, false);
+                    imgToBroadcast = GetImage(_params, candlesToDraw, volumes, range, null, false, false);
                 }
             }
 
@@ -598,33 +655,54 @@ namespace Midas.Core.Trade
 
 
 
-        internal Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, Serie prediction = null, bool onlySim = true)
+        internal Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, Serie prediction = null, bool onlySim = true, bool forPrediction=true)
         {
-            Bitmap img = null;
-            DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
+            int cardWidth = runParams.CardWidth;
+            int cardHeight = runParams.CardHeight;
+
+            if(!forPrediction)
+            {
+                cardWidth = 1000;
+                cardHeight = 1000;
+            }
+
+            DashView dv = new DashView(cardWidth, cardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
-            frameMap.Add("Blank", dv.AddChartFrame(30));
-            frameMap.Add("Main", dv.AddChartFrame(40));
-            frameMap.Add("Volume", dv.AddChartFrame(30));
+            if(forPrediction)
+            {
+                frameMap.Add("VoidC", dv.AddChartFrame(20));
+                frameMap.Add("Main", dv.AddChartFrame(60));
+                frameMap.Add("VoidB", dv.AddChartFrame(20));
+            }
+            else
+            {
+                frameMap.Add("VoidC", dv.AddChartFrame(20));
+                frameMap.Add("Main", dv.AddChartFrame(50));
+                frameMap.Add("Volume", dv.AddChartFrame(30));
+            }
 
             frameMap["Main"].AddSerie(new Serie()
             {
                 PointsInTime = candles.ToList(),
                 Name = "Main",
-                DrawShadow = runParams.DrawShadow
+                DrawShadow = !forPrediction
             });
 
             if (prediction != null)
                 frameMap["Main"].AddSerie(prediction);
 
-            frameMap["Volume"].AddSerie(new Serie()
+            if(!forPrediction)
             {
-                PointsInTime = volumes.ToList<IStockPointInTime>(),
-                Name = "Volume",
-                Color = Color.LightBlue,
-                Type = SeriesType.Bar,
-            });
+                frameMap["Volume"].AddSerie(new Serie()
+                {
+                    PointsInTime = volumes.ToList<IStockPointInTime>(),
+                    Name = "Volume",
+                    Color = Color.LightBlue,
+                    Type = SeriesType.Bar,
+                    LineSize = 3
+                });
+            }
 
             var grouped = _indicators.GroupBy(i => i.Target);
             foreach (var group in grouped)
@@ -639,15 +717,11 @@ namespace Midas.Core.Trade
                         s.Color = ind.Color;
                         s.Type = ind.Type;
                         s.LineSize = ind.Size;
+                        if(!forPrediction)
+                            s.LineSize = s.LineSize * 3;
 
-                        if (s.Name == "MA200")
-                            s.RelativeXPos = 0.95;
-                        else if (s.Name == "MA100")
-                            s.RelativeXPos = 0.85;
-                        else if (s.Name == "MA50")
-                            s.RelativeXPos = 0.75;
 
-                        if (s.Name != "MA144" && s.Name != "MA309")
+                        if (s.Name != "MA144")
                             s.Frameble = false;
 
                         frameMap[group.Key].AddSerie(s);
@@ -656,12 +730,12 @@ namespace Midas.Core.Trade
             }
 
             bool isSim = false;
-            img = dv.GetImage(ref isSim);
+            var img = dv.GetImagePlus(ref isSim);
 
             if (onlySim && !isSim)
                 img = null;
 
-            return img;
+            return (img == null ? null : img.RawImage);
         }
 
 
@@ -781,15 +855,9 @@ namespace Midas.Core.Trade
 
         internal string GetState()
         {
-            string state = "";
-            var allOps = _manager.GetAllActiveOperations();
-            foreach (var op in allOps)
-            {
-                state += (op != null ? op.ToString() : $"{this.GetIdentifier()} has no operation");
-                state += "\n|";
-            }
+            var op = _manager.GetOneActiveOperation();
 
-            return state;
+            return (op != null ? op.ToString() : $"{this.GetIdentifier()} has no operation");
         }
 
         private void FeedIndicators(IStockPointInTime point, string source)
@@ -825,7 +893,7 @@ namespace Midas.Core.Trade
                 TraceAndLog.StaticLog("Store Prediction", err.Message);
             }
         }
-
+ 
         private IEnumerable<Candle> GetCachedCandles()
         {
             IEnumerable<Candle> ret = new List<Candle>();
@@ -861,7 +929,7 @@ namespace Midas.Core.Trade
             else if (_params.FeedStreamType == "Historical")
             {
                 ret = new HistoricalLiveAssetFeedStream(
-                    null, Asset, CandleType.MIN15, _candleType
+                    null, Asset, _candleType, _candleType
                 );
 
                 ((HistoricalLiveAssetFeedStream)ret).DateRange = new DateRange(
@@ -913,9 +981,19 @@ namespace Midas.Core.Trade
 
         private DateTime _predictionDate;
 
+        private DateTime _previousPrediction;
+
+        private TrendType _trendType;
+        private string _trendDescription;
+
 
         private readonly float _scoreThresholdByAvg;
         private readonly float _scoreThresholdByPrice;
+
+        public DateTime PreviousPrediction { get => _previousPrediction;}
+        public DateTime PredictionDate { get => _predictionDate;}
+
+        public bool ForceNextPrediction { get; set; }
 
         public PredictionBox(float scoreThresholdByAvg, float scoreThresholdByPrice)
         {
@@ -924,34 +1002,47 @@ namespace Midas.Core.Trade
             _predictionDate = DateTime.Now;
         }
 
-        public Tuple<bool, string> GoodToEnter(double ma6, double atr)
+        public PredictionBox()
         {
-            var ret = false;
-            var trend = GetTrend(_scoreThresholdByAvg, _scoreThresholdByPrice);
-            var amount = CandleThatPredicted.CloseValue;
-            string trendType = String.Empty;
-            string connector;
-            double compareAtr = atr * 0.75;
+            this._scoreThresholdByAvg = -1;
+            this._scoreThresholdByPrice = 1;
+            _predictionDate = DateTime.Now;
+            ForceNextPrediction = false;
+        }        
 
-            if (trend == TrendType.LONG || trend == TrendType.DOUBLE_LONG)
-            {
-
-                if (ByAvg != null && GetDiffAmount1VsAmount2(amount, ma6) < compareAtr && ByAvg.ScoreLong >= _scoreThresholdByAvg)
-                {
-                    ret = true;
-                    trendType = "Average";
-                }
-
-                if (ByPrice != null && GetDiffAmount1VsAmount2(amount, ma6) > compareAtr * -1 && ByPrice.ScoreLong >= _scoreThresholdByPrice)
-                {
-                    connector = (trendType == String.Empty) ? "" : " - ";
-                    trendType += connector + "Price Trend";
-                    ret = true;
-                }
-            }
-
-            return new Tuple<bool, string>(ret, trendType);
+        public void SetPreviousPrediction(DateTime time)
+        {
+            _previousPrediction = time;
         }
+
+        //Estavamos usando este método quando tinhamos que chamar dois modelos ao mesmo tempo
+        // public Tuple<bool, string> GoodToEnter(double ma6, double atr)
+        // {
+        //     var ret = false;
+        //     var trend = GetTrend(_scoreThresholdByAvg, _scoreThresholdByPrice);
+        //     var amount = CandleThatPredicted.CloseValue;
+        //     string trendType = String.Empty;
+        //     string connector;
+        //     double compareAtr = atr * 0.75;
+
+        //     if (trend == TrendType.LONG || trend == TrendType.DOUBLE_LONG)
+        //     {
+        //         // if (ByAvg != null && GetDiffAmount1VsAmount2(amount, ma6) < compareAtr && ByAvg.ScoreLong >= _scoreThresholdByAvg)
+        //         // {
+        //         //     ret = true;
+        //         //     trendType = "Average";
+        //         // }
+
+        //         if (ByPrice != null && GetDiffAmount1VsAmount2(amount, ma6) > compareAtr * -1 && ByPrice.ScoreLong >= _scoreThresholdByPrice)
+        //         {
+        //             connector = (trendType == String.Empty) ? "" : " - ";
+        //             trendType += connector + "Price Trend";
+        //             ret = true;
+        //         }
+        //     }
+
+        //     return new Tuple<bool, string>(ret, trendType);
+        // }
 
         private double GetDiffAmount1VsAmount2(double amount1, double amount2)
         {
@@ -959,62 +1050,101 @@ namespace Midas.Core.Trade
             return diff;
         }
 
-        public TrendType GetTrend(float scoreThresholdByAvg, float scoreThresholdByPrice)
+        public Tuple<TrendType,string> GetTrend(float scoreThresholdByAvg, float scoreThresholdByPrice)
         {
             TrendType retPrice = TrendType.NONE;
-            TrendType retAvg = TrendType.NONE;
-            TrendType ret = TrendType.NONE;
+            string trendDescription=null;
+            //TrendType retAvg = TrendType.NONE;
+            // TrendType ret = TrendType.NONE;
 
-            if (ByPrice != null)
+            // if (ByPrice != null)
+            // {
+            //     if (ByPrice.ScoreLong >= scoreThresholdByPrice)
+            //     {
+            //         if (ByPrice.ScoreShort >= scoreThresholdByPrice)
+            //             retPrice = TrendType.LONG_SHORT_CONFLICT;
+            //         else
+            //             retPrice = TrendType.LONG;
+            //     }
+
+            //     if (ByPrice.ScoreShort >= scoreThresholdByPrice)
+            //     {
+            //         retPrice = TrendType.SHORT;
+            //     }
+
+            //     ret = retPrice;
+            // }
+
+            // if (ByAvg != null)
+            // {
+            //     if (ByAvg.ScoreLong >= scoreThresholdByAvg)
+            //     {
+            //         if (ByAvg.ScoreShort >= scoreThresholdByPrice)
+            //             retAvg = TrendType.LONG_SHORT_CONFLICT;
+            //         else
+            //             retAvg = TrendType.LONG;
+            //     }
+
+            //     if (ByAvg.ScoreShort >= scoreThresholdByAvg)
+            //     {
+            //         retAvg = TrendType.SHORT;
+            //     }
+            // }
+
+            // if (retPrice == TrendType.LONG || retAvg == TrendType.LONG)
+            // {
+            //     if (retPrice == TrendType.LONG && retAvg == TrendType.LONG)
+            //         ret = TrendType.DOUBLE_LONG;
+            //     else
+            //         ret = TrendType.LONG;
+            // }
+
+            // if (retPrice == TrendType.SHORT || retAvg == TrendType.SHORT)
+            // {
+            //     if (retPrice == TrendType.SHORT && retAvg == TrendType.SHORT)
+            //         ret = TrendType.DOUBLE_SHORT;
+            //     else
+            //         ret = TrendType.SHORT;
+            // }
+
+            //GRAVAR estes campos na classe para depois voltar no ToString
+
+            if(ByPrice != null)
             {
-                if (ByPrice.ScoreLong >= scoreThresholdByPrice)
+                switch(ByPrice.CurrentTrend)
                 {
-                    if (ByPrice.ScoreShort >= scoreThresholdByPrice)
-                        retPrice = TrendType.LONG_SHORT_CONFLICT;
-                    else
+                    case "BottomReversal":
+                        retPrice = TrendType.NONE;
+                        trendDescription = "BottomReserval";
+                        break;
+                    case "HVS":
+                        retPrice = TrendType.SHORT;
+                        trendDescription = "High Volume Short";
+                        break;
+                    case "JacOpen":
                         retPrice = TrendType.LONG;
-                }
-
-                if (ByPrice.ScoreShort >= scoreThresholdByPrice)
-                {
-                    retPrice = TrendType.SHORT;
-                }
-            }
-
-            if (ByAvg != null)
-            {
-                if (ByAvg.ScoreLong >= scoreThresholdByAvg)
-                {
-                    if (ByAvg.ScoreShort >= scoreThresholdByPrice)
-                        retAvg = TrendType.LONG_SHORT_CONFLICT;
-                    else
-                        retAvg = TrendType.LONG;
-                }
-
-                if (ByAvg.ScoreShort >= scoreThresholdByAvg)
-                {
-                    retAvg = TrendType.SHORT;
+                        trendDescription = "Alligator Open";
+                        break;
+                    case "JacClose":
+                        retPrice = TrendType.SHORT;
+                        trendDescription = "Alligator Close";
+                        break;
+                    case "Jac":
+                        retPrice = TrendType.NONE;
+                        trendDescription = "Alligator";
+                        break;
+                    case "KickBack":
+                        retPrice = TrendType.SHORT;
+                        trendDescription = "Kick Back";
+                        break;
                 }
             }
 
-            if (retPrice == TrendType.LONG || retAvg == TrendType.LONG)
-            {
-                if (retPrice == TrendType.LONG && retAvg == TrendType.LONG)
-                    ret = TrendType.DOUBLE_LONG;
-                else
-                    ret = TrendType.LONG;
-            }
-
-            if (retPrice == TrendType.SHORT || retAvg == TrendType.SHORT)
-            {
-                if (retPrice == TrendType.SHORT && retAvg == TrendType.SHORT)
-                    ret = TrendType.DOUBLE_SHORT;
-                else
-                    ret = TrendType.SHORT;
-            }
+            _trendType = retPrice;
+            _trendDescription = trendDescription;
 
 
-            return ret;
+            return new Tuple<TrendType, string>(retPrice, trendDescription);
         }
 
         public override string ToString()
@@ -1023,33 +1153,7 @@ namespace Midas.Core.Trade
 
             var trend = GetTrend(_scoreThresholdByAvg, _scoreThresholdByPrice);
             sb.Append($"Gerada em: <b>{_predictionDate:dd/MM/yyyy HH:mm}</b>\n");
-            sb.Append($"Trend: <b>{trend}</b>\n\n");
-
-            sb.Append("ByAvg Model:\n");
-            if (ByAvg != null)
-            {
-                int index = 1;
-                ByAvg.AllPredictions.ForEach(p =>
-                {
-                    sb.AppendFormat("#{0} - {1} : {2:0.000}%\n", index, p.Tag, p.Score);
-                    index++;
-                });
-
-                sb.AppendLine();
-            }
-
-            sb.Append("ByPrice Model:\n");
-            if (ByPrice != null)
-            {
-                int index = 1;
-                ByPrice.AllPredictions.ForEach(p =>
-                {
-                    sb.AppendFormat("#{0} - {1} : {2:0.000}%\n", index, p.Tag, p.Score);
-                    index++;
-                });
-
-                sb.AppendLine();
-            }
+            sb.Append($"Trend: <b>{_trendDescription}</b>\n\n");
 
             return sb.ToString();
         }

@@ -64,7 +64,7 @@ namespace Midas.Core
 
         public void WriteToConsole()
         {
-            if (RunMode == RunModeType.Predict || RunMode == RunModeType.Create)
+            if (RunMode == RunModeType.Predict || RunMode == RunModeType.Create || RunMode == RunModeType.Label)
             {
                 Console.WriteLine("Run Configuration as follows:");
                 Console.WriteLine("{0,-20}: {1}", "RunMode", this.RunMode.ToString());
@@ -384,25 +384,30 @@ namespace Midas.Core
             Target2 = 1;
             Target3 = 1;
 
-            if (RunMode == RunModeType.Invest)
+            if (ps.Length > 1)
             {
-                if (ps.Length > 1)
+                if (RunMode == RunModeType.Invest)
                 {
-                    ExperimentName = ps[1];
-                    Range.Start = DateTime.ParseExact(ps[2], "yyyyMMdd", null);
-                    Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
-                    Range.End = Range.End.AddHours(23);
-                    Range.End = Range.End.AddMinutes(59);
-                    DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
+                    if (ps.Length > 1)
+                    {
+                        ExperimentName = ps[1];
+                        Range.Start = DateTime.ParseExact(ps[2], "yyyyMMdd", null);
+                        Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
+                        Range.End = Range.End.AddHours(23);
+                        Range.End = Range.End.AddMinutes(59);
+                        DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
+                    }
 
                     //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
+
                 }
-            }
-            else if(RunMode == RunModeType.Create)
-            {
-                ExperimentName = ps[1];
-                Asset = ps[2];
-                OutputFile = ps[3];
+                else if (RunMode == RunModeType.Create || RunMode == RunModeType.Predict || RunMode == RunModeType.Label)
+                {
+                    ExperimentName = ps[1];
+                    Asset = ps[2];
+                    OutputFile = ps[3];
+                }
+
             }
         }
 
@@ -453,13 +458,13 @@ namespace Midas.Core
                 {
                     var args = new List<string>();
                     foreach (string arg in metaIndicator.Params)
-                    {
-                        args.Add(arg.Replace("$WindowSize", this.WindowSize.ToString()));
-                    }
+                        args.Add(arg);
 
                     Assembly a = Assembly.Load(Convert.ToString(metaIndicator.AssemblyName));
 
-                    args.Add("500");
+                    //Here we multiply the number because if the number is exactly the size of the window, due to the future buffer, the candles would start do disapper
+                    //If Window=30 and Future=15 and if he had set windowsize=30 there will always be a 15 diference.
+                    args.Add((this.WindowSize * 10).ToString());
                     CalculatedIndicator newInd = (CalculatedIndicator)a.CreateInstance(
                         metaIndicator.FullClassName.ToString(),
                         true,
@@ -516,7 +521,8 @@ namespace Midas.Core
 
         Invest,
 
-        Gather
+        Gather,
+        Label
     }
 
     public class AssetParameters

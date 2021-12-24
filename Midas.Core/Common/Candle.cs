@@ -342,27 +342,13 @@ namespace Midas.Core.Common
             }
         }
 
-        public int GetIndecisionThreshold()
+        public double GetIndecisionThreshold()
         {
             var bodySize = CloseValue - OpenValue;
             var candleSize = HighestValue - LowestValue;
             var ratio = bodySize / candleSize;
-            int threshould;
 
-            var candleAge = DateTime.UtcNow - this.OpenTime;
-
-            if (ratio > -0.1 && ratio < 0.1)
-                threshould = 0;
-            else if (ratio >= 0.1 && this.Direction == CandleDirection.Up)
-                threshould = 1;
-            else
-                threshould = -1;
-
-            /*Descomentar para testar alta
-            threshould = 1;
-            */
-
-            return threshould;
+            return ratio;
         }
 
         public double GetCurrentValue()
@@ -570,7 +556,7 @@ namespace Midas.Core.Common
 
     public enum CandleDirection
     {
-        Up,
-        Down
+        Up = 1,
+        Down = 0
     }
 }
