@@ -304,7 +304,7 @@ namespace Midas.Core.Services
 
                 var duration = (op.ExitDate - op.EntryDate);
 
-                sb.Append($"{op.ExitDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.00}%</b>\n");
+                sb.Append($"{op.ExitDate:MMMdd HH:mm} <b>{op.Asset}:{op.CandleType.ToString()} {emoji} {op.Gain:0.000}%</b>\n");
                 sb.Append($"IN: {op.PriceEntryReal:0.00} OUT: {op.PriceExitReal:0.00}\n");
                 sb.Append($"{TimeSpanPlus.ToString(duration)}\n\n");
             });

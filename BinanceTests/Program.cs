@@ -34,7 +34,9 @@ namespace BinanceTests
 
             // tradeSocket.Dispose();
 
-            DownloadCoinFiles();
+            //DownloadCoinFiles();
+
+            Console.WriteLine("Rodando Serviço");
         }
 
         private static void BookSocketTest()

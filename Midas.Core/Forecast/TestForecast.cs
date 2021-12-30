@@ -28,8 +28,8 @@ namespace Midas.Core.Forecast
                 Score = 0.99f,
                 CreationDate = currentTime,
                 DateRange = new DateRange(currentTime, currentTime.AddHours(3)),
-                RatioLowerBound = 0.5/100,
-                RatioUpperBound = 1.5/100
+                RatioLowerBound = 0.75/100,
+                RatioUpperBound = 1/100
             };
             
 

@@ -21,6 +21,7 @@ namespace Midas.Core.Trade
 
         public static AssetPairMiniBroker InitAssetPair(string identification)
         {
+            Console.WriteLine($"Init asset price pair {identification}");
             var pair = new AssetPairMiniBroker(identification);
             _tickers[identification] = pair;
 
@@ -29,14 +30,21 @@ namespace Midas.Core.Trade
 
         public static void UpdatePrice(string assetId, double newPrice)
         {
-            var assetPairInfo = _tickers[assetId];
+            AssetPairMiniBroker assetPairInfo = null;
 
-            assetPairInfo.SetPrice(newPrice);
+            _tickers.TryGetValue(assetId, out assetPairInfo);
+
+            if(assetPairInfo != null)
+                assetPairInfo.SetPrice(newPrice);
         }
 
         public static AssetPairMiniBroker GetTicker(string assetId)
         {
-            return _tickers[assetId];
+            AssetPairMiniBroker miniBroker = null;
+
+            _tickers.TryGetValue(assetId, out miniBroker);
+            
+            return miniBroker;
         }
 
     }
@@ -70,28 +78,33 @@ namespace Midas.Core.Trade
                 {
                     while (true)
                     {
-                        List<BrokerOrder> toRemove = new List<BrokerOrder>();
 
-                        foreach (var pair in _ordersBeingWatched)
-                        {
-                            if (_lastPrice != -1 && pair.Value.IsFilled(_lastPrice))
-                            {
-                                SetOrderFilled(pair.Value);
-
-                                Console.WriteLine("FILLED - " + pair.Value.ToString());
-
-                                toRemove.Add(pair.Value);
-
-                                _processedOrders[pair.Key] = pair.Value;
-                            }
-                        }
-
-                        BrokerOrder order = null;
-                        toRemove.ForEach(o => _ordersBeingWatched.TryRemove(o.OrderId, out order));
-                        Thread.Sleep(2);
                     }
                 });
             }
+        }
+
+        private void MatchOrders(double price)
+        {
+            List<BrokerOrder> toRemove = new List<BrokerOrder>();
+
+            foreach (var pair in _ordersBeingWatched)
+            {
+                if (pair.Value.IsFilled(price))
+                {
+                    SetOrderFilled(pair.Value);
+
+                    Console.WriteLine("FILLED - " + pair.Value.ToString());
+
+                    toRemove.Add(pair.Value);
+
+                    _processedOrders[pair.Key] = pair.Value;
+                }
+            }
+
+            BrokerOrder order = null;
+            toRemove.ForEach(o => _ordersBeingWatched.TryRemove(o.OrderId, out order));
+            Thread.Sleep(2);            
         }
 
         private void SetOrderFilled(BrokerOrder order)

@@ -293,6 +293,25 @@ namespace Midas.Core.Trade
             
             return res;
         }
+
+        public CompareType SoftCompare(double amountA, double amountB, double softnessRatio, double atr)
+        {
+            var currentPrice = _lastTrade.Amount;
+            var ratr = atr / currentPrice;
+
+            var ratrSoft = ratr * softnessRatio;
+
+            double softA = amountA * (1-ratrSoft);
+
+            CompareType res = CompareType.Equal;
+            if(amountB >= amountA)
+                res = CompareType.GreatherThan;
+
+            if(amountB < softA)
+                res = CompareType.LessThan;
+            
+            return res;
+        }        
     }
 
     public enum PriceDirection

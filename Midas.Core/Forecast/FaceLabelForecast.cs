@@ -58,7 +58,7 @@ namespace Midas.Core.Forecast
                         Tag = predictions,
                         Score = 1,
                         RatioLowerBound = 0.75 / 100,
-                        RatioUpperBound = 1.25 / 100
+                        RatioUpperBound = 1 / 100
                     };
 
                     prediction.DateRange = new DateRange(currentTime, currentTime.AddMinutes(10 * 5));

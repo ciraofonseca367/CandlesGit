@@ -98,9 +98,9 @@ namespace Midas.FeedStream
         protected virtual void SocketRunner()
         {
             Candle bufferCandle = null;
-            Thread.Sleep(10000);
 
             TraceAndLog.StaticLog("Socket", "Starting socket runner in 2 seconds...");
+            Thread.Sleep(2000);
 
             Candle lastCandle = null;
             BinanceWebSocket _backupSocket = null;

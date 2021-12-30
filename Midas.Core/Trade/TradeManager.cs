@@ -41,7 +41,6 @@ namespace Midas.Trading
 
         private static Dictionary<string, TradeOperationManager> _managers;
 
-        private TradeLogger _logger;
         private AssetTrader _trader;
 
         private TradeOperation _lastTrade;
@@ -49,8 +48,6 @@ namespace Midas.Trading
         private string _experiment;
 
         private FundSlotManager _slotManager;
-
-        private OrderWatcher _orderWatcher;
 
         static TradeOperationManager()
         {
@@ -99,8 +96,6 @@ namespace Midas.Trading
 
             _fundAccountName = fundAccountName;
 
-            _logger = new TradeLogger();
-
             _fundRefresher = new System.Timers.Timer(60 * 1000);
             _fundRefresher.Elapsed += OnTimedEvent;
             _fundRefresher.AutoReset = true;
@@ -113,11 +108,11 @@ namespace Midas.Trading
             _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
             string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
-            if (!RunParameters.GetInstance().IsTesting)
-            {
-                _orderWatcher = new OrderWatcher(endPoint, _asset);
-                _orderWatcher.StartWatching();
-            }
+            // if (!RunParameters.GetInstance().IsTesting)
+            // {
+            //     _orderWatcher = new OrderWatcher(endPoint, _asset);
+            //     _orderWatcher.StartWatching();
+            // }
         }
 
         // public TradeOperation RestoreState()
@@ -146,14 +141,6 @@ namespace Midas.Trading
             GetFunds();
         }
 
-        public TradeLogger TradeLogger
-        {
-            get
-            {
-                return _logger;
-            }
-        }
-
         public AssetTrader Trader { get => _trader; }
 
         public string Experiment
@@ -162,12 +149,6 @@ namespace Midas.Trading
             {
                 return _experiment;
             }
-        }
-
-
-        public PriceDirection GetPriceDirection()
-        {
-            return _logger.GetDirection(new TimeSpan(0, 5, 0));
         }
 
         internal void GetFunds()
@@ -185,8 +166,6 @@ namespace Midas.Trading
         }
 
         public FundSlotManager SlotManager { get => _slotManager; }
-
-        public OrderWatcher OrderWatcher { get => _orderWatcher; }
 
         public List<TradeOperationDto> GetOpenOperations()
         {
@@ -235,6 +214,11 @@ namespace Midas.Trading
             TelegramBot.SendMessageBuffered(thread, message);
         }
 
+        internal void SendImage(Bitmap img, string msg)
+        {
+            TelegramBot.SendImage(img, msg);
+        }        
+
         public void LoadOperations()
         {
 
@@ -250,23 +234,6 @@ namespace Midas.Trading
             _lastTrade = op;
             _slotManager.ReturnSlot(slot.Id);
             _trader.SaveSnapshot(cc);
-        }
-
-        //Função para possivelmente usar se desejarmos bloquear a operação após uma transação de grandes ganhos
-        private bool IsBlocked(DateTime relativeNow)
-        {
-            bool blocked = false;
-            if (_lastTrade != null)
-            {
-                if (_lastTrade.IsClassic())
-                {
-                    var howLongAgo = relativeNow - _lastTrade.ExitDate;
-                    if (howLongAgo.TotalHours < 30)
-                        blocked = true;
-                }
-            }
-
-            return blocked;
         }
 
         public List<TradeOperation> GetOperationsThreadSafe(DateTime validDate)
@@ -348,17 +315,13 @@ namespace Midas.Trading
 
         public void OnCandleUpdate(Candle c)
         {
-            _logger.AddTrade(c.OpenTime, c.AmountValue);
-
-            var activeOps = _allOperations.Where(o => o.IsIn);
-            foreach (var op in activeOps)
-                op.OnCandleUpdateAsync(c);
+            if(_currentOperation != null)
+                _currentOperation.OnCandleUpdateAsync(c);
         }
 
         public void Dispose()
         {
-            if (_orderWatcher != null)
-                _orderWatcher.Dispose();
+
         }
     }
 

@@ -30,11 +30,11 @@
             "ScoreThresholdByPrice": 0.76,
             "ScoreThresholdByPrice_OtherOptions": [0.42],
             "FundName": "BTCBUSD_MIN15",
-            "AtrStopLoss": 1,
+            "AtrStopLoss": 2,
             "StopLossCompSoftness": 0.001,
             "AvgCompSoftness": 0.05,
             "FollowPricePerc": 0.3,
-            "GainSoftStopTrigger": 0.9
+            "GainSoftStopTrigger": 0.75
         }
     ],
 
@@ -134,18 +134,18 @@
                 "Comment": "First Group"
             },
             {
-                "Units": 3,
-                "GainTrigger": 0.05,
+                "Units": 5,
+                "GainTrigger": 0.03,
                 "Comment": "First Group"
             },
             {
-                "Units": 3,
-                "GainTrigger": 0.1,
+                "Units": 1,
+                "GainTrigger": 0.01,
                 "Comment": "First Group"
             }
         ]
     },
 
-    "UrlPriceModel" : "http://10.0.0.188:81",
+    "UrlPriceModel" : "http://10.0.0.188:8080",
     "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
 }

@@ -107,12 +107,10 @@ namespace Midas.Core
             {
                 Console.WriteLine("Run Configuration as follows:");
                 Console.WriteLine("{0,-20}: {1}", "RunMode", this.RunMode.ToString());
-                Console.WriteLine("{0,-20}: {1}", "CandleType", this.CandleType.ToString());
-                Console.WriteLine("{0,-20}: {1}", "Asset", this.Asset.ToString());
                 Console.WriteLine("{0,-20}: {1}", "Experiment", this.ExperimentName);
-                Console.WriteLine("{0,-20}: {1}", "Range Start", this.Range.Start);
-                Console.WriteLine("{0,-20}: {1}", "Range End", this.Range.End);
                 Console.WriteLine("{0,-20}: {1}", "WindowSize", this.WindowSize.ToString());
+                Console.WriteLine("{0,-20}: {1}", "ImgWidth", this.CardWidth);
+                Console.WriteLine("{0,-20}: {1}", "ImgHeight", this.CardHeight);
                 Console.WriteLine("{0,-20}: {1}", "DelayedTrigger", this.DelayedTriggerEnabled);
                 Console.WriteLine("");
                 Console.WriteLine("{0,-20}: {1}", "Model Avg", this.UrlAvgModel);
@@ -250,6 +248,7 @@ namespace Midas.Core
         public string UrlAvgModel { get; internal set; }
         public string UrlPriceModel { get; internal set; }
         public bool DrawShadow { get; private set; }
+        public double MIN_PEEK_STRENGH { get; internal set; }
 
         private string _dbConString;
         private string _dbConStringCandles;
@@ -259,8 +258,9 @@ namespace Midas.Core
 
         public RunParameters(string[] ps)
         {
-            if (ps.Length == 0)
-                throw new ArgumentException("Give me the name of the config file man!!!");
+            string configFilePath = null;
+            configFilePath = ps[0];
+            MIN_PEEK_STRENGH = 4;
 
             OutputFile = "tabledResults.csv";
             DelayedTriggerEnabled = true;
@@ -272,7 +272,8 @@ namespace Midas.Core
             DateTime start = DateTime.MinValue;
             DateTime end = DateTime.MinValue;
 
-            string configFilePath = ps[0];
+            Console.WriteLine($"Reading config file {configFilePath}");
+
             string configuration = File.ReadAllText(configFilePath);
 
             dynamic stuff = JsonConvert.DeserializeObject(configuration);

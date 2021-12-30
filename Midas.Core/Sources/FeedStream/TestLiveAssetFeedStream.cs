@@ -33,10 +33,10 @@ namespace Midas.FeedStream
             _timeline = new List<TestPoint>()
             {
                 new TestPoint() { WaitDuration = new TimeSpan(0,0,30), Variation = 0.11, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,15,0), Variation = 0.6, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,5,0), Variation = 0.5, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,10,0), Variation = 0.5, Volume = 1},
-                new TestPoint() { WaitDuration = new TimeSpan(0,15,0), Variation = -1.6, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,1,0), Variation = 0.6, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,1,0), Variation = 0.5, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.5, Volume = 1},
+                new TestPoint() { WaitDuration = new TimeSpan(0,1,0), Variation = -1.6, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = 0.7, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = -0.3, Volume = 1},
                 new TestPoint() { WaitDuration = new TimeSpan(0,2,0), Variation = -0.1, Volume = 1},

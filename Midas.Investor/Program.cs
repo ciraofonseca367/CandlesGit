@@ -13,10 +13,12 @@ namespace Midas.InVestor
             ThreadPool.SetMaxThreads(500, 500);
             ThreadPool.SetMinThreads(50, 50);
 
+            Console.WriteLine("Iniciando serviço");
+
             RunParameters runParams = RunParameters.CreateInstace(args);
             _investor = new InvestorService(runParams);
 
-            System.Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "/Users/cironola/Downloads/candlesfaces-fdbef15d7ab2.json");
+            Console.WriteLine("RunParameters loaded");
 
             runParams.WriteToConsole();
 

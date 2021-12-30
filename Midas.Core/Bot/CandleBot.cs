@@ -165,7 +165,7 @@ namespace Midas.Core.Telegram
 
                     _myService.StopTraders();
 
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!");
 
                     break;
 
@@ -179,7 +179,7 @@ namespace Midas.Core.Telegram
 
                     _myService.RestartTraders();
 
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!", replyMarkup: new ReplyKeyboardRemove());
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!");
 
                     break;
 
@@ -211,20 +211,23 @@ namespace Midas.Core.Telegram
 
                         if (img != null)
                         {
-                            await botClient.SendTextMessageAsync(
-                                chatId: message.Chat.Id,
-                                text: trend, parseMode: ParseMode.Html);
-
-                            using (MemoryStream ms = new MemoryStream())
+                            using (img)
                             {
-                                img.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                                ms.Flush();
-                                ms.Position = 0;
+                                await botClient.SendTextMessageAsync(
+                                    chatId: message.Chat.Id,
+                                    text: trend, parseMode: ParseMode.Html);
+
+                                using (MemoryStream ms = new MemoryStream())
+                                {
+                                    img.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                                    ms.Flush();
+                                    ms.Position = 0;
 
 
-                                await botClient.SendPhotoAsync(chatId: message.Chat.Id,
-                                                                photo: new InputOnlineFile(ms),
-                                                                caption: "This is what I look like!");
+                                    await botClient.SendPhotoAsync(chatId: message.Chat.Id,
+                                                                    photo: new InputOnlineFile(ms),
+                                                                    caption: "This is what I look like!");
+                                }
                             }
                         }
                         else
@@ -422,7 +425,7 @@ namespace Midas.Core.Telegram
                             text: "No asset selected");
                     }
 
-                    break;                    
+                    break;
                 case "Force Sell":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
@@ -477,20 +480,29 @@ namespace Midas.Core.Telegram
 
                 default:
                     string[] split = command.Split(':');
-                    string asset = split[0];
-                    string candleType = split[1];
+                    if (split.Length > 1)
+                    {
+                        string asset = split[0];
+                        string candleType = split[1];
 
-                    currentTrader = _myService.GetAssetTrader(command);
+                        currentTrader = _myService.GetAssetTrader(command);
 
-                    if (currentTrader == null)
-                        await botClient.SendTextMessageAsync(
-                            chatId: message.Chat.Id,
-                            text: "Unknown Asset or Service is stopped");
+                        if (currentTrader == null)
+                            await botClient.SendTextMessageAsync(
+                                chatId: message.Chat.Id,
+                                text: "Unknown Asset or Service is stopped");
+                        else
+                        {
+                            session.Data["Trader"] = currentTrader;
+
+                            await SendAssetOptions(botClient, message, asset);
+                        }
+                    }
                     else
                     {
-                        session.Data["Trader"] = currentTrader;
-
-                        await SendAssetOptions(botClient, message, asset);
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "Unknown command");
                     }
 
                     break;

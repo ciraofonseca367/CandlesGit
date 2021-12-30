@@ -373,7 +373,7 @@ namespace Midas.Core.Broker
             {
                 queryString = String.Format(
                     _createMarketOrderQueryStringTemplate,
-                    asset, direction.ToString(), type.ToString(), qty.ToString("0.0000").Replace(",", "."), orderId
+                    asset, direction.ToString(), type.ToString(), qty.ToString("0.000000").Replace(",", "."), orderId
                 );
 
                 if (async)
@@ -382,7 +382,7 @@ namespace Midas.Core.Broker
             else
                 queryString = String.Format(
                     _createLimitOrderQueryStringTemplate,
-                    asset, direction.ToString(), type.ToString(), qty.ToString("0.0000").Replace(",", "."), orderId, price.ToString("0.00")
+                    asset, direction.ToString(), type.ToString(), qty.ToString("0.000000").Replace(",", "."), orderId, price.ToString("0.00")
                 );
 
             var res = Post(_marketOrderUri, queryString, "", timeOut);
@@ -789,9 +789,13 @@ namespace Midas.Core.Broker
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
             var assetInfo = AssetPriceHub.GetTicker(asset);
-            assetInfo.CancelOrder(orderId);
-
-            return true;
+            if (assetInfo != null)
+            {
+                assetInfo.CancelOrder(orderId);
+                return true;
+            }
+            else
+                return false;
         }
         public override double GetPriceQuote(string asset)
         {
@@ -810,9 +814,13 @@ namespace Midas.Core.Broker
             order.Quantity = qty;
 
             var assetInfo = AssetPriceHub.GetTicker(asset);
-            assetInfo.WatchOrder(order);
+            if (assetInfo != null)
+            {
+                assetInfo.WatchOrder(order);
 
-            base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
+                base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
+            }
+
             return order;
         }
 

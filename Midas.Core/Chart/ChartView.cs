@@ -303,13 +303,13 @@ namespace Midas.Core.Chart
                 _painter.FillEllipse(new SolidBrush(gainColor), centerPointX - 2,exitLine.y-2,4,4);
             }
 
-            // _painter.DrawString(
-            //     String.Format("{0}: {1:0.0000} %", opc.State, gain),
-            //     new Font("Arial", 12),
-            //     new SolidBrush(gainColor),
-            //     c1.x + 5,
-            //     lowBodyY + 10
-            // );
+            _painter.DrawString(
+                String.Format("{0}: {1:0.0000} %", opc.State, gain),
+                new Font("Arial", 6),
+                new SolidBrush(gainColor),
+                c1.x + 5,
+                lowBodyY + 10
+            );
         }
 
         internal CandleFeatures DrawCandle(Candle d, Color c, bool drawShadow)
