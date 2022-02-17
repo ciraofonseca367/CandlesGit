@@ -604,7 +604,6 @@ namespace Midas.Trading
         }
 
         private Task _houseKeepingTask;
-        private Task _checkStatusTask;
 
         private void TradeRunner()
         {
@@ -724,7 +723,7 @@ namespace Midas.Trading
         }
 
         private static int STATUS_WAIT = 30000;
-        private static double FIXED_STOPLOSS = 0.75/100;
+        private static double FIXED_STOPLOSS = 0.5/100;
 
         private void ProcessOrderStatus()
         {

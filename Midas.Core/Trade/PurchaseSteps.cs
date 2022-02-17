@@ -15,11 +15,11 @@ namespace Midas.Core.Trade
 
         public PurchaseStepManager(double fund, dynamic config): this()
         {
-            float unitValue = Convert.ToSingle(Math.Round(fund/10,4));
-            float fundFloat = Convert.ToSingle(fund);
+            double unitValue = Convert.ToDouble(Math.Round(fund/10,6));
+            double fundFloat = Convert.ToDouble(fund);
 
             int i=1;
-            float totalUnits=0;
+            double totalUnits=0;
             PurchaseStep step = null;
             int countSteps = config.Count;
             foreach(var rawStep in config)
@@ -27,18 +27,18 @@ namespace Midas.Core.Trade
                 step = new PurchaseStep()
                 {
                     Units = Convert.ToInt32(rawStep.Units),
-                    GainTrigger = Convert.ToSingle(rawStep.GainTrigger),
+                    GainTrigger = Convert.ToDouble(rawStep.GainTrigger),
                     Number = i
                 };
 
                 if(i == countSteps)
-                    step.TotalUnits = Convert.ToSingle(Math.Round(fundFloat - totalUnits,4));
+                    step.TotalUnits = Convert.ToDouble(Math.Round(fundFloat - totalUnits,6));
                 else
                 {
                     var totalStepUnits = unitValue * step.Units;
                     totalUnits += totalStepUnits;
 
-                    step.TotalUnits = Convert.ToSingle(Math.Round(totalStepUnits,4));
+                    step.TotalUnits = Convert.ToDouble(Math.Round(totalStepUnits,6));
                 }
 
                 _steps.Add(step);
@@ -104,6 +104,6 @@ namespace Midas.Core.Trade
             get;
             set;
         }
-        public float TotalUnits { get; internal set; }
+        public double TotalUnits { get; internal set; }
     }
 }

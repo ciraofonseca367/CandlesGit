@@ -284,14 +284,14 @@ namespace Midas.Core.Services
 
         public string GetLastOperations(int number)
         {
-            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(-2));
+            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(100*-1));
             var allOperationsReverse = allOperations.OrderByDescending(op => op.ExitDate).ToList();
 
             StringBuilder sb = new StringBuilder(500);
             double successRate = 0;
 
-            var total = 0;
-            var success = 0;
+            double total = 0;
+            double success = 0;
             allOperationsReverse.Take(number).ToList().ForEach(op =>
             {
                 var emoji = TelegramEmojis.PERSON_SHRUGGING;
@@ -310,7 +310,7 @@ namespace Midas.Core.Services
             });
 
             if(total == 0)
-                sb.Append("No records in the last 48 hrs");
+                sb.Append("No records in the last 10 days");
             else
             {
                 successRate = (success / total) * 100;

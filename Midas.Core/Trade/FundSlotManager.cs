@@ -17,7 +17,7 @@ namespace Midas.Core.Trade
 
             _slots = new List<FundSlot>(numberOfSlots);
 
-            var slotAmount = totalFund / numberOfSlots;
+            var slotAmount = totalFund / Convert.ToDouble(numberOfSlots);
 
             for (int i = 0; i < numberOfSlots; i++)
             {
