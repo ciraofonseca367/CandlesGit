@@ -10,11 +10,11 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Midas.Investor/bin/Debug/net5.0/Midas.Investor.dll",
+            "program": "${workspaceFolder}/Midas.DataGather/bin/Debug/net5.0/Midas.DataGather.dll",
             "args": [
                 "runnerConfig.json"
             ],
-            "cwd": "${workspaceFolder}/Midas.Investor",
+            "cwd": "${workspaceFolder}/Midas.DataGather",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
             "stopAtEntry": false

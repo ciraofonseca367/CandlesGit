@@ -465,7 +465,7 @@ namespace Midas.Core.Services
             return balanceReport;
         }
 
-        public double GetAccountBalance()
+        public Tuple<double,double> GetAccountBalance()
         {
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
@@ -475,6 +475,7 @@ namespace Midas.Core.Services
             var priceETH = b.GetPriceQuote("ETHBUSD");
 
             var balances = b.AccountBalance(60000);
+            double balanceUSD = 0;
             balances.ForEach(b =>
             {
                 if (b.TotalQuantity > 0.0001)
@@ -482,9 +483,15 @@ namespace Midas.Core.Services
                     if (b.Asset == "BTC")
                         b.TotalUSDAmount = b.TotalQuantity * priceBTC;
                     else if (b.Asset == "USDT")
+                    {
                         b.TotalUSDAmount = b.TotalQuantity;
+                        balanceUSD += b.TotalUSDAmount;
+                    }
                     else if (b.Asset == "BUSD")
+                    {
                         b.TotalUSDAmount = b.TotalQuantity;
+                        balanceUSD += b.TotalUSDAmount;
+                    }
                     else if (b.Asset == "ADA")
                         b.TotalUSDAmount = b.TotalQuantity * priceADA;
                     else if (b.Asset == "ETH")
@@ -515,8 +522,8 @@ namespace Midas.Core.Services
                 }
             }
 
-
-            return balances.Sum(b => b.TotalUSDAmount) + inOrderAmount;
+            double totalBalance = balances.Sum(b => b.TotalUSDAmount) + inOrderAmount;
+            return new Tuple<double, double>(totalBalance, balanceUSD);
         }
 
         public void Stop()
@@ -579,17 +586,18 @@ namespace Midas.Core.Services
 
             while (_running)
             {
-                Thread.Sleep(1000*60);
+                Thread.Sleep(1000*45);
 
                 try
                 {
-                    if(DateTime.UtcNow.Hour == 0)
+                    var now = DateTime.UtcNow;
+                    if(now.Hour == 0 && now.Minute % 30 == 0)
                     {
-                        double balance = GetAccountBalance();
-                        var br = new BalanceReport(balance);
+                        var balances = GetAccountBalance();
+                        var br = new BalanceReport(balances.Item1,balances.Item2);
                         br.SaveOrUpdate(_params.DbConString);
 
-                        TelegramBot.SendMessage($"Balance for the {DateTime.Now:yyyy-MM-dd} is $ {balance:0.000}");
+                        TelegramBot.SendMessage($"Balance for the {now:yyyy-MM-dd} is $ {balances.Item1:0.000}, in USD Only: {balances.Item2:0.000}");
                         TraceAndLog.StaticLog("Investor","Daily balance updated");
                     }
                 }
@@ -625,14 +633,17 @@ namespace Midas.Core.Services
     public class BalanceReport
     {
         public double Balance { get; set; }
+
+        public double UsdBalance { get; set; }
         public DateTime Date { get; set; }
         private string _dateKey;
 
-        public BalanceReport(double balance)
+        public BalanceReport(double balance, double usdBalance)
         {
             Date = DateTime.UtcNow;
             _dateKey = Date.ToString("yyyy-MM-dd HH");
             Balance = balance;
+            UsdBalance = usdBalance;
         }
 
         public string DateKey
