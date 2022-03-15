@@ -308,6 +308,7 @@ namespace Midas.Trading
         {
             if (_state == TradeOperationState.In)
             {
+                
                 if (ChangeState(TradeOperationState.WaitingOut))
                 {
                     var amountLeftToSell = GetAmountLeftToSell();
@@ -836,9 +837,7 @@ namespace Midas.Trading
 
         private void ExecuteCloseOperationTasks(bool hasFailed = false)
         {
-            Console.WriteLine("Iniciando saida: \n");
-            _myMan.OperationFinished(this, _lastCandle, _fundSlot);
-            
+            Console.WriteLine("Iniciando saida: \n");            
 
             _exitDateInUtc = DateTime.UtcNow;
             _exitDate = LastCloseDate;
@@ -947,6 +946,7 @@ namespace Midas.Trading
                         mustStopByStopLoss || //StopLoss
                         mustStopByAvg)
                     {
+                        _myMan.OperationFinished(this, _lastCandle, _fundSlot);
                         await AskToCloseOperation(true);
 
                         Persist();
