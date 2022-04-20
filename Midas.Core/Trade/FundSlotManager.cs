@@ -30,6 +30,13 @@ namespace Midas.Core.Trade
                     LastTaken = DateTime.MinValue
                 });
             }
+
+            Dump();
+        }
+
+        public int GetNumberOfSlotsAvailable()
+        {
+            return _slots.Count(s => s.InUse == false);
         }
 
         public FundSlot TryGetSlot()
@@ -40,6 +47,7 @@ namespace Midas.Core.Trade
                 fundSlot = _slots.FirstOrDefault(s => s.InUse == false);
                 if (fundSlot != null)
                 {
+                    Console.WriteLine($"Peguei o SLOT: {fundSlot.Id}");
                     fundSlot.InUse = true;
                     fundSlot.LastTaken = DateTime.Now;
                 }
@@ -50,16 +58,18 @@ namespace Midas.Core.Trade
 
         public void ReturnSlot(int slotId)
         {
+            Console.WriteLine("Returning slot (OUTSIDE): "+slotId);
             lock (_slots)
             {
                 var slot = _slots[slotId];
                 if (slot.InUse)
                 {
+                    Console.WriteLine("Returning slot: "+slotId);
                     slot.InUse = false;
                     slot.LastReturned = DateTime.Now;
                 }
                 else
-                    throw new ArgumentException("Trying to return a slot that is not in use...");
+                    Console.WriteLine("Trying to return a slot that is not in use...");
             }
         }
 
@@ -74,7 +84,7 @@ namespace Midas.Core.Trade
         {
             StringBuilder sb = new StringBuilder();
             _slots.ForEach(s => {
-                sb.Append(s.ToString(assetPrice));
+                sb.Append(s.ToString());
                 sb.AppendLine();
             });
 
@@ -92,6 +102,12 @@ namespace Midas.Core.Trade
         }
 
         public double SlotAmount
+        {
+            get;
+            set;
+        }
+
+        public string Identifier
         {
             get;
             set;
@@ -115,14 +131,9 @@ namespace Midas.Core.Trade
             set;
         }
 
-        public string ToString(double assetPrice)
-        {
-            return $"{Id} - {SlotAmount:0.00000}:${assetPrice*SlotAmount:0.00} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
-        }
-
         public override string ToString()
         {
-            return $"{Id} - {SlotAmount:0.00000} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
+            return $"{Identifier} - {Id} - {SlotAmount:0.00000} - {(InUse ? "Em uso" : "Livre")} - {LastTaken:HH:mm:ss} - {LastReturned:HH:mm:ss}";
         }
     }
 }

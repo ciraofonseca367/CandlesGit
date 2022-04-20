@@ -242,6 +242,7 @@ namespace Midas.Core
 
         public string DbConStringCandles { get => _dbConStringCandles; }
         public string AverageToForecast { get; set; }
+        public string CustomSearchKey { get; private set; }
         public string TelegramBotCode { get; private set; }
         public string Forecaster { get; internal set; }
         public string FeedStreamType { get; internal set; }
@@ -249,10 +250,13 @@ namespace Midas.Core
         public string UrlPriceModel { get; internal set; }
         public bool DrawShadow { get; private set; }
         public double MIN_PEEK_STRENGH { get; internal set; }
+        public Dictionary<string, string> NamedParams { get => _namedParams; set => _namedParams = value; }
 
         private string _dbConString;
         private string _dbConStringCandles;
         private int _forecastWindow;
+
+        private Dictionary<string,string> _namedParams;
 
         private dynamic _rootIndicators;
 
@@ -260,11 +264,15 @@ namespace Midas.Core
         {
             string configFilePath = null;
             configFilePath = ps[0];
-            MIN_PEEK_STRENGH = 4;
+            MIN_PEEK_STRENGH = 0.1;
+
+            string timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
             OutputFile = "tabledResults.csv";
             DelayedTriggerEnabled = true;
             IndecisionThreshold = 0.4;
+
+            NamedParams = new Dictionary<string, string>();
 
             TelegramBotCode = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
 
@@ -293,6 +301,7 @@ namespace Midas.Core
             FeedStreamType = Convert.ToString(stuff.FeedStreamType);
             BrokerName = Convert.ToString(stuff.BrokerName);
             AverageToForecast = Convert.ToString(stuff.AverageToForecast);
+            CustomSearchKey = Convert.ToString(stuff.CustomSearchKey);
 
             CandleType = (CandleType)Enum.Parse(typeof(CandleType), stuff.CandleType.ToString(), true);
             start = Convert.ToDateTime(stuff.StartDate);
@@ -396,7 +405,6 @@ namespace Midas.Core
                         Range.End = DateTime.ParseExact(ps[3], "yyyyMMdd", null);
                         Range.End = Range.End.AddHours(23);
                         Range.End = Range.End.AddMinutes(59);
-                        DelayedTriggerEnabled = Convert.ToBoolean(ps[4]);
                     }
 
                     //dotnet run -- runnerConfig.json 50 run_CandleFocus_OperationControl 20210725 20210729 None -0.5 6 false 20 1 1 1 LONG0102;
@@ -409,7 +417,25 @@ namespace Midas.Core
                     OutputFile = ps[3];
                 }
 
+                int counter = 1;
+                foreach(string param in ps)
+                {
+                    var paramSplit = param.Split(":");
+                    string paramVoid = $"param{counter}";
+
+                    if(paramSplit.Length == 2)
+                    {
+                        NamedParams[paramSplit[0]] = paramSplit[1];
+                    }
+                    else
+                    {
+                        NamedParams[paramVoid] = paramSplit[0];
+                    }
+                    counter++;
+                }
             }
+
+            ExperimentName = timeStamp + "_" + ExperimentName;
         }
 
         dynamic _rootAssets = null;

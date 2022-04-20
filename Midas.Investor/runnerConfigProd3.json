@@ -4,36 +4,48 @@
     "Asset": "BTCBUSD",
     "StartDate": "2021-11-01 00:00:00",
     "EndDate": "2021-11-15 23:59:59",
-    "CandleType": "MIN30",
+    "CandleType": "MIN5",
     "WindowSize": 45,
     "CardWidth": 250,
     "CardHeight": 250,
-    "IsTesting": true,
+    "IsTesting": false,
     "DrawShadow": false,    
     "DelayedTriggerEnabled": false,
-    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
-    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
+    "OutputDirectory": "cfi",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
 
-    "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
+    "TelegramBotCode": "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4",
 
     "Forecaster": "FaceLabelForecast",
-    "FeedStreamType": "Historical",
-    "BrokerName": "TestBroker",
-    "PreloadCandles": false,
+    "FeedStreamType": "Live",
+    "BrokerName": "Binance",
+    "PreloadCandles": true,
 
     "Assets": [
         {
-            "Asset": "ETHUSDT",
+            "Asset": "BTCBUSD",
             "CandleType": "HOUR1",
             "ScoreThresholdByAvg": 1,
             "ScoreThresholdByPrice": 0.76,
-            "FundName": "ETHBUSD_MIN15",
+            "FundName": "BTC_Funds",
             "AtrStopLoss": 0.5,
             "StopLossCompSoftness": 0.001,
             "AvgCompSoftness": 0.30,
             "FollowPricePerc": 0.3,
             "GainSoftStopTrigger": 2
+        },
+        {
+            "Asset": "ETHBUSD",
+            "CandleType": "HOUR1",
+            "ScoreThresholdByAvg": 1,
+            "ScoreThresholdByPrice": 0.76,
+            "FundName": "ETH_Funds",
+            "AtrStopLoss": 0.5,
+            "StopLossCompSoftness": 0.001,
+            "AvgCompSoftness": 0.10,
+            "FollowPricePerc": 0.3,
+            "GainSoftStopTrigger": 0.75
         }
     ],
 
@@ -134,20 +146,16 @@
     ],
 
 
-    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
+    "FFmpegBasePath": "/home/cfg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
 
-    "Params": {
-        "Avg": "30"
-    },
-
     "BrokerParameters": {
-        "ApiKey": "Egocw2priEukckugyrsEzlb0z6KFo1MNFM0SxEdBlT5RUh4rN6PYL9z9kWX9nqh2",
-        "ApiSecret": "rIoZfJYGmo0lIZ2l8P26T9udYWPG0f7NDL3VR098TCGVk3woMzkfFDioDR0Fl5nG",
-        "EndPoint": "https://testnet.binance.vision",
-        "WebSocket": "wss://testnet.binance.vision/ws",
-        "Host": "testnet.binance.vision",
+	"ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",
+        "ApiSecret": "3vLv8JPjtUW47kHpUyFvwD3CbLPuZG2sEqW68z6zqqOB1yUZEWD5kUbovOhmdF3Y",
+        "EndPoint": "https://api.binance.com",
+        "WebSocket": "wss://api.binance.com/ws",
+        "Host": "api.binance.com",
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
         "MAKER_SELL_DISCOUNT": 0.03,
@@ -172,6 +180,6 @@
         ]
     },
 
-    "UrlPriceModel" : "http://10.0.0.188:8080",
+    "UrlPriceModel" : "http://146.148.98.144:3389",
     "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
 }

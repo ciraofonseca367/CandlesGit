@@ -20,6 +20,7 @@ namespace Midas.Core
             FeedStream.AssetFeedStream stream = null;
             stream = source.GetFeedStream(asset, range, candleType);
             return stream;
+
         }
 
         public static IEnumerable<Candle> GetCandlesFromRest(string asset, CandleType queryType, DateRange range)

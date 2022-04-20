@@ -483,7 +483,45 @@ namespace Midas.Core.Card
             return status;
         }
 
+        private string GetMultipleTags_Long(double currentValue, DateTime presentTime)
+        {
+            var forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA24");
+            var valuePoint1 = forecastOnPrice.AverageOrStop(-1, 24);
+            string strPoint1 = valuePoint1.Item2.ToString("0.00");
+            string strTime1 = (valuePoint1.Item1.TotalMinutes / 5).ToString("0");
 
+            forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA30");
+            var valuePoint2 = forecastOnPrice.AverageOrStop(-1, 30);
+            string strPoint2 = valuePoint2.Item2.ToString("0.00");
+            string strTime2 = (valuePoint2.Item1.TotalMinutes / 5).ToString("0");
+
+            forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA36");
+            var valuePoint3 = forecastOnPrice.AverageOrStop(-1, 36);
+            string strPoint3 = valuePoint3.Item2.ToString("0.00");
+            string strTime3 = (valuePoint3.Item1.TotalMinutes / 5).ToString("0");
+
+            return $"{strPoint1}_{strTime1}_{strPoint2}_{strTime2}_{strPoint3}_{strTime3}_";
+        }
+
+        private string GetMultipleTags_Short(double currentValue, DateTime presentTime)
+        {
+            var forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA6");
+            var valuePoint1 = forecastOnPrice.AverageOrStop(1, 6);
+            string strPoint1 = valuePoint1.Item2.ToString("0.00");
+            string strTime1 = (valuePoint1.Item1.TotalMinutes / 5).ToString("0");
+
+            forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA12");
+            var valuePoint2 = forecastOnPrice.AverageOrStop(1, 12);
+            string strPoint2 = valuePoint2.Item2.ToString("0.00");
+            string strTime2 = (valuePoint2.Item1.TotalMinutes / 5).ToString("0");
+
+            forecastOnPrice = GetCompleteForecastOnAnAverage(presentTime, "MA24");
+            var valuePoint3 = forecastOnPrice.AverageOrStop(1, 24);
+            string strPoint3 = valuePoint3.Item2.ToString("0.00");
+            string strTime3 = (valuePoint3.Item1.TotalMinutes / 5).ToString("0");
+
+            return $"{strPoint1}_{strTime1}_{strPoint2}_{strTime2}_{strPoint3}_{strTime3}_";
+        }
 
         private string GetForecastOnPrice(double currentValue, DateTime presentTime)
         {
@@ -654,20 +692,7 @@ namespace Midas.Core.Card
         }
         public string GetTag(double closeValue, DateTime closeTime, string averageName)
         {
-            //var tagAvg = GetForecastOnAnAverage(closeValue,closeTime, averageName);
-            var tagPrice = GetForecastOnPriceTrend_2(closeValue, closeTime);
-
-            // var avgVolumes = _params.Indicators.Where(i => i.Name == "VOLMA30").FirstOrDefault();
-
-            // var maxAvgVolume = (avgVolumes.TakeSnapShot(CardRange)).Max(v => v.AmountValue);
-
-            // var lastCandle = GetLastCandle();
-
-            // var ratio = ((maxAvgVolume / lastCandle.Volume) * 100).ToString("0.00").Replace(".","p");
-
-            var peek = HasRecentPeakVolume_byAvg() ? "peek" : String.Empty;
-
-            return $"{tagPrice} {peek}";
+            return GetMultipleTags_Long(closeValue, closeTime);
         }
 
         public string GetFileName(string tag, string asset)
@@ -697,24 +722,17 @@ namespace Midas.Core.Card
 
         public string SaveFiles(string uniqueDirectoryName, string tagName, int imgSequenceCluster)
         {
-            string name = GetFileName(tagName, _params.Asset);
-            string fileName = $"{imgSequenceCluster:00} {name}.gif";
-            string metadataFile = $"{imgSequenceCluster:00} {name}.json";
+            string name = tagName;
+            string fileName = $"{imgSequenceCluster:00}_{name}.gif";
 
-            using (FileStream fs = File.OpenWrite(Path.Combine(uniqueDirectoryName, fileName)))
+            var dirPath = uniqueDirectoryName + "/" + _beginWindow.ToString("MM_yyyy");
+            if (!Directory.Exists(dirPath))
+                Directory.CreateDirectory(dirPath);
+
+            using (FileStream fs = File.OpenWrite(Path.Combine(dirPath, fileName)))
             {
                 this.writeImage(fs);
             }
-
-            // using (StreamWriter writer = new StreamWriter(
-            //     File.OpenWrite(Path.Combine(uniqueDirectoryName, metadataFile)))
-            //     )
-            // {
-            //     var normalizedFeatureList = MLUtil.GetFeaturesByPeriod(_cfImg.FeatureList);
-            //     var jsonFeatures = JsonConvert.SerializeObject(normalizedFeatureList);
-            //     writer.Write(jsonFeatures);
-            //     writer.Flush();
-            // }
 
             return fileName;
         }
@@ -980,43 +998,66 @@ namespace Midas.Core.Card
 
             //_allCandles.ToList().GetRange(comparePeriod + 3, periodsInTheFuture - 3);
         }
-        public Tuple<TimeSpan, double> AverageOrStop(double stop, int numPeriodos=6)
+        /*
+        stop: If the value is less then zero we calculate de AvgOrStop considering a long position, else we consider the calculations
+        as a short position
+        */
+        public Tuple<TimeSpan, double> AverageOrStop(double stop, int numPeriodos = 6)
         {
             double ret = 0;
-            var startValue = StartValue;
             TimeSpan duration = new TimeSpan();
 
-            DateTime start = ClippedCandles.First().PointInTime_Open;
-
-            for (int i = 0; i < PureCandles.Count(); i++)
+            if (ClippedCandles.Count() > 0)
             {
-                var candle = PureCandles[i];
-                var avg = ClippedCandles[i];
-                double value = 0;
+                DateTime start = PureCandles.First().PointInTime_Open;
+                var startValue = PureCandles.First().CloseValue;
 
-                if (candle.LowestValue < stop)
+                for (int i = 0; i < PureCandles.Count(); i++)
                 {
-                    value = stop;
+                    var candle = PureCandles[i];
+                    var avg = ClippedCandles[i];
+                    double value = 0;
+
+                    if (avg.Periodo >= numPeriodos) //Depois de 6 periodos
+                    {
+                        if (stop < 0)
+                        {
+                            if (candle.CloseValue < avg.AmountValue)
+                                value = avg.AmountValue;
+                        }
+                        else
+                        {
+                            if (candle.CloseValue > avg.AmountValue)
+                                value = avg.AmountValue;
+                        }
+                    }
+
+                    var diff = ((candle.LowestValue - startValue) / startValue) * 100;
+
+                    if (stop < 0)
+                    {
+                        if (diff < stop)
+                            value = startValue * (1 + (stop / 100));
+                    }
+                    else
+                    {
+                        if (diff > stop)
+                            value = startValue * (1 + (stop / 100));
+                    }
+
+                    if (value != 0)
+                    {
+                        duration = candle.PointInTime_Open - start;
+                        ret = ((value - startValue) / startValue) * 100;
+                        break;
+                    }
                 }
 
-                if (avg.Periodo >= numPeriodos) //Depois de 6 periodos
+                if (ret == 0)
                 {
-                    if (candle.CloseValue < avg.AmountValue)
-                        value = avg.AmountValue;
+                    ret = 0;
+                    duration = new TimeSpan(5, 0, 0);
                 }
-
-                if (value != 0)
-                {
-                    duration = candle.PointInTime_Open - start;
-                    ret = ((value - startValue) / startValue) * 100;
-                    break;
-                }
-            }
-
-            if (ret == 0)
-            {
-                ret = this.FinalClosing;
-                duration = new TimeSpan(3, 0, 0);
             }
 
             return new Tuple<TimeSpan, double>(duration, ret);

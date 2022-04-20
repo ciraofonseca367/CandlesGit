@@ -160,7 +160,7 @@ namespace Midas.DataGather
         private FetchResult FetchCurrentState(Dictionary<string, string> lastState)
         {
             //AIzaSyC_nFQ07WunNDNRCY7rLoz-OK092bcfl20
-            string url = "https://www.googleapis.com/customsearch/v1?key=AIzaSyC_nFQ07WunNDNRCY7rLoz-OK092bcfl20&cx=eb92c0399a22b5aa7&q={0}&dateRestrict=d1&num=10&start={1}";
+            string url = "https://www.googleapis.com/customsearch/v1?key={0}&cx=eb92c0399a22b5aa7&q={1}&dateRestrict=d1&num=10&start={2}";
             string searchTerm = "bitcoin";
 
             int totalNumber = 0;
@@ -177,7 +177,8 @@ namespace Midas.DataGather
 
             for (int i = 0; i <= 3; i++)
             {
-                string newsUrl = string.Format(url, searchTerm, (i * 10 + 1).ToString());
+                string newsUrl = string.Format(url, _params.CustomSearchKey, searchTerm, (i * 10 + 1).ToString());
+                Console.WriteLine("Fetching from: "+newsUrl);
 
                 //Console.WriteLine(newUrl);
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(newsUrl);
@@ -281,15 +282,11 @@ namespace Midas.DataGather
             {
                 try
                 {
-
                     foreach (var item in entries)
                     {
                         TelegramBot.SendMessage(item.Link);
-
                         Thread.Sleep(100);
                     }
-
-
                 }
                 catch (Exception e)
                 {

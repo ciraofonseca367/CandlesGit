@@ -144,6 +144,11 @@ namespace Midas.Broadcast
 
             var runParams = _params;
 
+            /*
+            1. Corrigir aqui para utilizar a library nova
+            2. Fazer mecanismo diference para iniciar ou não o encoder.
+            */
+            
             try
             {
                 liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandlesFromFile(

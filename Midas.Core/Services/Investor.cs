@@ -38,6 +38,8 @@ namespace Midas.Core.Services
 
         private Dictionary<string, AssetTrader> _traders;
 
+        private ExperimentDto _experiment;
+
         public InvestorService(RunParameters parans)
         {
             TelegramBot.SetApiCode(parans.TelegramBotCode);
@@ -47,6 +49,7 @@ namespace Midas.Core.Services
 
             _mongoClient = new MongoClient(parans.DbConString);
 
+            _experiment = new ExperimentDto();
         }
 
         public string GetAssetsConfig()
@@ -83,6 +86,11 @@ namespace Midas.Core.Services
         public void Start()
         {
             _running = true;
+
+            _experiment.StartDate = DateTime.Now;
+            _experiment.Name = _params.ExperimentName;
+            _experiment.EndDate = null;
+            SaveExperiment(_params.DbConString);
 
             LoadTraders();
 
@@ -521,6 +529,9 @@ namespace Midas.Core.Services
                     inOrderAmount += order.Quantity * price;
                 }
             }
+            //We need to increment here in order to account for the amount of dollars allocated in open orders.
+            //When we call this method from the totalizer procedure, if we have open orders and not account for open orders, the amount saved for the day will be 
+            balanceUSD += inOrderAmount;
 
             double totalBalance = balances.Sum(b => b.TotalUSDAmount) + inOrderAmount;
             return new Tuple<double, double>(totalBalance, balanceUSD);
@@ -541,6 +552,9 @@ namespace Midas.Core.Services
             Console.WriteLine("Saindo...");
 
             StopTraders(false);
+
+            _experiment.EndDate = DateTime.Now;
+            SaveExperiment(_params.DbConString);            
 
             _candleBot.Stop();
 
@@ -573,6 +587,18 @@ namespace Midas.Core.Services
 
             foreach (var pair in _traders)
                 pair.Value.Start();
+        }
+        
+        private void SaveExperiment(string conString)
+        {
+            var client = new MongoClient(conString);
+            var database = client.GetDatabase("CandlesFaces");
+            var dbCol = database.GetCollection<ExperimentDto>("Experiments");
+
+            var result = dbCol.ReplaceOne(
+                item => item.Name == _experiment.Name,
+                _experiment,
+                new ReplaceOptions { IsUpsert = true });
         }
 
         private void LoadTraders()
@@ -671,6 +697,14 @@ namespace Midas.Core.Services
                 this,
                 new ReplaceOptions { IsUpsert = true });
         }
+
+    }
+
+    public class ExperimentDto
+    {
+        public string Name { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
     }
 

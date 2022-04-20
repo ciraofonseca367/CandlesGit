@@ -1,14 +1,14 @@
 {
-    "RunMode": "Label",
+    "RunMode": "Create",
     "IsTesting": "true",
     "ExperimentName": "Run_Prediction",
     "Asset": "BNBUSDT",
     "StartDate": "2021-01-01 00:00:00",
-    "EndDate": "2021-09-30 23:59:59",
-    "CandleType": "MIN5",
+    "EndDate": "2022-03-31 23:59:59",
+    "CandleType": "HOUR1",
     "ScoreThreshold": 0.35,
     "WindowSize": 45,
-    "ForecastWindow": 15,
+    "ForecastWindow": 120,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "OutputFileResults": "Comparativo1.csv",
     "CardWidth": 250,
@@ -30,16 +30,6 @@
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
-            "Size": 2
-        },
-        {
-            "Name": "MA100",
-            "AssemblyName": "Midas.Core",
-            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [100],
-            "Source": "Main",
-            "ChartType": "Line",
-            "Color": "Brown",
             "Size": 2
         },
         {
@@ -73,6 +63,39 @@
             "Size": 2
         },
         {
+            "Name": "MA24",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [24],
+            "Target": "NONE",
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 2
+        },        
+        {
+            "Name": "MA30",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [30],
+            "Target": "NONE",
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 2
+        },        
+        {
+            "Name": "MA36",
+            "AssemblyName": "Midas.Core",
+            "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
+            "Params": [36],
+            "Target": "NONE",
+            "Source": "Main",
+            "ChartType": "Line",
+            "Color": "Black",
+            "Size": 2
+        },
+        {
             "Name": "ATR",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.ATRIndicator",
@@ -91,6 +114,7 @@
             "Color": "Black",
             "ChartType": "Line",
             "Size": 2
-        }        
+        }
+        
     ]
 }

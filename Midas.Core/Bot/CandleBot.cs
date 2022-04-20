@@ -280,12 +280,11 @@ namespace Midas.Core.Telegram
 
                     break;
                 case "Slots":
-
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     if (currentTrader != null)
                     {
-                        var dumpRes = currentTrader.GetSlotDump();
+                        var dumpRes = "Deprecated";
 
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
@@ -391,7 +390,7 @@ namespace Midas.Core.Telegram
                     }
                     catch (Exception err)
                     {
-                        allCoins = "Error: " + err.Message;
+                        allCoins = "Error: " + err.ToString();
                     }
 
                     await botClient.SendTextMessageAsync(

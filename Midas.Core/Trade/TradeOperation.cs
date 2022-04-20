@@ -251,7 +251,8 @@ namespace Midas.Trading
             {
                 //double stopLoss = ratr * _myMan.Trader.AssetParams.AtrStopLoss;
                 _entryRAtr = ratr;
-                double stopLoss = FIXED_STOPLOSS;
+                //double stopLoss = FIXED_STOPLOSS;
+                double stopLoss = _entryRAtr * _myMan.Trader.AssetParams.AtrStopLoss;
                 _firstStopLossRate = stopLoss;
 
                 _entryDate = point;
@@ -307,8 +308,7 @@ namespace Midas.Trading
         private async Task AskToCloseOperation(bool hardStopped = true)
         {
             if (_state == TradeOperationState.In)
-            {
-                
+            {                
                 if (ChangeState(TradeOperationState.WaitingOut))
                 {
                     var amountLeftToSell = GetAmountLeftToSell();
@@ -351,14 +351,16 @@ namespace Midas.Trading
         }
 
 
-        private static int AVG_STOP_NUMBER = 6;
+        //private static int AVG_STOP_NUMBER = 12;
         internal bool ShouldStopByMovingAverage()
         {
             bool shouldStop = false;
             bool mustStop = false;
 
-            var ma = _myMan.Trader.GetMAValue($"MA{AVG_STOP_NUMBER}");
-            if (OperationDurationInPeriods > AVG_STOP_NUMBER) //Timeout da operação, desde o inicio ou último sinal de long
+            int avg = Convert.ToInt32(RunParameters.GetInstance().NamedParams["Avg"]);
+
+            var ma = _myMan.Trader.GetMAValue($"MA{avg}");
+            if (OperationDurationInPeriods > avg) //Timeout da operação, desde o inicio ou último sinal de long
             {
                 //if(LastValue > PriceEntryAverage)
                     shouldStop = true;
@@ -546,6 +548,7 @@ namespace Midas.Trading
         {
             StringBuilder text = new StringBuilder();
 
+            text.Append($"Model:{ModelName}\n");
             text.Append($"Asset:{_asset}:{_candleType.ToString()} - Gain: {GetGain().ToString("0.000")}%\nEntry: {this.PriceEntryAverage.ToString("0.00")}\n");
             text.Append($"Duration: {TimeSpanPlus.ToString(this.OperationDurationUTC)}\nLast Long:{TimeSpanPlus.ToString(LastLongSignalDuration)}\nEntry Spread: {EntrySpreadAverage.ToString("0.00")}%\n");
             text.Append($"State: {State}\nExit Spread: {this.ExitSpreadAverage.ToString("0.00")}%\n");
@@ -724,7 +727,7 @@ namespace Midas.Trading
         }
 
         private static int STATUS_WAIT = 30000;
-        private static double FIXED_STOPLOSS = 0.5/100;
+        //private static double FIXED_STOPLOSS = 0.5/100;
 
         private void ProcessOrderStatus()
         {
@@ -837,7 +840,7 @@ namespace Midas.Trading
 
         private void ExecuteCloseOperationTasks(bool hasFailed = false)
         {
-            Console.WriteLine("Iniciando saida: \n");            
+            Console.WriteLine($"Iniciando saida: {this._myStrId}\n");
 
             _exitDateInUtc = DateTime.UtcNow;
             _exitDate = LastCloseDate;
@@ -859,12 +862,6 @@ namespace Midas.Trading
 
 
             Console.WriteLine("Terminando saida\n" + this.ToString());
-            if (_myMan != null)
-            {
-                _myMan.SendMessage(this._asset, prefix + " - Concluindo operação - " + this.ToString());
-                var snapshot = _myMan.Trader.GetSnapshotForBot();
-                _myMan.SendImage(snapshot, $"That's how I looked! {TelegramEmojis.SMILING_FACE_WITH_HORNS}");
-            }
         }
 
         public async void OnCandleUpdateAsync(Candle newCandle)
@@ -942,7 +939,7 @@ namespace Midas.Trading
 
                     var mustStopByStopLoss = LastValue <= _stopLossMarker;
 
-                    if (mustStopBySoftStop ||
+                    if (//mustStopBySoftStop ||
                         mustStopByStopLoss || //StopLoss
                         mustStopByAvg)
                     {
@@ -1018,7 +1015,7 @@ namespace Midas.Trading
             var ret = new TradeOperationDto()
             {
                 Asset = _asset,
-                ModelName = _modelName,
+                ModelName = ModelName,
                 Experiment = _myMan.Experiment,
                 LastUpdate = _lastUpdate,
                 CandleType = _candleType,
@@ -1076,6 +1073,8 @@ namespace Midas.Trading
         }
 
         public double SoftStopLossMarker { get => _softStopLossMarker; }
+        public string ModelName { get => _modelName; set => _modelName = value; }
+
         public void Persist(bool withLogs = true)
         {
             try
@@ -1090,6 +1089,10 @@ namespace Midas.Trading
                     item => item._id == myDto._id,
                     myDto,
                     new ReplaceOptions { IsUpsert = true });
+            }
+            catch(InvalidOperationException)
+            {
+                TraceAndLog.StaticLog("Persist", "Oooppsss duas threads escrevendo na coleção ao mesmo tempo");
             }
             catch (Exception err)
             {

@@ -43,6 +43,60 @@ namespace Midas.Core.Indicators
         }
     }
 
+    public class MAXATRIndicator : CalculatedIndicator
+    {
+        public MAXATRIndicator(string bufferSize, string windowSize) : base(bufferSize, windowSize)
+        { }
+
+        public MAXATRIndicator(object[] args) : base(args)
+        { }
+
+        public override IStockPointInTime AddFramePoint(IStockPointInTime point)
+        {
+            var buffer = base._historical.GetList();
+            List<double> atrs = new List<double>();
+            IStockPointInTime last = null;
+
+            Candle p = null;
+            if (buffer.Count() > 1)
+            {
+                foreach (Candle c in buffer.Reverse())
+                {
+                    if (p != null)
+                    {
+                        double diff1 = Math.Abs(c.HighestValue - p.LowestValue);
+                        double diff2 = Math.Abs(c.HighestValue - p.CloseValue);
+                        double diff3 = Math.Abs(c.LowestValue - p.CloseValue);
+                        double diff4 = Math.Abs(c.HighestValue - c.LowestValue);
+
+                        var numbers = new List<double>() { diff1, diff2, diff3, diff4 };
+
+                        atrs.Add(numbers.Max());
+                    }
+
+                    p = c;
+                }
+
+                var atr = atrs.Max();
+
+                var newPoint = new Indicator()
+                {
+                    AmountValue = atr,
+                    PointInTime_Open = point.PointInTime_Open.AddMilliseconds(
+                        (point.PointInTime_Close - point.PointInTime_Open).TotalMilliseconds / 2
+                    ),
+
+                    PointInTime_Close = point.PointInTime_Close
+                };
+
+                last = newPoint;
+
+                base._currentWindow.Enqueue(newPoint);
+            }
+
+            return last;
+        }
+    }
     public class ATRIndicator : CalculatedIndicator
     {
         public ATRIndicator(string bufferSize, string windowSize) : base(bufferSize, windowSize)
@@ -60,7 +114,7 @@ namespace Midas.Core.Indicators
             Candle p = null;
             if (buffer.Count() > 1)
             {
-                foreach (Candle c in buffer)
+                foreach (Candle c in buffer.Reverse())
                 {
                     if (p != null)
                     {

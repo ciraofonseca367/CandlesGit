@@ -317,7 +317,7 @@ namespace Midas.Core.Common
 
         public string GetCompareStamp()
         {
-            return CloseTime.ToString("yyyy-MM-dd HH:mm");
+            return OpenTime.ToString("yyyy-MM-dd HH:mm");
         }
 
         public bool Compare(Candle compareCandle)

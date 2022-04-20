@@ -105,6 +105,7 @@ namespace Midas.Trading
 
             GetFunds();
 
+            Console.WriteLine($"Starting Trader with {brokerConfig.NumberOfSlots} slots");
             _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
             string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
@@ -217,7 +218,7 @@ namespace Midas.Trading
         internal void SendImage(Bitmap img, string msg)
         {
             TelegramBot.SendImage(img, msg);
-        }        
+        }
 
         public void LoadOperations()
         {
@@ -233,7 +234,7 @@ namespace Midas.Trading
         {
             _lastTrade = op;
             _slotManager.ReturnSlot(slot.Id);
-            _trader.SaveSnapshot(cc);
+            _trader.SaveSnapshot(cc, op);
         }
 
         public List<TradeOperation> GetOperationsThreadSafe(DateTime validDate)
@@ -284,19 +285,32 @@ namespace Midas.Trading
                 }
             }
 
-            var slot = SlotManager.TryGetSlot();
-            if (slot != null)
-            {
-                _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
-                _allOperations.Add(_currentOperation);
 
-                _currentOperation.Enter(value, pointInTime, ratr, modelName);
-                ret = _currentOperation;
+            var op = _allOperations.Where(op => op.ModelName == modelName && op.IsIn).FirstOrDefault();
+            if (op == null)
+            {
+
+                var slot = SlotManager.TryGetSlot();
+                if (slot != null)
+                {
+                    Console.WriteLine($"Starting OP with slot: {slot.SlotAmount}");
+                    _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
+                    _allOperations.Add(_currentOperation);
+
+                    _currentOperation.Enter(value, pointInTime, ratr, modelName);
+                    ret = _currentOperation;
+                }
+                else
+                {
+                    SlotManager.Dump();
+                    Console.WriteLine("===== SEM SLOTS ======");
+                }
             }
             else
             {
-                Console.WriteLine("===== SEM SLOTS ======");
+                Console.WriteLine($"===== Already one operation running on the model {modelName} ======");
             }
+
 
             _lastAttempt = DateTime.Now;
 
@@ -315,8 +329,8 @@ namespace Midas.Trading
 
         public void OnCandleUpdate(Candle c)
         {
-            if(_currentOperation != null)
-                _currentOperation.OnCandleUpdateAsync(c);
+            foreach (var op in _allOperations)
+                op.OnCandleUpdateAsync(c);
         }
 
         public void Dispose()

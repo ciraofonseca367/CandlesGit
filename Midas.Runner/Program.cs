@@ -133,13 +133,16 @@ namespace Midas
                                 {
                                     if (runParams.RunMode == RunModeType.Create)
                                     {
-                                        var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
+                                        //if(imgSequenceCluster % 5 == 0) //De cinco em cinco
+                                        //{
+                                            var tag = c.GetTag(candles.Last().CloseValue, candles.Last().PointInTime_Open, runParams.AverageToForecast);
 
-                                        DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
-                                        var fileName = c.SaveFiles(dirInfo.FullName, tag, imgSequenceCluster);
+                                            DirectoryInfo dirInfo = new DirectoryInfo(outputDir.FullName);
+                                            var fileName = c.SaveFiles(dirInfo.FullName, tag, imgSequenceCluster);
 
-                                        csvWriter.Write($"gs://candlebucket/{runParams.ExperimentName}/{runParams.Asset}/{fileName},{tag}");
-                                        csvWriter.WriteLine();
+                                            csvWriter.Write($"gs://candlebucket/{runParams.ExperimentName}/{runParams.Asset}/{fileName},{tag}");
+                                            csvWriter.WriteLine();
+                                        //}
                                     }
                                     else
                                     {
@@ -183,8 +186,8 @@ namespace Midas
                                     }
                                 }
                             }
-                            else
-                                imgSequenceCluster++;
+                            
+                            imgSequenceCluster++;
                         }
 
                         var oneCandle = res.Read(1);
@@ -243,9 +246,13 @@ namespace Midas
             var frameMap = new Dictionary<string, ChartView>();
             if(forPrediction)
             {
+                // frameMap.Add("VoidC", dv.AddChartFrame(20));
+                // frameMap.Add("Main", dv.AddChartFrame(60));
+                // frameMap.Add("VoidB", dv.AddChartFrame(20));
+
                 frameMap.Add("VoidC", dv.AddChartFrame(20));
-                frameMap.Add("Main", dv.AddChartFrame(60));
-                frameMap.Add("VoidB", dv.AddChartFrame(20));
+                frameMap.Add("Main", dv.AddChartFrame(50));
+                frameMap.Add("Volume", dv.AddChartFrame(30));
             }
             else
             {
@@ -261,8 +268,8 @@ namespace Midas
                 DrawShadow = !forPrediction
             });
 
-            if(!forPrediction)
-            {
+            // if(!forPrediction)
+            // {
                 frameMap["Volume"].AddSerie(new Serie()
                 {
                     PointsInTime = volumes.ToList<IStockPointInTime>(),
@@ -270,7 +277,7 @@ namespace Midas
                     Color = Color.LightBlue,
                     Type = SeriesType.Bar,
                 });
-            }
+            // }
 
             var grouped = _indicators.GroupBy(i => i.Target);
             foreach (var group in grouped)

@@ -61,7 +61,7 @@ namespace Midas.Core.Forecast
                         RatioUpperBound = 1 / 100
                     };
 
-                    prediction.DateRange = new DateRange(currentTime, currentTime.AddMinutes(10 * 5));
+                    prediction.DateRange = new DateRange(currentTime, currentTime.AddHours(12));
                     prediction.CreationDate = currentTime;
                     prediction.FromAmount = currentValue;
                     prediction.LowerBound = currentValue * (1 + prediction.RatioLowerBound);
