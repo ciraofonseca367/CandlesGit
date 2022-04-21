@@ -9,19 +9,16 @@
     "CardWidth": 250,
     "CardHeight": 250,
     "IsTesting": false,
-    "DrawShadow": false,    
+    "DrawShadow": false,
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "cfi",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
-
     "TelegramBotCode": "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4",
-
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Live",
     "BrokerName": "Binance",
     "PreloadCandles": true,
-
     "Assets": [
         {
             "Asset": "BTCBUSD",
@@ -48,13 +45,14 @@
             "GainSoftStopTrigger": 0.75
         }
     ],
-
     "Indicators": [
         {
             "Name": "MA200",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [200],
+            "Params": [
+                200
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Orange",
@@ -64,7 +62,9 @@
             "Name": "MA50",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [50],
+            "Params": [
+                50
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Blue",
@@ -74,40 +74,48 @@
             "Name": "MA24",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [24],
+            "Params": [
+                24
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Yellow",
             "Target": "NONE",
             "Size": 2
-        },        
+        },
         {
             "Name": "MA30",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [30],
+            "Params": [
+                30
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Yellow",
             "Target": "NONE",
             "Size": 2
-        },        
+        },
         {
             "Name": "MA36",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [36],
+            "Params": [
+                36
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Yellow",
             "Target": "NONE",
             "Size": 2
-        },        
+        },
         {
             "Name": "MA12",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [12],
+            "Params": [
+                12
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Pink",
@@ -117,7 +125,9 @@
             "Name": "MA6",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [6],
+            "Params": [
+                6
+            ],
             "Source": "Main",
             "ChartType": "Line",
             "Color": "Black",
@@ -127,31 +137,32 @@
             "Name": "ATR",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MAXATRIndicator",
-            "Params": [14],
+            "Params": [
+                14
+            ],
             "Source": "Main",
             "Target": "NONE",
             "ChartType": "Line",
             "Color": "Pink"
-        },        
+        },
         {
             "Name": "MA144",
             "AssemblyName": "Midas.Core",
             "FullClassName": "Midas.Core.Indicators.MovingAverageIndicator",
-            "Params": [144],
+            "Params": [
+                144
+            ],
             "Source": "Volume",
             "Color": "Black",
             "ChartType": "Line",
             "Size": 2
-        }        
+        }
     ],
-
-
     "FFmpegBasePath": "/home/cfg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
-
     "BrokerParameters": {
-	"ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",
+        "ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",
         "ApiSecret": "3vLv8JPjtUW47kHpUyFvwD3CbLPuZG2sEqW68z6zqqOB1yUZEWD5kUbovOhmdF3Y",
         "EndPoint": "https://api.binance.com",
         "WebSocket": "wss://api.binance.com/ws",
@@ -179,7 +190,6 @@
             }
         ]
     },
-
-    "UrlPriceModel" : "http://146.148.98.144:3389",
-    "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
+    "UrlPriceModel": "http://146.148.98.144:3389",
+    "UrlAvgModel": "http://vps32867.publiccloud.com.br:8000"
 }

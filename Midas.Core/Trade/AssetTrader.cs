@@ -354,6 +354,7 @@ namespace Midas.Core.Trade
                     {
                         Console.WriteLine($"There are operations running on the pair {this.GetIdentifier()}");
                         TelegramBot.SendImage(currentImg, $"There are operations running on the pair {this.GetIdentifier()}");
+                        TelegramBot.SendMessage("Follow me live on https://www.twitch.tv/cirofns");
                     }
                 }
             }

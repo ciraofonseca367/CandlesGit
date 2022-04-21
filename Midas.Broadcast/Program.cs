@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using Midas.Trading;
 using Midas.Core.Telegram;
 using Midas.Core.Util;
+using Midas.Sources;
 
 namespace Midas.Broadcast
 {
@@ -37,6 +38,8 @@ namespace Midas.Broadcast
         private double _lastHourDifference;
         private double _lastHourValue;
         private DateTime _lastHourUpdate;
+
+        private static string WEB_SOCKETURI = "wss://stream.binance.com:9443/ws";
 
         public Broadcast(RunParameters parans)
         {
@@ -138,6 +141,8 @@ namespace Midas.Broadcast
 
         private FixedSizedQueue<Candle> _candleMovieRoll;
 
+        private List<TradeOperationDto> _activeOperations;
+
         public void Runner()
         {
             LiveAssetFeedStream liveStream = null;
@@ -148,30 +153,21 @@ namespace Midas.Broadcast
             1. Corrigir aqui para utilizar a library nova
             2. Fazer mecanismo diference para iniciar ou não o encoder.
             */
-            
-            try
-            {
-                liveStream = (LiveAssetFeedStream)CandlesGateway.GetCandlesFromFile(
-                    "BTCBUSD",
-                    DateRange.GetInfiniteRange(),
-                    runParams.CandleType
-                );
-            }
-            catch (Exception err)
-            {
-                TraceAndLog.GetInstance().Log("Runner", "Open socket error: " + err.Message);
-                _running = false;
-            }
+
+            BinanceWebSocket sock = new BinanceWebSocket(
+                WEB_SOCKETURI, 120000, _params.Asset, _params.CandleType
+            );
+
+            liveStream = sock.OpenAndSubscribe();
 
             if (liveStream != null)
             {
                 _candleMovieRoll = new FixedSizedQueue<Candle>(runParams.WindowSize);
 
-                var cacheCandles = GetCachedCandles();
+                var cacheCandles = GetCachedCandles().ToList();
                 cacheCandles.ForEach(c =>
                 {
                     _candleMovieRoll.Enqueue(c);
-
                     FeedIndicators(c, "Main");
                 });
 
@@ -185,7 +181,7 @@ namespace Midas.Broadcast
 
                 TraceAndLog.GetInstance().Log("Broadcast", String.Format("Starting broadcast with {0} cached candles", cacheCandles.Count));
 
-                liveStream.OnNewCandle((id,previewsC, cc) =>
+                liveStream.OnNewCandle((id, previewsC, cc) =>
                 {
                     var recentClosedCandle = previewsC;
 
@@ -195,7 +191,7 @@ namespace Midas.Broadcast
                     FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
                 });
 
-                liveStream.OnUpdate((id,message, cc) =>
+                liveStream.OnUpdate((id, message, cc) =>
                 {
                     _lastCandle = cc;
 
@@ -204,31 +200,27 @@ namespace Midas.Broadcast
 
                     DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
 
-                    var storedOperations = _manager.GetActiveStoredOperations(_params.Asset,_params.CandleType, "Live", DateTime.Now);
-                    if (storedOperations != null && storedOperations.Count > 0)
-                    {
-                        storedOperations = new List<TradeOperation> { storedOperations.Last() };
-                        List<VolumeIndicator> newVolumes = volumes.ToList(); //test
+                    List<VolumeIndicator> newVolumes = volumes.ToList(); //test
 
-                        var predictionSerie = new Serie();
-                        foreach (var operation in storedOperations)
+                    var predictionSerie = new Serie();
+                    if (_activeOperations != null)
+                    {
+                        foreach (var operation in _activeOperations)
                         {
                             var forecastPoint = new TradeOperationCandle()
                             {
 
-                                AmountValue = operation.PriceEntryAverage,
-                                LowerBound = 0.5/100,
-                                UpperBound = 1/100,
+                                AmountValue = operation.PriceEntryReal,
+                                LowerBound = operation.PriceEntryReal * 1.01,
+                                UpperBound =  operation.PriceEntryReal * 1.02,
                                 Gain = operation.GetGain(cc.CloseValue),
-                                ExitValue = operation.StoredAverage,
-                                StopLossMark = operation.StopLossMark,
-                                Volume = 1,
+                                ExitValue = operation.PriceExitReal,
+                                StopLossMark = operation.StopLossMarker,
+                                Volume = 0,
                                 State = operation.State.ToString(),
                                 PointInTime_Open = operation.EntryDate,
                                 PointInTime_Close = operation.ExitDate
                             };
-                            if (!operation.IsIn)
-                                forecastPoint.Gain = operation.GetGain(); 
 
                             predictionSerie.PointsInTime.Add(forecastPoint);
 
@@ -239,24 +231,24 @@ namespace Midas.Broadcast
                         predictionSerie.Name = "Predictions";
                         predictionSerie.Color = Color.LightBlue;
                         predictionSerie.Type = SeriesType.Forecast;
+                    }
 
-                        var theOperation = storedOperations.Last();
+                    imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
 
-                        imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
+                    imgToBroadcast.Save("Live5.png", System.Drawing.Imaging.ImageFormat.Png);
 
-                        imgToBroadcast.Save("Live5.png", System.Drawing.Imaging.ImageFormat.Png);
-
+                    if (_activeOperations != null && _activeOperations.Count > 0)
                         _currentImage = imgToBroadcast;
-                    }                    
                     else
                         _currentImage = null;
-                  
+
                 });
 
                 Task getReports = Task.Run(() =>
                 {
                     while (_running)
                     {
+                        //Get Stats
                         Log("Updating report");
 
                         var ops = _manager.SearchOperations(null, DateTime.Now.AddDays(-7));
@@ -269,7 +261,10 @@ namespace Midas.Broadcast
                         _resultLastDay = resultLastDay * 100;
                         _resultLastWeek = resultWeek * 100;
 
-                        Thread.Sleep(1000 * 60 * 5);
+                        //Get active operations
+                        _activeOperations = _manager.GetActiveStoredOperations(_params.Asset, _params.CandleType, "BroadCast", DateTime.UtcNow);
+
+                        Thread.Sleep(1000 * 10);
                     }
                 });
 
@@ -296,17 +291,15 @@ namespace Midas.Broadcast
             Console.WriteLine(String.Format("{0:yyyy:MM:dd hh:mm} - {1}", DateTime.Now, msg));
         }
 
-
-
-
         private Bitmap GetImage(RunParameters runParams, IEnumerable<IStockPointInTime> candles, IEnumerable<IStockPointInTime> volumes, DateRange range, Serie prediction = null, bool onlySim = true)
         {
             Bitmap img = null;
             DashView dv = new DashView(runParams.CardWidth, runParams.CardHeight);
 
             var frameMap = new Dictionary<string, ChartView>();
+            frameMap.Add("VoidC", dv.AddChartFrame(10));
             frameMap.Add("Main", dv.AddChartFrame(70));
-            frameMap.Add("Volume", dv.AddChartFrame(30));
+            frameMap.Add("Volume", dv.AddChartFrame(20));
 
             frameMap["Main"].AddSerie(new Serie()
             {
@@ -366,19 +359,21 @@ namespace Midas.Broadcast
 
 
 
-        private List<Candle> GetCachedCandles()
+        private IEnumerable<Candle> GetCachedCandles()
         {
-            var database = _mongoClient.GetDatabase("CandlesFaces");
+            IEnumerable<Candle> ret = new List<Candle>();
 
-            var dbCol = database.GetCollection<Candle>(String.Format("Klines_{0}_{1}", _params.Asset, _params.CandleType.ToString()));
-            var itens = dbCol.Find(new BsonDocument()).ToList();
+            var periods = _params.WindowSize + 200;//200 é a maior média móvel
+            var begin = DateTime.UtcNow.AddMinutes(periods * Convert.ToInt32(_params.CandleType) * -1);
 
-            //Filter only the candles for our windowsize
-            var lastXCandles = itens
-            .Where(i => i.CloseTime > DateTime.UtcNow.AddMinutes(_params.WindowSize * 20 * Convert.ToInt32(_params.CandleType) * -1))
-            .OrderBy(i => i.OpenTime);
+            var asset = _params.Asset.Replace("USDT", "BUSD");
 
-            return lastXCandles.ToList();
+            var seconds = Convert.ToInt32(_params.CandleType);
+
+            var lastCandles = CandlesGateway.GetCandlesFromRest(asset, _params.CandleType, new DateRange(begin, DateTime.UtcNow.AddMinutes(seconds * -1)));
+            ret = lastCandles;
+
+            return ret;
         }
     }
 
@@ -415,16 +410,29 @@ namespace Midas.Broadcast
             })
             .Limit(1).ToList();
 
-            var items = itens.FirstOrDefault().GetValue("Items").AsBsonArray;
-            string headLine = items.FirstOrDefault().AsBsonDocument.GetValue("Title").ToString();
-            string description = items.FirstOrDefault().AsBsonDocument.GetValue("Description").ToString();
-
-            return new
+            if (itens.Count() > 0)
             {
-                Headline = headLine,
-                Description = description
-            };
+                var items = itens.FirstOrDefault().GetValue("Items").AsBsonArray;
+                string headLine = items.FirstOrDefault().AsBsonDocument.GetValue("Title").ToString();
+                string description = items.FirstOrDefault().AsBsonDocument.GetValue("Description").ToString();
+
+                return new
+                {
+                    Headline = headLine,
+                    Description = description
+                };
+            }
+            else
+            {
+                return new
+                {
+                    Headline = "-----",
+                    Description = "---------"
+                };
+            }
         }
+
+
 
         private DateTime _lastFed;
 
@@ -452,7 +460,7 @@ namespace Midas.Broadcast
         public void FeedFrame(string trendType, Bitmap img, Candle currentCandle, double resultLastDay, double resultLastWeek)
         {
             _lastFed = DateTime.Now;
-            if (_params.IsTesting && _encoder == null)
+            if (_encoder == null)
             {
                 _encoder = new LiveEncoder(
                     _params.FFmpegBasePath,

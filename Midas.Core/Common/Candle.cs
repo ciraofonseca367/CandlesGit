@@ -496,7 +496,7 @@ namespace Midas.Core.Common
         {
             get
             {
-                return _entryAmount;
+                return _upperBound;
             }
         }
 

@@ -103,17 +103,20 @@ namespace Midas.Trading
 
             _brokerConfig = brokerConfig;
 
-            GetFunds();
+            if (trader != null)
+            {
+                GetFunds();
 
-            Console.WriteLine($"Starting Trader with {brokerConfig.NumberOfSlots} slots");
-            _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
-            string endPoint = Convert.ToString(brokerConfig.WebSocket);
+                Console.WriteLine($"Starting Trader with {brokerConfig.NumberOfSlots} slots");
+                _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
+                string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
-            // if (!RunParameters.GetInstance().IsTesting)
-            // {
-            //     _orderWatcher = new OrderWatcher(endPoint, _asset);
-            //     _orderWatcher.StartWatching();
-            // }
+                // if (!RunParameters.GetInstance().IsTesting)
+                // {
+                //     _orderWatcher = new OrderWatcher(endPoint, _asset);
+                //     _orderWatcher.StartWatching();
+                // }
+            }
         }
 
         // public TradeOperation RestoreState()
@@ -192,19 +195,11 @@ namespace Midas.Trading
             return query.ToList();
         }
 
-        public List<TradeOperation> GetActiveStoredOperations(string asset, CandleType candleType, string experiment, DateTime relativeNow)
+        public List<TradeOperationDto> GetActiveStoredOperations(string asset, CandleType candleType, string experiment, DateTime relativeNow)
         {
-            var query = InvestorService.SearchActiveOperations(_conString, asset, candleType, experiment, relativeNow);
+            var query = InvestorService.SearchActiveOperations(_conString, asset, candleType, null, relativeNow);
 
-            List<TradeOperation> localAllTransactions;
-            localAllTransactions = new List<TradeOperation>();
-            query.ForEach(o =>
-            {
-                var op = new TradeOperation(o, null, this, _conString, _brokerName, _brokerConfig);
-                localAllTransactions.Add(op);
-            });
-
-            return localAllTransactions;
+            return query.ToList();
         }
 
         private TradeOperation _currentOperation;

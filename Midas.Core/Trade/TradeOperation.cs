@@ -359,7 +359,7 @@ namespace Midas.Trading
 
             int avg = Convert.ToInt32(RunParameters.GetInstance().NamedParams["Avg"]);
 
-            var ma = _myMan.Trader.GetMAValue($"MA{avg}");
+            var ma = _myMan.Trader.GetMAValue($"MA12");
             if (OperationDurationInPeriods > avg) //Timeout da operação, desde o inicio ou último sinal de long
             {
                 //if(LastValue > PriceEntryAverage)
@@ -1156,22 +1156,27 @@ namespace Midas.Trading
         public double Gain { get; set; }
 
         public TradeOperationState State { get; set; }
-        public DateTime ForecastDate { get; internal set; }
-        public double LastValue { get; internal set; }
-        public double MaxValue { get; internal set; }
-        public double SoftStopLossMarker { get; internal set; }
-        public string Asset { get; internal set; }
-        public CandleType CandleType { get; internal set; }
-        public string Experiment { get; internal set; }
-        public DateTime LastUpdate { get; internal set; }
-        public string ModelName { get; internal set; }
-        public double Amount { get; internal set; }
-        public double Amount_USD { get; internal set; }
-        public double EntrySpreadAverage { get; internal set; }
-        public double ExitSpreadAverage { get; internal set; }
-        public DateTime ExitDateUtc { get; internal set; }
-        public DateTime EntryDateUtc { get; internal set; }
-        public double RATR { get; internal set; }
+        public DateTime ForecastDate { get;  set; }
+        public double LastValue { get;  set; }
+        public double MaxValue { get;  set; }
+        public double SoftStopLossMarker { get;  set; }
+        public string Asset { get;  set; }
+        public CandleType CandleType { get;  set; }
+        public string Experiment { get;  set; }
+        public DateTime LastUpdate { get;  set; }
+        public string ModelName { get;  set; }
+        public double Amount { get;  set; }
+        public double Amount_USD { get;  set; }
+        public double EntrySpreadAverage { get;  set; }
+        public double ExitSpreadAverage { get;  set; }
+        public DateTime ExitDateUtc { get;  set; }
+        public DateTime EntryDateUtc { get;  set; }
+        public double RATR { get;  set; }
+
+        public double GetGain(double closeValue)
+        {
+            return ((closeValue - PriceEntryReal) / PriceEntryReal) * 100;
+        }
     }
 
     public enum TradeOperationState

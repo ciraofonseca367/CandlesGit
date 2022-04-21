@@ -305,7 +305,7 @@ namespace Midas.Core.Chart
 
             _painter.DrawString(
                 String.Format("{0}: {1:0.0000} %", opc.State, gain),
-                new Font("Arial", 6),
+                new Font("Arial", 10),
                 new SolidBrush(gainColor),
                 c1.x + 5,
                 lowBodyY + 10

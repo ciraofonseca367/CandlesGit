@@ -10,7 +10,7 @@
     "CardWidth": 1200,
     "CardHeight": 800,
     "DrawPrediction": true,
-    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "OutputDirectory": "/home/cironola/Broadcaster",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
 
@@ -113,7 +113,7 @@
         }        
     ],
 
-    "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
+    "FFmpegBasePath": "/usr/bin/ffmpeg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_3ERBfKIAfZsBEGth6MwdNEi2aRA24R",
 

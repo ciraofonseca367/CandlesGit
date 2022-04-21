@@ -30,7 +30,52 @@ namespace Midas.Tools
             //         break;
             // }
 
-            Classify(args[0], args[1]);
+            //Classify(args[0], args[1]);
+
+            InsertTradeOperation(Convert.ToDouble(args[0]));
+        }
+
+        public static void InsertTradeOperation(double currentValue)
+        {
+            var op = new TradeOperationDto();
+            op.Asset = "BTCUSDT";
+
+            op.ModelName = "BroadCast";
+            op.Experiment = "BroadCast";
+
+            op.LastUpdate = DateTime.Now;
+            op.CandleType = Core.Common.CandleType.HOUR1;
+            op.Amount = 1;
+            op.Amount_USD = currentValue;
+            op.ExitDate = DateTime.UtcNow.AddHours(10);
+            op.EntryDate = DateTime.UtcNow;
+            op.ExitDateUtc = op.ExitDate;
+            op.EntryDate = op.EntryDate;
+            op.StopLossMarker = currentValue * 1-(1/100);
+
+            op.PriceEntryDesired = currentValue;
+            op.PriceEntryReal = currentValue;
+            op.PriceExitDesired = 0;
+            op.PriceExitReal = 0;
+            op.State = TradeOperationState.In;
+
+            var objId = ObjectId.GenerateNewId(DateTime.Now);
+            var myStrId = objId.ToString();
+            var myId = new BsonObjectId(objId);
+
+            op._id = myId;
+
+            var myDto = op;
+
+            var dbClient = new MongoClient("mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority");
+
+            var database = dbClient.GetDatabase("CandlesFaces");
+
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
+
+            dbCol.InsertOne(myDto);
+            Console.WriteLine("Inserted");
+
         }
 
         private static void Classify(string folderWithLabels, string rootPath)

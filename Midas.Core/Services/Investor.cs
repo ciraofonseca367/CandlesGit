@@ -363,7 +363,7 @@ namespace Midas.Core.Services
 
             var filterBuilder1 = Builders<TradeOperationDto>.Filter;
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
-            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddHours(-14)));
+            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddHours(-30)));
             if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
             if (candle != CandleType.None)
