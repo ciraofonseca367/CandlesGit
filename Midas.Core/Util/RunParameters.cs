@@ -234,10 +234,6 @@ namespace Midas.Core
         public string OutputFileResults { get; set; }
         public bool DelayedTriggerEnabled { get; internal set; }
         public double IndecisionThreshold { get; private set; }
-        public double Target1 { get; internal set; }
-        public double Target2 { get; internal set; }
-        public double Target3 { get; internal set; }
-
         public string TagFilter { get; internal set; }
 
         public string DbConStringCandles { get => _dbConStringCandles; }
@@ -250,15 +246,151 @@ namespace Midas.Core
         public string UrlPriceModel { get; internal set; }
         public bool DrawShadow { get; private set; }
         public double MIN_PEEK_STRENGH { get; internal set; }
-        public Dictionary<string, string> NamedParams { get => _namedParams; set => _namedParams = value; }
+        public Dictionary<string, object> HyperParams { get => _hyperParams; set => _hyperParams = value; }
 
         private string _dbConString;
         private string _dbConStringCandles;
         private int _forecastWindow;
 
-        private Dictionary<string,string> _namedParams;
+        private Dictionary<string, object> _hyperParams;
 
         private dynamic _rootIndicators;
+
+        public override string ToString()
+        {
+            string ret = "";
+
+            ret = $"Start:{this.Range.Start.ToString("dd/MM/yyyy")} End:{this.Range.End.ToString("dd/MM/yyyy")}\n";
+
+            foreach (var entry in _hyperParams)
+            {
+                ret += $"{entry.Key,20}:{entry.Value.ToString()} \n";
+            }
+
+            return ret;
+        }
+
+        public object GetHyperParam(string name)
+        {
+            return GetHyperParam(null, name);
+        }
+        public object GetHyperParam(string modelName, string name)
+        {
+            return GetHyperParam(null, modelName, name);
+        }
+        public object GetHyperParam(string asset, string modelName, string name)
+        {
+            string paramName;
+            object outValue = null;
+            if (asset != null && modelName != null)
+            {
+                paramName = $"{asset}-{modelName}-{name}";
+                _hyperParams.TryGetValue(paramName, out outValue);
+            }
+
+            if (outValue == null)
+            {
+                if (modelName != null)
+                {
+                    paramName = $"{modelName}-{name}";
+                    _hyperParams.TryGetValue(name, out outValue);
+                }
+            }
+
+            if (outValue == null)
+            {
+                paramName = $"{name}";
+                _hyperParams.TryGetValue(name, out outValue);
+            }            
+
+            return outValue;
+        }
+
+        public string GetOptionalHyperParam(string name)
+        {
+            return GetOptionalHyperParam(null, null, name);
+        }
+        public string GetOptionalHyperParam(string modelName, string name)
+        {
+            return GetOptionalHyperParam(modelName, name);
+        }
+        public string GetOptionalHyperParam(string asset, string modelName, string name)
+        {
+            string paramName = name;
+
+            object outValue = GetHyperParam(asset, modelName, name);
+
+            return (outValue == null ? null : outValue.ToString());
+        }
+
+        public string GetHyperParamAsString(string name)
+        {
+            return Convert.ToString(GetOptionalHyperParam(null, name));
+        }
+
+        public string GetHyperParamAsString(string modelname, string name)
+        {
+            return Convert.ToString(GetOptionalHyperParam(modelname, name));
+        }
+        public string GetHyperParamAsString(string asset, string modelname, string name)
+        {
+            return Convert.ToString(GetOptionalHyperParam(asset, modelname, name));
+        }
+
+        public int GetHyperParamAsInt(string name)
+        {
+            return Convert.ToInt32(GetHyperParam(null, name));
+        }
+
+        public int GetHyperParamAsInt(string modelName, string name)
+        {
+            return Convert.ToInt32(GetHyperParam(modelName, name));
+        }
+        public int GetHyperParamAsInt(string asset, string modelName, string name)
+        {
+            return Convert.ToInt32(GetHyperParam(asset, modelName, name));
+        }
+
+        public double GetHyperParamAsDouble(string name)
+        {
+            return Convert.ToDouble(GetHyperParam(null, name));
+        }
+
+        public double GetHyperParamAsDouble(string modelName, string name)
+        {
+            return Convert.ToDouble(GetHyperParam(modelName, name));
+        }
+
+        public double GetHyperParamAsDouble(string asset, string modelName, string name)
+        {
+            return Convert.ToDouble(GetHyperParam(asset, modelName, name));
+        }
+
+        public float GetHyperParamAsFloat(string name)
+        {
+            return Convert.ToSingle(GetHyperParam(null, name));
+        }
+
+        public float GetHyperParamAsFloat(string modelName, string name)
+        {
+            return Convert.ToSingle(GetHyperParam(modelName, name));
+        }
+
+        public bool GetHyperParamAsBoolean(string name)
+        {
+            return Convert.ToBoolean(GetHyperParam(null, name));
+        }
+
+        public bool GetHyperParamAsBoolean(string modelName, string name)
+        {
+            return Convert.ToBoolean(GetHyperParam(modelName, name));
+        }
+        public bool GetHyperParamAsBoolean(string asset, string modelName, string name)
+        {
+            return Convert.ToBoolean(GetHyperParam(asset, modelName, name));
+        }
+
+        private dynamic _rootConfig;
 
         public RunParameters(string[] ps)
         {
@@ -272,7 +404,7 @@ namespace Midas.Core
             DelayedTriggerEnabled = true;
             IndecisionThreshold = 0.4;
 
-            NamedParams = new Dictionary<string, string>();
+            HyperParams = new Dictionary<string, object>();
 
             TelegramBotCode = "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4";
 
@@ -285,6 +417,7 @@ namespace Midas.Core
             string configuration = File.ReadAllText(configFilePath);
 
             dynamic stuff = JsonConvert.DeserializeObject(configuration);
+            _rootConfig = stuff;
             if (stuff.RunMode == null)
             {
                 throw new ArgumentException("Please provide a RunMode in the config file");
@@ -390,9 +523,18 @@ namespace Midas.Core
             }
 
             AllowedConsecutivePredictions = 1;
-            Target1 = 1;
-            Target2 = 1;
-            Target3 = 1;
+
+            var hyperParams = stuff.HyperParams;
+            if (hyperParams != null)
+            {
+                foreach (var hyperParam in hyperParams)
+                {
+                    if (hyperParam.Value.Type.ToString() == "Array")
+                        HyperParams[hyperParam.Name] = hyperParam.Value;
+                    else
+                        HyperParams[hyperParam.Name] = hyperParam.Value.Value;
+                }
+            }
 
             if (ps.Length > 1)
             {
@@ -417,19 +559,20 @@ namespace Midas.Core
                     OutputFile = ps[3];
                 }
 
+
                 int counter = 1;
-                foreach(string param in ps)
+                foreach (string param in ps)
                 {
                     var paramSplit = param.Split(":");
                     string paramVoid = $"param{counter}";
 
-                    if(paramSplit.Length == 2)
+                    if (paramSplit.Length == 2)
                     {
-                        NamedParams[paramSplit[0]] = paramSplit[1];
+                        HyperParams[paramSplit[0]] = paramSplit[1];
                     }
                     else
                     {
-                        NamedParams[paramVoid] = paramSplit[0];
+                        HyperParams[paramVoid] = paramSplit[0];
                     }
                     counter++;
                 }
@@ -454,16 +597,7 @@ namespace Midas.Core
                     string fundName = Convert.ToString(metaAsset.FundName);
 
                     var assetParams = new AssetParameters();
-                    assetParams.ScoreByAvg = scoreByAvg;
-                    assetParams.ScoreByPrice = scoreByPrice;
                     assetParams.FundName = fundName;
-                    assetParams.AtrStopLoss = Convert.ToSingle(metaAsset.AtrStopLoss);
-                    assetParams.AvgCompSoftness = Convert.ToSingle(metaAsset.AvgCompSoftness);
-                    assetParams.StopLossCompSoftness = Convert.ToSingle(metaAsset.StopLossCompSoftness);
-                    if (metaAsset.GainSoftStopTrigger != null)
-                        assetParams.FollowPricePerc = Convert.ToSingle(metaAsset.FollowPricePerc);
-                    if (metaAsset.GainSoftStopTrigger != null)
-                        assetParams.GainSoftStopTrigger = Convert.ToSingle(metaAsset.GainSoftStopTrigger);
 
                     var trader = new AssetTrader(service, asset, candleType, this, 120000, assetParams);
 
@@ -554,26 +688,7 @@ namespace Midas.Core
 
     public class AssetParameters
     {
-        public float ScoreByAvg { get; internal set; }
-        public float ScoreByPrice { get; internal set; }
         public string FundName { get; internal set; }
-        public float AtrStopLoss { get; internal set; }
-        public float AvgCompSoftness { get; internal set; }
-        public float StopLossCompSoftness { get; internal set; }
-        public float FollowPricePerc { get; internal set; }
-        public double GainSoftStopTrigger { get; internal set; }
 
-        public override string ToString()
-        {
-            return $"Score Avg: {ScoreByAvg:0.00}, ScorebyPrice: {ScoreByPrice:0.00}, SL:{AtrStopLoss:0.00}, FollowPricePerc:{FollowPricePerc}, GainSoftStopTrigger:{GainSoftStopTrigger}";
-        }
-
-        public AssetParameters()
-        {
-            FollowPricePerc = 0.4f;
-
-            GainSoftStopTrigger = 0.75;
-            AvgCompSoftness = 0.1f;
-        }
     }
 }

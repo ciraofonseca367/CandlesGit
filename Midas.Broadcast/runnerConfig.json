@@ -10,8 +10,9 @@
     "CardWidth": 1200,
     "CardHeight": 800,
     "DrawPrediction": true,
+    "IsTesting": true,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
-    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
 
     "Forecaster": "FaceLabelForecast",
@@ -117,7 +118,7 @@
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_3ERBfKIAfZsBEGth6MwdNEi2aRA24R",
 
-    "FundName": "ETHBUSD_MIN15",
+    "FundName": "BTC_Funds",
 
     "BrokerParameters": {
         "ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",

@@ -90,6 +90,7 @@ namespace Midas.Core.Services
             _experiment.StartDate = DateTime.Now;
             _experiment.Name = _params.ExperimentName;
             _experiment.EndDate = null;
+            _experiment.HyperParams = _params.ToString();
             SaveExperiment(_params.DbConString);
 
             LoadTraders();
@@ -363,7 +364,7 @@ namespace Midas.Core.Services
 
             var filterBuilder1 = Builders<TradeOperationDto>.Filter;
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
-            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddHours(-30)));
+            filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, relativeNow.AddDays(-4)));
             if (asset != null)
                 filterDefinition.Add(filterBuilder1.Eq(item => item.Asset, asset));
             if (candle != CandleType.None)
@@ -703,6 +704,8 @@ namespace Midas.Core.Services
     public class ExperimentDto
     {
         public string Name { get; set; }
+
+        public string HyperParams { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 

@@ -900,13 +900,6 @@ namespace Midas.Core.Card
 
             return ret;
         }
-
-        public string ToCSVLine(RunParameters parans)
-        {
-            var result = GetResult(parans);
-
-            return $"{result.PAndL.ToString("0.0000")};{result.SuccessRate.ToString("0.0000")}; {result.AllEntries.Count()}; {result.ExperimentName}; 0;{parans.StopLoss}; {parans.AverageVerification}; {parans.Range.Start.ToString("yyyy/MM/dd")}; {parans.Range.End.ToString("yyyy/MM/dd")}; {parans.DelayedTriggerEnabled}; {parans.IndecisionThreshold}; {parans.Target1.ToString("0.00")}; {parans.Target2.ToString("0.00")}; {parans.Target3.ToString("0.00")};{result.SuccessRateTarget.ToString("0.0000")};{parans.TagFilter}";
-        }
     }
 
     public class PredictionReportResult

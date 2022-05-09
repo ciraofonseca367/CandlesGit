@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Midas.Core.Broker;
 using Midas.Trading;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -443,6 +444,12 @@ namespace Midas.Core.Common
         private double _gain;
 
         private string _state;
+
+        public List<BrokerOrderDto> Orders
+        {
+            get;
+            set;
+        }
 
         public int Periodo
         {

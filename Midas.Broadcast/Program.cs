@@ -18,6 +18,7 @@ using Midas.Trading;
 using Midas.Core.Telegram;
 using Midas.Core.Util;
 using Midas.Sources;
+using Midas.Core.Broker;
 
 namespace Midas.Broadcast
 {
@@ -160,9 +161,17 @@ namespace Midas.Broadcast
 
             liveStream = sock.OpenAndSubscribe();
 
+            if (_params.IsTesting)
+            {
+                Broker broker = Broker.GetBroker(_params.BrokerName, _params.BrokerParameters, null);
+                double currentPrice = broker.GetPriceQuote(_params.Asset);
+
+                InsertTestTradeOperation(currentPrice);
+            }
+
             if (liveStream != null)
             {
-                _candleMovieRoll = new FixedSizedQueue<Candle>(runParams.WindowSize);
+                _candleMovieRoll = new FixedSizedQueue<Candle>(runParams.WindowSize + 200);
 
                 var cacheCandles = GetCachedCandles().ToList();
                 cacheCandles.ForEach(c =>
@@ -198,7 +207,19 @@ namespace Midas.Broadcast
                     var candlesToDraw = _candleMovieRoll.GetList().Union(new Candle[] { cc });
                     var volumes = candlesToDraw.Select(p => new VolumeIndicator(p));
 
-                    DateRange range = new DateRange(candlesToDraw.First().PointInTime_Open, candlesToDraw.Last().PointInTime_Open);
+                    //Default DateRange is the last Candle minus _params.WindowsSize in periods of the candle type configured(_params.CandleType)
+                    var defaultRange = new DateRange(
+                        candlesToDraw.Last().PointInTime_Open.AddMinutes(Convert.ToInt32(_params.CandleType) * _params.WindowSize * -1),
+                        candlesToDraw.Last().PointInTime_Open);
+
+                    DateRange range = defaultRange;
+                    //Active operations DateRange
+                    if (_activeOperations != null)
+                    {
+                        var minDate = _activeOperations.Min(op => op.EntryDate);
+                        if(minDate < defaultRange.Start)
+                            range = new DateRange(minDate, defaultRange.End);
+                    }
 
                     List<VolumeIndicator> newVolumes = volumes.ToList(); //test
 
@@ -212,15 +233,16 @@ namespace Midas.Broadcast
 
                                 AmountValue = operation.PriceEntryReal,
                                 LowerBound = operation.PriceEntryReal * 1.01,
-                                UpperBound =  operation.PriceEntryReal * 1.02,
-                                Gain = operation.GetGain(cc.CloseValue),
+                                UpperBound = operation.PriceEntryReal * 1.02,
+                                Gain = operation.Gain,
                                 ExitValue = operation.PriceExitReal,
                                 StopLossMark = operation.StopLossMarker,
                                 Volume = 0,
-                                State = operation.State.ToString(),
+                                State = $"{operation.State.ToString()} - {operation.Strengh} ",
                                 PointInTime_Open = operation.EntryDate,
                                 PointInTime_Close = operation.ExitDate
                             };
+                            forecastPoint.Orders = operation.Orders;
 
                             predictionSerie.PointsInTime.Add(forecastPoint);
 
@@ -237,10 +259,13 @@ namespace Midas.Broadcast
 
                     imgToBroadcast.Save("Live5.png", System.Drawing.Imaging.ImageFormat.Png);
 
-                    if (_activeOperations != null && _activeOperations.Count > 0)
-                        _currentImage = imgToBroadcast;
-                    else
-                        _currentImage = null;
+                    if (!_params.IsTesting)
+                    {
+                        if (_activeOperations != null && _activeOperations.Count > 0)
+                            _currentImage = imgToBroadcast;
+                        else
+                            _currentImage = null;
+                    }
 
                 });
 
@@ -261,10 +286,27 @@ namespace Midas.Broadcast
                         _resultLastDay = resultLastDay * 100;
                         _resultLastWeek = resultWeek * 100;
 
-                        //Get active operations
-                        _activeOperations = _manager.GetActiveStoredOperations(_params.Asset, _params.CandleType, "BroadCast", DateTime.UtcNow);
+                        //Get operations that started up until 3 days ago
+                        var dbActiveOps = _manager.GetActiveStoredOperations(_params.Asset, _params.CandleType, "BroadCast", DateTime.UtcNow);
 
-                        Thread.Sleep(1000 * 10);
+                        //Remove operations that ended longer then 1 hour ago
+                        var reallyActiveOps = dbActiveOps.Where(op =>
+                        {
+                            DateTime exitDate;
+                            if (op.State == TradeOperationState.In)
+                                exitDate = op.ExitDate.AddHours(24);
+                            else
+                                exitDate = op.ExitDate;
+
+                            return exitDate.ToUniversalTime().AddHours(1) > DateTime.UtcNow;
+                        }).ToList();
+
+                        if (reallyActiveOps.Count() > 0)
+                            _activeOperations = dbActiveOps;
+                        else
+                            _activeOperations = null;
+
+                        Thread.Sleep(1000 * 60 * 1);
                     }
                 });
 
@@ -303,8 +345,8 @@ namespace Midas.Broadcast
 
             frameMap["Main"].AddSerie(new Serie()
             {
-                PointsInTime = candles.ToList(),
-                Name = "Main",
+                PointsInTime = candles.Where(c => range.IsInside(c.PointInTime_Open)).ToList(),
+                Name = "Main"
             });
 
             if (prediction != null)
@@ -312,7 +354,7 @@ namespace Midas.Broadcast
 
             frameMap["Volume"].AddSerie(new Serie()
             {
-                PointsInTime = volumes.ToList<IStockPointInTime>(),
+                PointsInTime = volumes.Where(v => range.IsInside(v.PointInTime_Open)).ToList<IStockPointInTime>(),
                 Name = "Volume",
                 Color = Color.LightBlue,
                 Type = SeriesType.Bar,
@@ -356,7 +398,72 @@ namespace Midas.Broadcast
             return img;
         }
 
+        public void InsertTestTradeOperation(double currentValue)
+        {
+            var op = new TradeOperationDto();
+            op.Asset = _params.Asset;
+            op.ModelName = "BroadCastTest";
+            op.Experiment = "BroadCastTest";
 
+            op.LastUpdate = DateTime.Now;
+            op.CandleType = Core.Common.CandleType.HOUR1;
+            op.Amount = 1;
+            op.Amount_USD = currentValue;
+            op.EntryDate = DateTime.UtcNow;
+            op.EntryDateUtc = DateTime.UtcNow;
+            op.ExitDate = op.EntryDate.AddHours(12);
+            op.ExitDateUtc = op.ExitDate;
+            op.StopLossMarker = currentValue * (0.95);
+
+            op.PriceEntryDesired = currentValue * (0.96);
+            op.PriceEntryReal = op.PriceEntryDesired;
+            op.PriceExitDesired = 0;
+            op.PriceExitReal = 0;
+            op.State = TradeOperationState.In;
+
+            op.Orders = new List<Core.Broker.BrokerOrderDto>();
+            op.Orders.Add(new Core.Broker.BrokerOrderDto()
+            {
+                AverageValue = currentValue,
+                Quantity = 1,
+                CreationDate = DateTime.UtcNow,
+                Type = Core.Broker.OrderType.MARKET,
+                OrderId = "Teste",
+                Direction = Core.Broker.OrderDirection.BUY
+            });
+
+            op.Orders.Add(new Core.Broker.BrokerOrderDto()
+            {
+                AverageValue = currentValue * 1.003,
+                Quantity = 1,
+                CreationDate = DateTime.UtcNow.AddHours(2),
+                Type = Core.Broker.OrderType.MARKET,
+                OrderId = "Teste",
+                Direction = Core.Broker.OrderDirection.BUY
+            });
+
+            var myDto = op;
+
+            var objId = ObjectId.GenerateNewId(DateTime.Now);
+            var myStrId = objId.ToString();
+            var myId = new BsonObjectId(objId);
+
+            op._id = myId;            
+
+            var dbClient = new MongoClient(_params.DbConString);
+
+            var database = dbClient.GetDatabase("CandlesFaces");
+
+            var dbCol = database.GetCollection<TradeOperationDto>("TradeOperations");
+
+            dbCol.DeleteOne(
+                item => item.Experiment == "BroadCastTest"
+            );
+
+            dbCol.InsertOne(myDto);
+
+            Console.WriteLine("Inserted");
+        }
 
 
         private IEnumerable<Candle> GetCachedCandles()

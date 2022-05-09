@@ -107,8 +107,8 @@ namespace Midas.Trading
             {
                 GetFunds();
 
-                Console.WriteLine($"Starting Trader with {brokerConfig.NumberOfSlots} slots");
-                _slotManager = new FundSlotManager(_fund, Convert.ToInt32(brokerConfig.NumberOfSlots));
+                Console.WriteLine($"Starting Trader with {RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots")} slots");
+                _slotManager = new FundSlotManager(_fund, RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots"));
                 string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
                 // if (!RunParameters.GetInstance().IsTesting)
@@ -262,7 +262,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName)
+        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName, Bitmap image)
         {
             TradeOperation ret = null;
 
@@ -292,7 +292,7 @@ namespace Midas.Trading
                     _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                     _allOperations.Add(_currentOperation);
 
-                    _currentOperation.Enter(value, pointInTime, ratr, modelName);
+                    _currentOperation.Enter(value, pointInTime, ratr, modelName, image);
                     ret = _currentOperation;
                 }
                 else

@@ -1,0 +1,8 @@
+{
+    "RunMode": "Gather",
+    "Asset": "BTCUSDT",
+    "CandleType": "MIN15",
+    "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/Sentiment?retryWrites=true&w=majority",
+    "OutputDirectory": "/Users/cironola/CandlesFaceImages",
+    "CustomSearchKey": "AIzaSyDkCg2s-qC4ru0BpeejqonQN6qRY-mfTK0"
+}

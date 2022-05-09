@@ -126,7 +126,7 @@ namespace Midas.FeedStream
                         seedCandle.CloseValue = c.HighestValue;
                     }
 
-                    int factor = 50;
+                    int factor = 25;
 
                     var amountFactor = diff / factor;
                     var secondsFactor = c.CandleAge.TotalSeconds / factor;

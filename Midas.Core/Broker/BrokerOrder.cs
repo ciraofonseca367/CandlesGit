@@ -4,11 +4,18 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Midas.Core.Binance;
+using MongoDB.Bson;
 
 namespace Midas.Core.Broker
 {
     public class BrokerOrder
     {
+        public ObjectId Id
+        {
+            get;
+            set;
+        }
+
         private OrderType _type;
         private OrderDirection _direction;
         private string _orderId;
@@ -163,6 +170,18 @@ namespace Midas.Core.Broker
         {
             return $"{Direction}({Type})) {Quantity:0.0000} by ${AverageValue:0.00}= {Status}:{CalculatedStatus} ({((AverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
         }
+
+        public BrokerOrderDto GetMyDto()
+        {
+            return new BrokerOrderDto()
+            {
+                Type = this._type,
+                Direction = this._direction,
+                OrderId = this._orderId,
+                CreationDate = this._creationDate,
+                AverageValue = this.AverageValue
+            };
+        }
     }
 
     /*
@@ -194,4 +213,44 @@ EXPIRED	The order was canceled according to the order type's rules (e.g. LIMIT F
 
         PARTIALLY_FILLED
     }
+
+    public class BrokerOrderDto
+    {
+
+        public ObjectId Id
+        {
+            get;
+            set;
+        }
+
+        public OrderType Type
+        {
+            get;
+            set;
+        }
+
+        public OrderDirection Direction
+        {
+            get;
+            set;
+        }
+        public string OrderId
+        {
+            get;
+            set;
+        }
+        public DateTime CreationDate
+        {
+            get;
+            set;
+        }
+
+        public double AverageValue
+        {
+            get;
+            set;
+        }
+        public int Quantity { get; set; }
+    }
+
 }

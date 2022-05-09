@@ -14,37 +14,27 @@
     "OutputDirectory": "cfi",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+
     "TelegramBotCode": "1817976920:AAFwSV3rRDq2Cd8TGKwGRGoNhnHt4seJfU4",
+
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Live",
     "BrokerName": "Binance",
     "PreloadCandles": true,
+
     "Assets": [
         {
             "Asset": "BTCBUSD",
             "CandleType": "HOUR1",
-            "ScoreThresholdByAvg": 1,
-            "ScoreThresholdByPrice": 0.76,
-            "FundName": "BTC_Funds",
-            "AtrStopLoss": 0.5,
-            "StopLossCompSoftness": 0.001,
-            "AvgCompSoftness": 0.30,
-            "FollowPricePerc": 0.3,
-            "GainSoftStopTrigger": 2
+            "FundName": "BTC_Funds"
         },
         {
             "Asset": "ETHBUSD",
             "CandleType": "HOUR1",
-            "ScoreThresholdByAvg": 1,
-            "ScoreThresholdByPrice": 0.76,
-            "FundName": "ETH_Funds",
-            "AtrStopLoss": 0.5,
-            "StopLossCompSoftness": 0.001,
-            "AvgCompSoftness": 0.10,
-            "FollowPricePerc": 0.3,
-            "GainSoftStopTrigger": 0.75
+            "FundName": "ETH_Funds"
         }
     ],
+    
     "Indicators": [
         {
             "Name": "MA200",
@@ -158,9 +148,51 @@
             "Size": 2
         }
     ],
+
     "FFmpegBasePath": "/home/cfg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
+
+    "HyperParams": {
+        "DelayedTrigger": false,        
+        "124_Long-DelayedTrigger": true,
+
+        "SoftStopEnabled": false,
+        "ExcludedModel": "152_Long",
+        "StopLossCompSoftness": 0.001,
+        "AvgCompSoftness": 0.3,
+        "FollowPricePerc": 0.3,
+        "GainSoftStopTrigger": 3,
+        "NumberOfSlots": 1,
+        "PurchaseSteps": [
+            {
+                "Units": 5,
+                "GainTrigger": 0.00
+            },
+            {
+                "Units": 5,
+                "GainTrigger": 0.5
+            }
+        ],
+
+        "StepSellEnabled": true,
+        "StepSellValue": 2,
+        "StepSellPercentage": 0.3,
+
+        "BTC-52_Long-Avg" : 12,
+        "BTC-52_Long-AtrStopLoss" : 0.3,
+
+        "BTC-124_Long-Avg" : 30,
+        "BTC-124_Long-AtrStopLoss" : 0.5,
+
+        "ETH-52_Long-Avg" : 30,
+        "ETH-52_Long-AtrStopLoss" : 0.5,
+        "ETH-52_Long-AvgCompSoftness": 0.6,
+
+        "ETH-124_Long-Avg" : 12,
+        "ETH-124_Long-AtrStopLoss" : 0.3
+    },
+
     "BrokerParameters": {
         "ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",
         "ApiSecret": "3vLv8JPjtUW47kHpUyFvwD3CbLPuZG2sEqW68z6zqqOB1yUZEWD5kUbovOhmdF3Y",
@@ -169,26 +201,8 @@
         "Host": "api.binance.com",
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,
-        "MAKER_SELL_DISCOUNT": 0.03,
-        "TARGET_GAIN": 0.7,
-        "NumberOfSlots": 2,
-        "PurchaseSteps": [
-            {
-                "Units": 3,
-                "GainTrigger": 0.00,
-                "Comment": "First Group"
-            },
-            {
-                "Units": 4,
-                "GainTrigger": 0.5,
-                "Comment": "First Group"
-            },
-            {
-                "Units": 3,
-                "GainTrigger": 1.5,
-                "Comment": "First Group"
-            }
-        ]
+        "MAKER_SELL_DISCOUNT": 0.03
+
     },
     "UrlPriceModel": "http://146.148.98.144:3389",
     "UrlAvgModel": "http://vps32867.publiccloud.com.br:8000"

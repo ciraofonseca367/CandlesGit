@@ -215,10 +215,6 @@ namespace Midas
 
             if (report != null)
             {
-                using (var writer = new StreamWriter(File.Open(runParams.OutputFileResults, FileMode.Append, FileAccess.Write, FileShare.Read)))
-                {
-                    writer.WriteLine(report.ToCSVLine(runParams));
-                }
 
                 var result = report.GetResult(runParams);
                 if (result.AllEntries.Count > 0)
