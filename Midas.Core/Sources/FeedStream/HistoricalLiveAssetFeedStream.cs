@@ -12,6 +12,7 @@ using Midas.Sources;
 using Midas.Core.Trade;
 using Midas.Core;
 using Midas.Core.Util;
+using System.Threading.Tasks;
 
 namespace Midas.FeedStream
 {
@@ -76,11 +77,11 @@ namespace Midas.FeedStream
             base.Dispose();
         }
 
-        protected override void SocketRunner()
+        protected override async Task SocketRunner()
         {
             TraceAndLog.StaticLog("Historical", "Starting historical runner in 10s");
 
-            Thread.Sleep(10000);
+            Thread.Sleep(1000);
 
             Console.WriteLine(DateRange.ToString());
 
@@ -134,7 +135,8 @@ namespace Midas.FeedStream
                     // Random r = new Random();
                     // Thread.Sleep(r.Next(50,70));
 
-                    _socketNew("Test", previous, seedCandle);
+                    await _socketNew("Test", previous, seedCandle);
+                    Thread.Sleep(50);
 
                     int sleep= (hours > 3 ? 20 : 0);
 
@@ -155,7 +157,7 @@ namespace Midas.FeedStream
 
                         //Thread.Sleep(sleep);
 
-                        _socketUpdate("test", "test", nc);
+                        await _socketUpdate("test", "test", nc);
                     }
                 }
 
@@ -169,7 +171,7 @@ namespace Midas.FeedStream
             }
 
             Console.WriteLine("End of stream...");
-            _socketEnd("Fim","Fim");
+            await _socketEnd("Fim","Fim");
 
             _state = MidasSocketState.Closed;
 

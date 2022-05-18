@@ -177,7 +177,7 @@ namespace Midas.Core.Telegram
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Restart requested...");
 
-                    _myService.RestartTraders();
+                    await _myService.RestartTraders();
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id, "Done!");
 
@@ -248,6 +248,8 @@ namespace Midas.Core.Telegram
                     if (currentTrader != null)
                     {
                         var state = currentTrader.GetState();
+                        if(String.IsNullOrEmpty(state))
+                            state = "No operations here";
 
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
@@ -303,7 +305,7 @@ namespace Midas.Core.Telegram
                     if (currentTrader != null)
                     {
 
-                        var balanceReport = currentTrader.GetReport();
+                        var balanceReport = await currentTrader.GetReport();
 
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
@@ -323,7 +325,7 @@ namespace Midas.Core.Telegram
                     string generalpl = String.Empty;
                     try
                     {
-                        generalpl = _myService.GetAllReport();
+                        generalpl = await _myService.GetAllReport();
                     }
                     catch (Exception err)
                     {
@@ -367,7 +369,7 @@ namespace Midas.Core.Telegram
                     string lastTrans = String.Empty;
                     try
                     {
-                        lastTrans = _myService.GetLastOperations(30);
+                        lastTrans = await _myService.GetLastOperations(30);
                     }
                     catch (Exception err)
                     {
@@ -385,7 +387,7 @@ namespace Midas.Core.Telegram
                     string allCoins = String.Empty;
                     try
                     {
-                        allCoins = _myService.GetBalanceReport();
+                        allCoins = await _myService.GetBalanceReport();
 
                     }
                     catch (Exception err)
@@ -408,7 +410,7 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "Wait while I get a prediction and check if it's advisible to open a position");
 
-                        var enterResult = currentTrader.SetPrediction();
+                        var enterResult = await currentTrader.SetPrediction();
 
                         if (enterResult == String.Empty)
                             enterResult = "Nothing to report";
@@ -434,19 +436,49 @@ namespace Midas.Core.Telegram
                                                                 text: retForce);
 
                     break;
-                case "Close Position":
+                case "Force Order Status":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    string retText;
+                    var hasOpsStatus = await currentTrader.ForceOrderStatusIfAny();
+                    if (hasOpsStatus)
+                        retText = "Done! Check the state for more information";
+                    else
+                        retText = "No operation running here";
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                                text: retText);
+
+                    break;               
+
                 case "Ask To Close Position":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: "It can take a a couple of minutes to close the operation, wait...");
 
+                    string askText;
+                    var hasAskOps = await currentTrader.AskToCloseOperationIfAny();
+                    if (hasAskOps)
+                    {
+                        askText = "Done!";
+                    }
+                    else
+                        askText = "No operation to close here";
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                                text: askText);                     
+                    break;
+                case "Close Position":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                                text: "It can take a a couple of minutes to close the operation, wait...");
+
                     bool hardIndication = true;
-                    if (message.Text == "Ask To Close Position")
-                        hardIndication = false;
 
                     string text;
-                    var hasOps = currentTrader.CloseAllOperationIfAny(hardIndication);
+                    var hasOps = await currentTrader.CloseAllOperationIfAny(hardIndication);
                     if (hasOps)
                     {
                         text = "Done!";
@@ -517,7 +549,8 @@ namespace Midas.Core.Telegram
                 {
                     new KeyboardButton[] { "Snapshot","State", "Slots" },
                     new KeyboardButton[] { "Try Enter" },
-                    new KeyboardButton[] { "Close Position", "Ask To Close Position" },
+                    new KeyboardButton[] { "Force Order Status"},
+                    new KeyboardButton[] { "Ask To Close Position", "Close Position" },
                     new KeyboardButton[] { "Back"}
                 })
             {

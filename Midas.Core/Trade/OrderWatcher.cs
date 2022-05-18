@@ -35,6 +35,8 @@ namespace Midas.Core.Trade
 
         public void StartWatching()
         {
+            Console.WriteLine($"Watching for orders on: {_symbol}");
+
             _active = true;
             _tradeSocket.Open();
             _tradeSocket.OnNewTrade(this.OnNewTrade);
@@ -75,6 +77,7 @@ namespace Midas.Core.Trade
 
                     if (order != null)
                     {
+                        Console.WriteLine($"Just got a matching order! {order.OrderId} - {tradeItem.Value.Price}");
                         order.AddTrade(tradeItem.Value);
                     }
 

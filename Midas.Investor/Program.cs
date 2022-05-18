@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Midas.Core;
 using Midas.Core.Services;
 
@@ -8,7 +9,7 @@ namespace Midas.InVestor
     public class Program
     {
         private static InvestorService _investor;
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             ThreadPool.SetMaxThreads(500, 500);
             ThreadPool.SetMinThreads(50, 50);
@@ -22,9 +23,9 @@ namespace Midas.InVestor
 
             runParams.WriteToConsole();
 
-            _investor.Start();
+            await _investor.Start();
 
-           while(_investor.Running)
+            while (_investor.Running)
                 Thread.Sleep(1000);
         }
     }

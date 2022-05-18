@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Midas.Core.Common;
 using Midas.Core.Sources.RestSources;
 using Midas.Sources;
@@ -42,14 +43,14 @@ namespace Midas.Core
             if (queryType == sourceType)
             {
                 BinanceRest restCandles = new BinanceRest(asset, queryType);
-                ret = restCandles.GetCandles(range).ToList();
+                ret = (restCandles.GetCandles(range)).ToList();
             }
             else
             {
                 current = Candle.GetValidMilestone(current, queryType);
 
                 BinanceRest restCandles = new BinanceRest(asset, queryType);
-                var cache = restCandles.GetCandles(range).ToList();
+                var cache = (restCandles.GetCandles(range)).ToList();
 
                 while (current < range.End)
                 {

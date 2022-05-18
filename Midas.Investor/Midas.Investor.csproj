@@ -5,9 +5,11 @@
   <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="2.12.4"/>
     <PackageReference Include="MongoDB.Driver.Core" Version="2.12.4"/>
+    <PackageReference Include="runtime.osx.10.10-x64.CoreCompat.System.Drawing" Version="6.0.5.128"/>
   </ItemGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 </Project>

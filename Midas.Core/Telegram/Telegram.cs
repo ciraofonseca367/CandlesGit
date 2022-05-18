@@ -5,6 +5,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using System.Collections.Generic;
 using Midas.Core.Util;
+using System.Threading.Tasks;
 
 namespace Midas.Core.Telegram
 {
@@ -1404,7 +1405,7 @@ namespace Midas.Core.Telegram
             BOT_API = code;
         }
 
-        public static async void SendImage(Bitmap img, string msg)
+        public static async Task SendImage(Bitmap img, string msg)
         {
 
             bool isTesting = false;
@@ -1438,7 +1439,7 @@ namespace Midas.Core.Telegram
 
         }
 
-        public static void SendImageBuffered(string threadName, Bitmap img, string msg)
+        public static async Task SendImageBuffered(string threadName, Bitmap img, string msg)
         {
             if (!_buffers.ContainsKey(threadName))
                 _buffers.Add(threadName, DateTime.Now.AddSeconds(-600));
@@ -1446,12 +1447,12 @@ namespace Midas.Core.Telegram
             DateTime last = _buffers[threadName];
             if ((DateTime.Now - last).TotalSeconds > 30)
             {
-                SendImage(img, msg);
+                await SendImage(img, msg);
                 _buffers[threadName] = DateTime.Now;
             }
         }
 
-        public static async void SendMessage(string msg)
+        public static async Task SendMessage(string msg)
         {
             bool isTesting = false;
             if (RunParameters.GetInstance() != null)
@@ -1475,7 +1476,7 @@ namespace Midas.Core.Telegram
             }
         }
 
-        public static void SendMessageBuffered(string threadName, string msg)
+        public static async Task SendMessageBuffered(string threadName, string msg)
         {
             if (threadName == null)
                 threadName = String.Empty;
@@ -1489,7 +1490,7 @@ namespace Midas.Core.Telegram
             DateTime last = _buffers[threadName];
             if ((DateTime.Now - last).TotalSeconds > 60)
             {
-                SendMessage(msg);
+                await SendMessage(msg);
                 _buffers[threadName] = DateTime.Now;
             }
         }

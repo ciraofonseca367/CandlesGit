@@ -12,7 +12,7 @@ namespace Midas.Core.Forecast
         Task<List<PredictionResult>> PredictAsync(Bitmap image,string asset, float scoreThreshold, double currentValue, DateTime currentTime);
 
         List<PredictionResult> Predict(Bitmap image,string asset, float scoreThreshold, double currentValue, DateTime currentTime);
-        Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime);
+        Task<Prediction> GetPredictionAsync(Bitmap image, string asset, double currentValue, DateTime currentTime);
     }
 
     public class ForecastFactory

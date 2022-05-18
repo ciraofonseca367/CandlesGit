@@ -111,7 +111,8 @@ namespace Midas.Core.Broker
         {
             get
             {
-                return (_trades.Count() == 0 ? 0 : _trades.Average(t => t.Price));
+                var basedOnTheTrades = (_trades.Count() == 0 ? 0 : _trades.Average(t => t.Price));
+                return basedOnTheTrades == 0 ? AverageValue : basedOnTheTrades;                
             }
         }
 
@@ -168,7 +169,7 @@ namespace Midas.Core.Broker
 
         public override string ToString()
         {
-            return $"{Direction}({Type})) {Quantity:0.0000} by ${AverageValue:0.00}= {Status}:{CalculatedStatus} ({((AverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
+            return $"{Direction}({Type})) {Quantity:0.0000} by ${CalculatedAverageValue:0.00}= {Status}:{CalculatedStatus} ({((CalculatedAverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
         }
 
         public BrokerOrderDto GetMyDto()

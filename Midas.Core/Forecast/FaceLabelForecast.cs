@@ -51,7 +51,7 @@ namespace Midas.Core.Forecast
                 if (res.Wait(5000))
                 {
                     var predictions = await res.Result.Content.ReadAsStringAsync();
-                        ret = predictions;
+                    ret = predictions;
 
                     var prediction = new PredictionResult()
                     {
@@ -65,7 +65,7 @@ namespace Midas.Core.Forecast
                     prediction.CreationDate = currentTime;
                     prediction.FromAmount = currentValue;
                     prediction.LowerBound = currentValue * (1 + prediction.RatioLowerBound);
-                    prediction.UpperBound = currentValue * (1 + prediction.RatioUpperBound);                           
+                    prediction.UpperBound = currentValue * (1 + prediction.RatioUpperBound);
 
                     previewTags.Add(prediction);
                 }
@@ -82,7 +82,7 @@ namespace Midas.Core.Forecast
 
         public List<PredictionResult> Predict(Bitmap image, string asset, float scoreThreshold, double currentValue, DateTime currentTime)
         {
-            var t = this.PredictAsync(image,asset, scoreThreshold, currentValue, currentTime);
+            var t = this.PredictAsync(image, asset, scoreThreshold, currentValue, currentTime);
 
             if (t.Wait(20000))
                 return t.Result;
@@ -92,19 +92,12 @@ namespace Midas.Core.Forecast
             }
         }
 
-        public Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime)
+        public async Task<Prediction> GetPredictionAsync(Bitmap image, string asset, double currentValue, DateTime currentTime)
         {
             Prediction predictionResult = null;
 
-            var predictions = PredictAsync(image, asset,  0.1f, currentValue, currentTime);
-            if (predictions.Wait(60000))
-            {
-                predictionResult = Prediction.ParseRawResult(predictions.Result);
-            }
-            else
-            {
-                throw new ApplicationException("Timeout waiting on a prediction!!!" + _predictionServer);
-            }
+            var predictions = await PredictAsync(image, asset, 0.1f, currentValue, currentTime);
+            predictionResult = Prediction.ParseRawResult(predictions);
 
             return predictionResult;
         }

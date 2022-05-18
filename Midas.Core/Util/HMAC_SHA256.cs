@@ -30,7 +30,7 @@ namespace Midas.Core.Util
  
         private static byte[] HashSHA(byte[] innerKey, byte[] outerKey, byte[] message)
         {
-            var hash = new SHA256Managed();
+            var hash = SHA256.Create();
  
             // Compute the hash for the inner data first
             byte[] innerData = new byte[innerKey.Length + message.Length];

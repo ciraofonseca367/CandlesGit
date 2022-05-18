@@ -10,6 +10,7 @@
     "CardHeight": 250,
     "IsTesting": false,
     "DrawShadow": false,
+    "EnableLimitOrders": true,    
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "cfi",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
@@ -156,48 +157,45 @@
     "HyperParams": {
         "DelayedTrigger": false,        
         "124_Long-DelayedTrigger": true,
+        "AtrStopLoss": 0.1,
+        "Avg": 12,
 
-        "SoftStopEnabled": false,
         "ExcludedModel": "152_Long",
         "StopLossCompSoftness": 0.001,
         "AvgCompSoftness": 0.3,
-        "FollowPricePerc": 0.3,
-        "GainSoftStopTrigger": 3,
+
+        "SoftStopEnabled": true, 
+        "FollowPricePerc": 0.5,
+        "GainSoftStopTrigger": 2,
+        
         "NumberOfSlots": 1,
         "PurchaseSteps": [
             {
-                "Units": 5,
+                "Units": 10,
                 "GainTrigger": 0.00
-            },
-            {
-                "Units": 5,
-                "GainTrigger": 0.5
             }
         ],
 
-        "StepSellEnabled": true,
+        "StepSellEnabled": false,
         "StepSellValue": 2,
         "StepSellPercentage": 0.3,
 
         "BTC-52_Long-Avg" : 12,
-        "BTC-52_Long-AtrStopLoss" : 0.3,
 
         "BTC-124_Long-Avg" : 30,
-        "BTC-124_Long-AtrStopLoss" : 0.5,
 
         "ETH-52_Long-Avg" : 30,
-        "ETH-52_Long-AtrStopLoss" : 0.5,
         "ETH-52_Long-AvgCompSoftness": 0.6,
 
-        "ETH-124_Long-Avg" : 12,
-        "ETH-124_Long-AtrStopLoss" : 0.3
+        "ETH-124_Long-Avg" : 12
     },
+
 
     "BrokerParameters": {
         "ApiKey": "opL6ZoVjDXpT9FUG6ip5JTkpjaQKlimbjbYJOrKMRuWElrVU2xNnsP7SRBbScDS6",
         "ApiSecret": "3vLv8JPjtUW47kHpUyFvwD3CbLPuZG2sEqW68z6zqqOB1yUZEWD5kUbovOhmdF3Y",
         "EndPoint": "https://api.binance.com",
-        "WebSocket": "wss://api.binance.com/ws",
+        "WebSocket": "wss://stream.binance.com:9443/ws",
         "Host": "api.binance.com",
         "TIMEOUT_BUY": 200000,
         "TIMEOUT_SELL": 60000,

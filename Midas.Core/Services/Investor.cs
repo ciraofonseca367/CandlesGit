@@ -1,25 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Midas.Core;
 using Midas.Core.Common;
-using Midas.FeedStream;
 using System.Linq;
-using Midas.Util;
 using MongoDB.Driver;
-using MongoDB.Bson;
-using Midas.Core.Chart;
-using System.Drawing;
-using System.IO;
-using Midas.Core.Encoder;
-using Midas.Core.Indicators;
 using System.Threading.Tasks;
 using Midas.Trading;
 using Midas.Core.Telegram;
 using Midas.Core.Broker;
 using Midas.Core.Util;
-using Telegram.Bot;
-using Telegram.Bot.Extensions.Polling;
 using System.Text;
 using Midas.Core.Trade;
 using DateTimeUtil;
@@ -28,7 +17,7 @@ namespace Midas.Core.Services
 {
     public class InvestorService
     {
-        private Thread _runner;
+        private Task _runner;
         private bool _running;
         private RunParameters _params;
 
@@ -45,7 +34,6 @@ namespace Midas.Core.Services
             TelegramBot.SetApiCode(parans.TelegramBotCode);
 
             _params = parans;
-            _runner = new Thread(new ThreadStart(this.Runner));
 
             _mongoClient = new MongoClient(parans.DbConString);
 
@@ -66,14 +54,6 @@ namespace Midas.Core.Services
             return configs.ToString();
         }
 
-        public void SendMessage(string thread, string message)
-        {
-            if (thread == null)
-                TelegramBot.SendMessage(message);
-            else
-                TelegramBot.SendMessageBuffered(thread, message);
-        }
-
         public AssetTrader GetAssetTrader(string asset)
         {
             AssetTrader trader = null;
@@ -83,7 +63,7 @@ namespace Midas.Core.Services
             return trader;
         }
 
-        public void Start()
+        public async Task Start()
         {
             _running = true;
 
@@ -99,18 +79,18 @@ namespace Midas.Core.Services
             foreach(var t in _traders)
                 Console.WriteLine(t.ToString());
 
-            this._runner.Start();
+            _runner = Task.Run(this.Runner);
 
             //Set up the Bot
             _candleBot = new CandleBot(this, _params, _traders);
             _candleBot.Start();
 
-            TelegramBot.SendMessage("Iniciando Investor...");
+            await TelegramBot.SendMessage("Iniciando Investor...");
         }
 
 
 
-        internal string GetAllReport()
+        internal async Task<string> GetAllReport()
         {
             StringBuilder sb = new StringBuilder();
             List<double> days = new List<double>();
@@ -125,7 +105,7 @@ namespace Midas.Core.Services
                 sb.Append(String.Format("---------------------------\n"));
                 foreach (var pair in _traders)
                 {
-                    var allOps = SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
+                    var allOps = await SearchOperations(pair.Value.Asset, pair.Value.CandleType, DateTime.UtcNow.AddDays(-30));
                     var lastDay = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
                     var lastWeek = allOps.Where(op => op.EntryDate > DateTime.Now.AddDays(-7));
 
@@ -158,9 +138,9 @@ namespace Midas.Core.Services
             return sb.ToString();
         }
 
-        internal string GetReport(string asset, CandleType candleType)
+        internal async Task<string> GetReport(string asset, CandleType candleType)
         {
-            var ops = SearchOperations(asset, candleType, DateTime.Now.AddDays(-7));
+            var ops = await SearchOperations(asset, candleType, DateTime.Now.AddDays(-7));
 
             var lastDayOps = ops.Where(op => op.EntryDate > DateTime.Now.AddDays(-1));
 
@@ -179,19 +159,19 @@ namespace Midas.Core.Services
             return message;
         }
 
-        public List<TradeOperationDto> SearchOperations(string asset, CandleType candle, DateTime min)
+        public Task<List<TradeOperationDto>> SearchOperations(string asset, CandleType candle, DateTime min)
         {
 
             return InvestorService.SearchOperations(_params.DbConString, null, asset, candle, min);
         }
 
-        public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
+        public static Task<List<TradeOperationDto>> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
         {
             return SearchOperations(conString,experiment,asset,candle,min, DateTime.MinValue, TradeOperationState.None);
         }
 
 
-        public static List<TradeOperationDto> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min,
+        public async static Task<List<TradeOperationDto>> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min,
             DateTime lastUpdateMin, TradeOperationState state, bool noPriceExit=true)
         {
             var client = new MongoClient(conString);
@@ -221,7 +201,7 @@ namespace Midas.Core.Services
 
             var filter = filterBuilder1.And(filterDefinition.ToArray());
 
-            var query = dbCol.Find(filter).Project<TradeOperationDto>(fields).ToList();
+            var query = (await dbCol.FindAsync(filter)).ToList();
 
             return query;
         }
@@ -253,9 +233,9 @@ namespace Midas.Core.Services
             return summary.ToList();
         }
  
-        public string GetOperationsSummary(int days)
+        public async Task<string> GetOperationsSummary(int days)
         {
-            var allOperations = SearchOperations(this._params.DbConString, null, null, CandleType.MIN15, DateTime.UtcNow.AddDays(days * -1), DateTime.MinValue, TradeOperationState.None);
+            var allOperations = await SearchOperations(this._params.DbConString, null, null, CandleType.HOUR1, DateTime.UtcNow.AddDays(days * -1), DateTime.MinValue, TradeOperationState.None);
             var allOperationsReverse = allOperations.OrderByDescending(op => op.EntryDate).ToList();
             StringBuilder sb = new StringBuilder(500);
 
@@ -273,14 +253,14 @@ namespace Midas.Core.Services
                 sb.Append(String.Format("{0,6}{1,5}{2,7:0.000}%{3,6:0.00}%{4,4:00%}\n",
                     AssetTrader.GetShortIdentifier(s.Asset, s.CandleType),
                     s.OperationsCount,
-                    s.PAndL_AfterCosts,
+                    s.PAndL,
                     s.OperationAvg,
                     s.SuccessRate
                 ));
             });
 
             allCount = summary.Sum(s => s.OperationsCount);
-            allAvgPAndL = summary.Average(s => s.PAndL_AfterCosts);
+            allAvgPAndL = summary.Average(s => s.PAndL);
             allAvgPerTrans = summary.Average(s => s.OperationAvg);
             allRate = summary.Average(s => s.SuccessRate);
             sb.Append(String.Format("-------------------------------\n"));
@@ -291,9 +271,9 @@ namespace Midas.Core.Services
             return sb.ToString();
         }
 
-        public string GetLastOperations(int number)
+        public async Task<string> GetLastOperations(int number)
         {
-            var allOperations = SearchOperations(this._params.DbConString, _params.ExperimentName, null, CandleType.None, DateTime.UtcNow.AddDays(100*-1));
+            var allOperations = await SearchOperations(this._params.DbConString, null, null, CandleType.None, DateTime.UtcNow.AddDays(number*-1));
             var allOperationsReverse = allOperations.OrderByDescending(op => op.ExitDate).ToList();
 
             StringBuilder sb = new StringBuilder(500);
@@ -406,37 +386,45 @@ namespace Midas.Core.Services
         }
 
 
-        public string GetBalanceReport()
+        public async Task<string> GetBalanceReport()
         {
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
-            var priceBTC = b.GetPriceQuote("BTCBUSD");
-            var priceBNB = b.GetPriceQuote("BNBBUSD");
-            var priceADA = b.GetPriceQuote("ADABUSD");
-            var priceETH = b.GetPriceQuote("ETHBUSD");
+
+            var priceBTCTask = b.GetPriceQuote("BTCBUSD");
+            var priceBNBTask = b.GetPriceQuote("BNBBUSD");
+            var priceADATask = b.GetPriceQuote("ADABUSD");
+            var priceETHTask = b.GetPriceQuote("ETHBUSD");
+
+            await Task.WhenAll(priceBTCTask, priceBNBTask, priceADATask, priceETHTask);
+
+            var priceBTC = priceBTCTask.Result;
+            var priceBNB = priceBTCTask.Result;
+            var priceADA = priceBTCTask.Result;
+            var priceETH = priceBTCTask.Result;
 
             string emoticon = "\U00002705";
             string balanceReport = "BALANCE REPORT " + emoticon + "\n\n";
 
-            var balances = b.AccountBalance(60000);
-            balances.ForEach(b =>
+            var balances = await b.AccountBalanceAsync(60000);
+            balances.ForEach(bal =>
             {
-                if (b.TotalQuantity > 0.0001)
+                if (bal.TotalQuantity > 0.0001)
                 {
-                    if (b.Asset == "BTC")
-                        b.TotalUSDAmount = b.TotalQuantity * priceBTC;
-                    else if (b.Asset == "USDT")
-                        b.TotalUSDAmount = b.TotalQuantity;
-                    else if (b.Asset == "BUSD")
-                        b.TotalUSDAmount = b.TotalQuantity;
-                    else if (b.Asset == "BNB")
-                        b.TotalUSDAmount = b.TotalQuantity * priceBNB;
-                    else if (b.Asset == "ADA")
-                        b.TotalUSDAmount = b.TotalQuantity * priceADA;
-                    else if (b.Asset == "ETH")
-                        b.TotalUSDAmount = b.TotalQuantity * priceETH;
+                    if (bal.Asset == "BTC")
+                        bal.TotalUSDAmount = bal.TotalQuantity * priceBTC;
+                    else if (bal.Asset == "USDT")
+                        bal.TotalUSDAmount = bal.TotalQuantity;
+                    else if (bal.Asset == "BUSD")
+                        bal.TotalUSDAmount = bal.TotalQuantity;
+                    else if (bal.Asset == "BNB")
+                        bal.TotalUSDAmount = bal.TotalQuantity * priceBNB;
+                    else if (bal.Asset == "ADA")
+                        bal.TotalUSDAmount = bal.TotalQuantity * priceADA;
+                    else if (bal.Asset == "ETH")
+                        bal.TotalUSDAmount = bal.TotalQuantity * priceETH;
 
-                    balanceReport += String.Format("{0}: {1:0.0000} = ${2:0.00}\n", b.Asset, b.TotalQuantity, b.TotalUSDAmount);
+                    balanceReport += String.Format("{0}: {1:0.0000} = ${2:0.00}\n", bal.Asset, bal.TotalQuantity, bal.TotalUSDAmount);
                 }
             });
 
@@ -447,9 +435,8 @@ namespace Midas.Core.Services
             double inOrderAmount = 0;
             foreach(var traderPair in _traders)
             {
-
-                var openOrders = b.OpenOrders(traderPair.Value.Asset, 20000);
-                foreach(var order in openOrders)
+                var orders = await b.OpenOrdersAsync(traderPair.Value.Asset, 20000);
+                foreach(var order in orders)
                 {
                     double price = 0;
                     if(traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
@@ -474,16 +461,23 @@ namespace Midas.Core.Services
             return balanceReport;
         }
 
-        public Tuple<double,double> GetAccountBalance()
+        public async Task<Tuple<double,double>> GetAccountBalance()
         {
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
-            var priceBTC = b.GetPriceQuote("BTCBUSD");
-            var priceBNB = b.GetPriceQuote("BNBBUSD");
-            var priceADA = b.GetPriceQuote("ADABUSD");
-            var priceETH = b.GetPriceQuote("ETHBUSD");
+            var priceBTCTask = b.GetPriceQuote("BTCBUSD");
+            var priceBNBTask = b.GetPriceQuote("BNBBUSD");
+            var priceADATask = b.GetPriceQuote("ADABUSD");
+            var priceETHTask = b.GetPriceQuote("ETHBUSD");
 
-            var balances = b.AccountBalance(60000);
+            await Task.WhenAll(priceBTCTask, priceBNBTask, priceADATask, priceETHTask);
+
+            var priceBTC = priceBTCTask.Result;
+            var priceBNB = priceBTCTask.Result;
+            var priceADA = priceBTCTask.Result;
+            var priceETH = priceBTCTask.Result;
+
+            var balances = await b.AccountBalanceAsync(60000);
             double balanceUSD = 0;
             balances.ForEach(b =>
             {
@@ -514,7 +508,7 @@ namespace Midas.Core.Services
             foreach(var traderPair in _traders)
             {
 
-                var openOrders = b.OpenOrders(traderPair.Value.Asset, 20000);
+                var openOrders = await b.OpenOrdersAsync(traderPair.Value.Asset, 20000);
                 foreach(var order in openOrders)
                 {
                     double price = 0;
@@ -542,9 +536,7 @@ namespace Midas.Core.Services
         {
             _running = false;
 
-            _runner.Join();
-
-            if (!_runner.Join(1000))
+            if (!_runner.Wait(1000))
                 throw new ApplicationException("Timeout waiting for the runner to stop");
         }
 
@@ -562,10 +554,10 @@ namespace Midas.Core.Services
             TraceAndLog.GetInstance().Dispose();
         }
 
-        private void StartTraders()
+        private async Task StartTraders()
         {
             foreach (var pair in _traders)
-                pair.Value.Start();
+                await pair.Value.Start();
         }
 
         public void StopTraders(bool stopOp = true)
@@ -576,7 +568,7 @@ namespace Midas.Core.Services
             _traders = null;
         }
 
-        public void RestartTraders()
+        public async Task RestartTraders()
         {
             if (_traders != null)
             {
@@ -587,7 +579,7 @@ namespace Midas.Core.Services
             _traders = _params.GetAssetTraders(this);
 
             foreach (var pair in _traders)
-                pair.Value.Start();
+                await pair.Value.Start();
         }
         
         private void SaveExperiment(string conString)
@@ -607,9 +599,9 @@ namespace Midas.Core.Services
             _traders = _params.GetAssetTraders(this);
         }
 
-        public void Runner()
+        public async Task Runner()
         {
-            StartTraders();
+            await StartTraders();
 
             while (_running)
             {
@@ -620,11 +612,11 @@ namespace Midas.Core.Services
                     var now = DateTime.UtcNow;
                     if(now.Hour == 0 && now.Minute % 30 == 0)
                     {
-                        var balances = GetAccountBalance();
+                        var balances = await GetAccountBalance();
                         var br = new BalanceReport(balances.Item1,balances.Item2);
                         br.SaveOrUpdate(_params.DbConString);
 
-                        TelegramBot.SendMessage($"Balance for the {now:yyyy-MM-dd} is $ {balances.Item1:0.000}, in USD Only: {balances.Item2:0.000}");
+                        await TelegramBot.SendMessage($"Balance for the {now:yyyy-MM-dd} is $ {balances.Item1:0.000}, in USD Only: {balances.Item2:0.000}");
                         TraceAndLog.StaticLog("Investor","Daily balance updated");
                     }
                 }

@@ -22,7 +22,7 @@ using Midas.Core.Broker;
 
 namespace Midas.Broadcast
 {
-    public class Broadcast : KlineRunner
+    public class Broadcast
     {
         private Thread _runner;
         private bool _running;
@@ -31,14 +31,6 @@ namespace Midas.Broadcast
         private MongoClient _mongoClient;
 
         private TradeOperationManager _manager = null;
-
-        private NewCandleAction _klineObservers;
-
-        private RunnerAction _runnerObservers;
-
-        private double _lastHourDifference;
-        private double _lastHourValue;
-        private DateTime _lastHourUpdate;
 
         private static string WEB_SOCKETURI = "wss://stream.binance.com:9443/ws";
 
@@ -51,48 +43,14 @@ namespace Midas.Broadcast
 
             _manager = TradeOperationManager.GetManager(null, parans.DbConString, parans.FundName, _params.BrokerName, parans.BrokerParameters, parans.Asset, parans.CandleType, "Broadcast");
 
-            _lastHourUpdate = DateTime.MinValue;
-            _lastHourDifference = 0;
-            _lastHourValue = 0;
         }
 
-        public void Subscribe(NewCandleAction action)
-        {
-            _klineObservers += action;
-        }
-
-        public void SubscribeToActions(RunnerAction action)
-        {
-            _runnerObservers += action;
-        }
-
-        private double UpdateLastHour(double amount)
-        {
-            double ret = -100;
-            if (_lastHourUpdate == DateTime.MinValue)
-            {
-                _lastHourValue = amount;
-                _lastHourUpdate = DateTime.Now;
-            }
-
-            if ((DateTime.Now - _lastHourUpdate).TotalMinutes > 60)
-            {
-                _lastHourDifference = ((amount - _lastHourValue) / amount) * 100;
-                _lastHourValue = amount;
-                ret = _lastHourDifference;
-
-                _lastHourUpdate = DateTime.Now;
-            }
-
-            return ret;
-        }
-
-        public void SendMessage(string thread, string message)
+        public async Task SendMessage(string thread, string message)
         {
             if (thread == null)
-                TelegramBot.SendMessage(message);
+                await TelegramBot.SendMessage(message);
             else
-                TelegramBot.SendMessageBuffered(thread, message);
+                await TelegramBot.SendMessageBuffered(thread, message);
         }
 
         public void Start()
@@ -164,21 +122,22 @@ namespace Midas.Broadcast
             if (_params.IsTesting)
             {
                 Broker broker = Broker.GetBroker(_params.BrokerName, _params.BrokerParameters, null);
-                double currentPrice = broker.GetPriceQuote(_params.Asset);
+                var currentPriceTask = broker.GetPriceQuote(_params.Asset);
+                currentPriceTask.Wait();
 
-                InsertTestTradeOperation(currentPrice);
+                InsertTestTradeOperation(currentPriceTask.Result);
             }
 
             if (liveStream != null)
             {
                 _candleMovieRoll = new FixedSizedQueue<Candle>(runParams.WindowSize + 200);
 
-                var cacheCandles = GetCachedCandles().ToList();
-                cacheCandles.ForEach(c =>
+                var cacheCandles = GetCachedCandles();
+                foreach (var c in cacheCandles)
                 {
                     _candleMovieRoll.Enqueue(c);
                     FeedIndicators(c, "Main");
-                });
+                }
 
                 var initialVolumes = cacheCandles.Select(p => new VolumeIndicator(p));
                 foreach (var v in initialVolumes)
@@ -188,9 +147,9 @@ namespace Midas.Broadcast
 
                 Bitmap imgToBroadcast = null;
 
-                TraceAndLog.GetInstance().Log("Broadcast", String.Format("Starting broadcast with {0} cached candles", cacheCandles.Count));
+                TraceAndLog.GetInstance().Log("Broadcast", $"Starting broadcast with {cacheCandles.Count()} cached candles");
 
-                liveStream.OnNewCandle((id, previewsC, cc) =>
+                liveStream.OnNewCandle(async (id, previewsC, cc) =>
                 {
                     var recentClosedCandle = previewsC;
 
@@ -198,9 +157,11 @@ namespace Midas.Broadcast
                     _candleMovieRoll.Enqueue(recentClosedCandle);
                     FeedIndicators(recentClosedCandle, "Main");
                     FeedIndicators(new VolumeIndicator(recentClosedCandle), "Volume");
+
+                    await Task.CompletedTask;
                 });
 
-                liveStream.OnUpdate((id, message, cc) =>
+                liveStream.OnUpdate(async (id, message, cc) =>
                 {
                     _lastCandle = cc;
 
@@ -217,7 +178,7 @@ namespace Midas.Broadcast
                     if (_activeOperations != null)
                     {
                         var minDate = _activeOperations.Min(op => op.EntryDate);
-                        if(minDate < defaultRange.Start)
+                        if (minDate < defaultRange.Start)
                             range = new DateRange(minDate, defaultRange.End);
                     }
 
@@ -257,7 +218,10 @@ namespace Midas.Broadcast
 
                     imgToBroadcast = GetImage(_params, candlesToDraw, newVolumes, range, predictionSerie, false);
 
-                    imgToBroadcast.Save("Live5.png", System.Drawing.Imaging.ImageFormat.Png);
+                    await Task.Run(() =>
+                    {
+                        imgToBroadcast.Save("Live5.png", System.Drawing.Imaging.ImageFormat.Png);
+                    });
 
                     if (!_params.IsTesting)
                     {
@@ -448,7 +412,7 @@ namespace Midas.Broadcast
             var myStrId = objId.ToString();
             var myId = new BsonObjectId(objId);
 
-            op._id = myId;            
+            op._id = myId;
 
             var dbClient = new MongoClient(_params.DbConString);
 

@@ -111,11 +111,12 @@ namespace Midas.Trading
                 _slotManager = new FundSlotManager(_fund, RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots"));
                 string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
-                // if (!RunParameters.GetInstance().IsTesting)
-                // {
-                //     _orderWatcher = new OrderWatcher(endPoint, _asset);
-                //     _orderWatcher.StartWatching();
-                // }
+                if (RunParameters.GetInstance().EnableLimitOrders)
+                {
+                    Console.WriteLine("Start order watcher...");
+                    _orderWatcher = new OrderWatcher(endPoint, _asset);
+                    _orderWatcher.StartWatching();
+                }
             }
         }
 
@@ -171,11 +172,6 @@ namespace Midas.Trading
 
         public FundSlotManager SlotManager { get => _slotManager; }
 
-        public List<TradeOperationDto> GetOpenOperations()
-        {
-            return InvestorService.SearchOperations(_conString, null, _asset, _candleType, DateTime.MinValue, DateTime.UtcNow.AddHours(-12), TradeOperationState.In, false);
-        }
-
         public List<TradeOperationDto> SearchOperations(string asset, DateTime min)
         {
             var client = new MongoClient(_conString);
@@ -204,15 +200,16 @@ namespace Midas.Trading
 
         private TradeOperation _currentOperation;
         private ConcurrentBag<TradeOperation> _allOperations;
+        private OrderWatcher _orderWatcher;
 
-        internal void SendMessage(string thread, string message)
+        internal async Task SendMessage(string thread, string message)
         {
-            TelegramBot.SendMessageBuffered(thread, message);
+            await TelegramBot.SendMessageBuffered(thread, message);
         }
 
-        internal void SendImage(Bitmap img, string msg)
+        internal async Task SendImage(Bitmap img, string msg)
         {
-            TelegramBot.SendImage(img, msg);
+            await TelegramBot.SendImage(img, msg);
         }
 
         public void LoadOperations()
@@ -225,11 +222,11 @@ namespace Midas.Trading
             return _allOperations.Where(op => op.EntryDate > validDate).ToList();
         }
 
-        internal void OperationFinished(TradeOperation op, Candle cc, FundSlot slot)
+        internal async Task OperationFinished(TradeOperation op, Candle cc, FundSlot slot)
         {
             _lastTrade = op;
             _slotManager.ReturnSlot(slot.Id);
-            _trader.SaveSnapshot(cc, op);
+            await _trader.SaveSnapshot(cc, op);
         }
 
         public List<TradeOperation> GetOperationsThreadSafe(DateTime validDate)
@@ -262,7 +259,7 @@ namespace Midas.Trading
                 _currentOperation.Signal(signal);
         }
 
-        public TradeOperation SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName, Bitmap image)
+        public async Task<TradeOperation> SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName, Bitmap image)
         {
             TradeOperation ret = null;
 
@@ -292,7 +289,7 @@ namespace Midas.Trading
                     _currentOperation = new TradeOperation(this, slot, forecastPeriod, _conString, _brokerConfig, _asset, _candleType, _brokerName);
                     _allOperations.Add(_currentOperation);
 
-                    _currentOperation.Enter(value, pointInTime, ratr, modelName, image);
+                    await _currentOperation.Enter(value, pointInTime, ratr, modelName, image);
                     ret = _currentOperation;
                 }
                 else
@@ -322,15 +319,21 @@ namespace Midas.Trading
             return order;
         }
 
-        public void OnCandleUpdate(Candle c)
+        public async Task OnCandleUpdate(Candle c)
         {
             foreach (var op in _allOperations)
-                op.OnCandleUpdateAsync(c);
+                await op.OnCandleUpdateAsync(c);
         }
 
         public void Dispose()
         {
 
+        }
+
+        internal void WatchOrder(BrokerOrder order)
+        {
+            if(_orderWatcher != null)
+                _orderWatcher.AddOrder(order);
         }
     }
 

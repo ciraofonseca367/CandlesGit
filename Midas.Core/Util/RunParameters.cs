@@ -247,6 +247,7 @@ namespace Midas.Core
         public bool DrawShadow { get; private set; }
         public double MIN_PEEK_STRENGH { get; internal set; }
         public Dictionary<string, object> HyperParams { get => _hyperParams; set => _hyperParams = value; }
+        public bool EnableLimitOrders { get; private set; }
 
         private string _dbConString;
         private string _dbConStringCandles;
@@ -363,7 +364,11 @@ namespace Midas.Core
 
         public double GetHyperParamAsDouble(string asset, string modelName, string name)
         {
-            return Convert.ToDouble(GetHyperParam(asset, modelName, name));
+            object ret = GetHyperParam(asset, modelName, name);
+            if(ret == null)
+                throw new ArgumentException($"Param not found {asset}-{modelName}-{name}");
+
+            return Convert.ToDouble(ret);
         }
 
         public float GetHyperParamAsFloat(string name)
@@ -473,6 +478,10 @@ namespace Midas.Core
             IsTesting = false;
             if (stuff.IsTesting != null)
                 IsTesting = Convert.ToBoolean(stuff.IsTesting);
+
+            EnableLimitOrders = false;
+            if (stuff.EnableLimitOrders != null)
+                EnableLimitOrders = Convert.ToBoolean(stuff.EnableLimitOrders);
 
             Range = new DateRange(start, end);
 

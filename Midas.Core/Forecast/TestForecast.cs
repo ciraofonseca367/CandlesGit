@@ -55,15 +55,12 @@ namespace Midas.Core.Forecast
             return res;
         }
 
-        public Prediction GetPrediction(Bitmap image, string asset, double currentValue, DateTime currentTime)
+        public async Task<Prediction> GetPredictionAsync(Bitmap image, string asset, double currentValue, DateTime currentTime)
         {
             Prediction predictionResult = null;
 
-            var predictions = PredictAsync(image, asset, 0.1f, currentValue, currentTime);
-            if (predictions.Wait(60000))
-            {
-                predictionResult = Prediction.ParseRawResult(predictions.Result);
-            }
+            var predictions = await PredictAsync(image, asset, 0.1f, currentValue, currentTime);
+            predictionResult = Prediction.ParseRawResult(predictions);
 
             return predictionResult;
         }

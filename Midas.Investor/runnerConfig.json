@@ -2,13 +2,14 @@
     "RunMode": "Invest",
     "ExperimentName": "Investing",
     "Asset": "BTCBUSD",
-    "StartDate": "2021-11-01 00:00:00",
+    "StartDate": "2021-05-30 00:00:00",
     "EndDate": "2021-11-15 23:59:59",
     "CandleType": "MIN30",
     "WindowSize": 45,
     "CardWidth": 250,
     "CardHeight": 250,
     "IsTesting": true,
+    "EnableLimitOrders": true,
     "DrawShadow": false,    
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
@@ -17,17 +18,20 @@
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
+    /*
+    Uncomment to use historical
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Historical",
     "BrokerName": "TestBroker",
-    "PreloadCandles": false,
+    "PreloadCandles": false, */
+
+    "Forecaster": "FaceLabelForecast",
+    "FeedStreamType": "Live",
+    "BrokerName": "Binance",
+    "PreloadCandles": true,
+
 
     "Assets": [
-        {
-            "Asset": "ETHUSDT",
-            "CandleType": "HOUR1",
-            "FundName": "ETHBUSD_MIN15"
-        },
         {
             "Asset": "BTCUSDT",
             "CandleType": "HOUR1",
@@ -139,41 +143,36 @@
     "HyperParams": {
         "DelayedTrigger": false,        
         "124_Long-DelayedTrigger": true,
+        "AtrStopLoss": 0.1,
 
-        "SoftStopEnabled": false,
         "ExcludedModel": "152_Long",
         "StopLossCompSoftness": 0.001,
         "AvgCompSoftness": 0.3,
-        "FollowPricePerc": 0.3,
-        "GainSoftStopTrigger": 3,
+
+        "SoftStopEnabled": true, 
+        "FollowPricePerc": 0.25,
+        "GainSoftStopTrigger": 2,
+        
         "NumberOfSlots": 1,
         "PurchaseSteps": [
             {
-                "Units": 5,
+                "Units": 10,
                 "GainTrigger": 0.00
-            },
-            {
-                "Units": 5,
-                "GainTrigger": 0.5
             }
         ],
 
-        "StepSellEnabled": true,
+        "StepSellEnabled": false,
         "StepSellValue": 2,
         "StepSellPercentage": 0.3,
 
         "BTC-52_Long-Avg" : 12,
-        "BTC-52_Long-AtrStopLoss" : 0.3,
 
         "BTC-124_Long-Avg" : 30,
-        "BTC-124_Long-AtrStopLoss" : 0.5,
 
         "ETH-52_Long-Avg" : 30,
-        "ETH-52_Long-AtrStopLoss" : 0.5,
         "ETH-52_Long-AvgCompSoftness": 0.6,
 
-        "ETH-124_Long-Avg" : 12,
-        "ETH-124_Long-AtrStopLoss" : 0.3
+        "ETH-124_Long-Avg" : 12
     },
 
     "BrokerParameters": {

@@ -22,12 +22,13 @@ using Midas.Core;
 using Midas.Core.Common;
 using Midas.FeedStream;
 using Midas.Sources;
+using System.Net.Http;
 
 namespace Midas.DataGather
 {
     public class DataGather
     {
-        private Thread _runner;
+        private Task _runner;
         private bool _running;
         private RunParameters _params;
 
@@ -36,42 +37,27 @@ namespace Midas.DataGather
         public DataGather(RunParameters parans)
         {
             _params = parans;
-            _runner = new Thread(new ThreadStart(this.Runner));
 
             _mongoClient = new MongoClient(parans.DbConString);
         }
 
-        public void Start()
+        public async Task Start()
         {
-            TelegramBot.SendMessage("Iniciando DataGather...");
+            await TelegramBot.SendMessage("Iniciando DataGather...");
 
             _running = true;
 
-            this._runner.Start();
+            _runner = Task.Run(this.Runner);
         }
 
         public void Stop()
         {
             _running = false;
-            if (!_runner.Join(1000))
+            if (!_runner.Wait(1000))
                 throw new ApplicationException("Timeout waiting for the runner to stop");
         }
 
-        private void OnNewCandle(string asset, Candle p, Candle c)
-        {
-            try
-            {
-                Console.WriteLine($"=== New Candle {asset} - {p.ToString()} ===");
-                p.SaveOrUpdate(_params.DbConString, String.Format("Klines_{0}_{1}", asset.ToUpper(), _params.CandleType.ToString()));
-            }
-            catch (Exception err)
-            {
-                Console.WriteLine("Error when updating Candle!" + err.ToString());
-                TelegramBot.SendMessage("CRITICAL: Error to store candles!" + err.Message);
-            }
-        }
-
-        public void Runner()
+        public async Task Runner()
         {
             var runParams = _params;
 
@@ -135,7 +121,7 @@ namespace Midas.DataGather
                 }
                 catch (Exception err)
                 {
-                    TelegramBot.SendMessage("Data Gather - Thread Error: " + err.ToString());
+                    await TelegramBot.SendMessage("Data Gather - Thread Error: " + err.ToString());
                 }
             }
         }
@@ -180,15 +166,15 @@ namespace Midas.DataGather
                 string newsUrl = string.Format(url, _params.CustomSearchKey, searchTerm, (i * 10 + 1).ToString());
                 Console.WriteLine("Fetching from: "+newsUrl);
 
-                //Console.WriteLine(newUrl);
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(newsUrl);
-                request.Method = "GET";
+                HttpClient client = new HttpClient();
 
-                WebResponse webResponse = request.GetResponse();
-                Stream webStream = webResponse.GetResponseStream();
-                StreamReader responseReader = new StreamReader(webStream);
-                string response = responseReader.ReadToEnd();
-                responseReader.Close();
+                string response = "";
+                var responseTask = client.GetStringAsync(newsUrl);
+                if(responseTask.Wait(10000))
+                    response = responseTask.Result;
+                else
+                    throw new TimeoutException("Timeout while getting news");
+
 
                 dynamic stuff = JsonConvert.DeserializeObject(response);
                 foreach (var item in stuff.items)
@@ -306,7 +292,7 @@ namespace Midas.DataGather
     class Program
     {
         private static DataGather _gather;
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             RunParameters runParams = RunParameters.CreateInstace(args);
             _gather = new DataGather(runParams);
@@ -315,7 +301,7 @@ namespace Midas.DataGather
 
             runParams.WriteToConsole();
 
-            _gather.Start();
+            await _gather.Start();
 
             while (true)
             {

@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using Midas.Core.Forecast;
 using Midas.Trading;
 using MongoDB.Bson;
@@ -212,7 +213,7 @@ namespace Midas.Tools
 
         }
 
-        private static void TestModel(string imgDirectoryPath)
+        private static async Task TestModel(string imgDirectoryPath)
         {
             IForecast forecaster = ForecastFactory.GetForecaster(
                 "ThirtyPeriodForecast", "http://10.0.0.188");
@@ -236,7 +237,7 @@ namespace Midas.Tools
                     Console.WriteLine($"{fi.Name}");
                     Console.WriteLine($"File {i} de {files.Length}");
 
-                    var prediction = forecaster.GetPrediction(img, "teste", 100000, DateTime.Now);
+                    var prediction = await forecaster.GetPredictionAsync(img, "teste", 100000, DateTime.Now);
 
                     html.Append($"<div><img src='file:///{fi.FullName}' width=250 height=250 /></br>");
                     html.Append($"<b>Predictions:</b></br>");

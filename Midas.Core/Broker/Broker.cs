@@ -78,9 +78,9 @@ namespace Midas.Core.Broker
         }
 
 
-        internal virtual dynamic Post(string url, string queryString, string body, int timeOut)
+        internal virtual async Task<dynamic> Post(string url, string queryString, string body, int timeOut)
         {
-            return Post(url, queryString, body, timeOut);
+            return await Post(url, queryString, body, timeOut);
         }
 
         private HttpClient GetHttpClient(Dictionary<string, string> headers)
@@ -99,22 +99,15 @@ namespace Midas.Core.Broker
             return httpClient;
         }
 
-        private dynamic ProcessResponse(Task<HttpResponseMessage> res, HttpClient httpClient, int timeOut, string completeUrl, string action)
+        private async Task<dynamic> ProcessResponse(Task<HttpResponseMessage> res, HttpClient httpClient, int timeOut, string completeUrl, string action)
         {
             object parsedResponse;
             if (res.Wait(timeOut))
             {
-                var jsonResponse = res.Result.Content.ReadAsStringAsync();
-                if (jsonResponse.Wait(timeOut))
-                {
-                    parsedResponse = JsonConvert.DeserializeObject(jsonResponse.Result);
-                    if (action != "GET")
-                        LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse.Result);
-                }
-                else
-                {
-                    throw new ArgumentException("Timeout sending Post Request to - " + completeUrl);
-                }
+                var jsonResponse = await res.Result.Content.ReadAsStringAsync();
+                parsedResponse = JsonConvert.DeserializeObject(jsonResponse);
+                if (action != "GET")
+                    LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse);
             }
             else
             {
@@ -124,52 +117,52 @@ namespace Midas.Core.Broker
             return parsedResponse;
         }
 
-        internal virtual dynamic Post(string url, string queryString, string body, Dictionary<string, string> headers, int timeOut)
+        internal virtual async Task<dynamic> Post(string url, string queryString, string body, Dictionary<string, string> headers, int timeOut)
         {
             var httpClient = GetHttpClient(headers);
 
             var content = new StringContent(body);
 
             var res = httpClient.PostAsync(url + queryString, content);
-            var parsedResponse = ProcessResponse(res, httpClient, timeOut, url + queryString, "Post");
+            var parsedResponse = await ProcessResponse(res, httpClient, timeOut, url + queryString, "Post");
 
             return parsedResponse;
         }
 
 
-        internal virtual dynamic Get(string url, string queryString, int timeOut)
+        internal virtual async Task<dynamic> Get(string url, string queryString, int timeOut)
         {
-            return Get(url, queryString, timeOut, true);
+            return await Get(url, queryString, timeOut, true);
         }
-        internal virtual dynamic Get(string url, string queryString, int timeOut, bool secure)
+        internal virtual async Task<dynamic> Get(string url, string queryString, int timeOut, bool secure)
         {
-            return Get(url, queryString, null, timeOut);
+            return await Get(url, queryString, null, timeOut);
         }
-        internal virtual dynamic Get(string url, string queryString, Dictionary<string, string> headers, int timeOut)
+        internal virtual async Task<dynamic> Get(string url, string queryString, Dictionary<string, string> headers, int timeOut)
         {
             var httpClient = GetHttpClient(headers);
 
             var res = httpClient.GetAsync(url + queryString);
 
-            return ProcessResponse(res, httpClient, timeOut, url + queryString, "GET");
+            return await ProcessResponse(res, httpClient, timeOut, url + queryString, "GET");
         }
 
-        internal virtual dynamic Delete(string url, string queryString, int timeOut)
+        internal virtual async Task<dynamic> Delete(string url, string queryString, int timeOut)
         {
-            return Delete(url, queryString, null, timeOut);
+            return await Delete(url, queryString, null, timeOut);
         }
 
-        internal virtual dynamic Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
+        internal virtual async Task<dynamic> Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
         {
             var httpClient = GetHttpClient(headers);
 
             var res = httpClient.DeleteAsync(url + queryString);
 
-            return ProcessResponse(res, httpClient, timeOut, url + queryString, "Delete");
+            return await ProcessResponse(res, httpClient, timeOut, url + queryString, "Delete");
 
         }
 
-        public abstract double GetPriceQuote(string asset);
+        public abstract Task<double> GetPriceQuote(string asset);
 
         public abstract BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async);
 
@@ -181,15 +174,19 @@ namespace Midas.Core.Broker
 
         public abstract BrokerOrder OrderStatus(string orderId, string asset, int timeOut);
 
-        public abstract IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut);
-
         public abstract Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut);
+
+        public abstract Task<List<BrokerOrder>> OpenOrdersAsync(string asset, int timeOut);
 
         public abstract List<BalanceRecord> AccountBalance(int timeOut);
 
+        public abstract Task<List<BalanceRecord>> AccountBalanceAsync(int timeOut);
+
         public abstract bool CancelOrder(string orderId, string asset, int timeOut);
 
-        public abstract void CancelAllOpenOrdersAsync(string asset, int timeOut);
+        public abstract Task<bool> CancelOrderAsync(string orderId, string asset, int timeOut);
+
+        public abstract Task CancelAllOpenOrdersAsync(string asset, int timeOut);
 
         public abstract void CancelAllOpenOrders(string asset, int timeOut);
 
@@ -264,7 +261,7 @@ namespace Midas.Core.Broker
             BIAS_DIFF_FORSELL = Convert.ToDouble(config.BIAS_DIFF_FORSELL);
         }
 
-        public override double GetPriceQuote(string asset)
+        public override async Task<double> GetPriceQuote(string asset)
         {
             asset = asset.Replace("BTCBUSD", "BTCUSDT");
             string key = $"{asset}-{DateTime.UtcNow:yyyy-mm-dd HH}";
@@ -274,7 +271,7 @@ namespace Midas.Core.Broker
 
             if (quote == 0)
             {
-                var ret = Get(
+                var ret = await Get(
                     _priceTickerUri,
                     String.Format(_symbolPriceTicker, asset),
                     10000, false
@@ -290,7 +287,7 @@ namespace Midas.Core.Broker
             return quote;
         }
 
-        public override bool CancelOrder(string orderId, string asset, int timeOut)
+        public override async Task<bool> CancelOrderAsync(string orderId, string asset, int timeOut)
         {
             string queryString;
             var cancelled = false;
@@ -300,7 +297,7 @@ namespace Midas.Core.Broker
                 asset, orderId
             );
 
-            var res = Delete(_marketOrderUri, queryString, null, timeOut);
+            var res = await Delete(_marketOrderUri, queryString, null, timeOut);
 
             string errorMsg = null;
             string status = null;
@@ -323,16 +320,6 @@ namespace Midas.Core.Broker
             return cancelled;
         }
 
-        public override async void CancelAllOpenOrdersAsync(string asset, int timeOut)
-        {
-            Task cancelTask = Task.Run(() =>
-            {
-                CancelAllOpenOrders(asset, timeOut);
-            });
-
-            await cancelTask;
-        }
-
         public static bool IsPropertyExist(dynamic settings, string name)
         {
             if (settings is ExpandoObject)
@@ -341,7 +328,7 @@ namespace Midas.Core.Broker
             return settings.GetType().GetProperty(name) != null;
         }
 
-        public override void CancelAllOpenOrders(string asset, int timeOut)
+        public override async Task CancelAllOpenOrdersAsync(string asset, int timeOut)
         {
             string queryString;
 
@@ -350,7 +337,7 @@ namespace Midas.Core.Broker
                 asset
             );
 
-            var res = Delete(_openOrdersUri, queryString, null, timeOut);
+            var res = await Delete(_openOrdersUri, queryString, timeOut);
 
             string errorMsg = null;
             if (IsPropertyExist(res, "msg"))
@@ -365,7 +352,7 @@ namespace Midas.Core.Broker
             }
         }
 
-        public BrokerOrder NewOrder(string orderId, string asset, OrderType type, OrderDirection direction, double qty, double price, int timeOut, DateTime creationDate, bool async = false)
+        public async Task<BrokerOrder> NewOrder(string orderId, string asset, OrderType type, OrderDirection direction, double qty, double price, int timeOut, DateTime creationDate, bool async = false)
         {
             string queryString;
 
@@ -385,7 +372,7 @@ namespace Midas.Core.Broker
                     asset, direction.ToString(), type.ToString(), qty.ToString("0.0000").Replace(",", "."), orderId, price.ToString("0.00")
                 );
 
-            var res = Post(_marketOrderUri, queryString, "", timeOut);
+            var res = await Post(_marketOrderUri, queryString, "", timeOut);
 
             //Passar o relative now para todos os BrokerOrders para poder calcular o timeout relativo.
             BrokerOrder order = new BrokerOrder(this, direction, type, orderId, creationDate);
@@ -447,9 +434,9 @@ namespace Midas.Core.Broker
             return (BrokerOrderStatus)Enum.Parse(typeof(BrokerOrderStatus), rawStatus);
         }
 
-        public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async = false)
+        public override async Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async = false)
         {
-            var order = NewOrder(orderId, asset, OrderType.MARKET, direction, qty, 0, timeOut, creationDate, async);
+            var order = await NewOrder(orderId, asset, OrderType.MARKET, direction, qty, 0, timeOut, creationDate, async);
             order.DesiredPrice = desiredPrice;
 
             //For market orders, if it is Filled, we automatically add a fake trade for the calculated status
@@ -465,60 +452,43 @@ namespace Midas.Core.Broker
             return order;
         }
 
-        public override async Task<BrokerOrder> MarketOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
+        public override BrokerOrder MarketOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double desiredPrice, DateTime creationDate, bool async)
         {
-            BrokerOrder order = null;
-            Task t = Task.Run(() =>
-            {
-                order = MarketOrder(orderId, asset, direction, qty, timeOut, desiredPrice, creationDate, async);
-                order.DesiredPrice = desiredPrice;
-            });
+            var res = MarketOrderAsync(orderId, asset, direction, qty, timeOut, desiredPrice, creationDate, async);
+            res.Wait();
 
-            await t;
-
-            return order;
-        }
-
-        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
-        {
-            return NewOrder(orderId, asset, OrderType.LIMIT, direction, qty, price, timeOut, creationDate);
+            return res.Result;
         }
 
         public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
-            BrokerOrder order = null;
-            Task t = Task.Run(() =>
-            {
-                order = LimitOrder(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
-                order.DesiredPrice = currentPrice;
-            });
+            var newOrder = await NewOrder(orderId, asset, OrderType.LIMIT, direction, qty, price, timeOut, creationDate);
+            newOrder.DesiredPrice = currentPrice;
 
-            await t;
-
-            return order;
+            return newOrder;
         }
 
-        public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
+        public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
-            BrokerOrder order = null;
-            Task t = Task.Run(() =>
-            {
-                order = OrderStatus(orderId, asset, timeOut);
-            });
+            var res = LimitOrderAsync(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
+            res.Wait();
 
-            await t;
-
-            return order;
+            return res.Result;
         }
 
         public override BrokerOrder OrderStatus(string orderId, string asset, int timeOut)
+        {
+            return OrderStatusAsync(orderId, asset, timeOut).Result;
+        }
+
+        public override async Task<BrokerOrder> OrderStatusAsync(string orderId, string asset, int timeOut)
         {
             string queryString = String.Format(
                 _orderStatusQueryStringTemplate,
                 asset, orderId
             );
 
-            var res = Get(_marketOrderUri, queryString, timeOut);
+            var res = await Get(_marketOrderUri, queryString, timeOut);
 
             BrokerOrder order = new BrokerOrder(this, orderId, DateTime.MinValue);
 
@@ -546,14 +516,16 @@ namespace Midas.Core.Broker
             return order;
         }
 
-        public override IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut)
+        public override async Task<List<BrokerOrder>> OpenOrdersAsync(string asset, int timeOut)
         {
             string queryString = String.Format(
                 _openOrdersQueryStringTemplate,
                 asset
             );
 
-            var res = Get(_openOrdersUri, queryString, timeOut);
+            var ret = new List<BrokerOrder>();
+
+            var res = await Get(_openOrdersUri, queryString, timeOut);
             foreach (var item in res)
             {
                 string orderId = Convert.ToString(item.clientOrderId);
@@ -564,95 +536,92 @@ namespace Midas.Core.Broker
                 order.BrokerOrderId = Convert.ToString(item.orderId);
                 order.DesiredPrice = Convert.ToDouble(item.price);
 
-                yield return order;
+                ret.Add(order);
             }
+
+            return ret;
         }
 
         public override async Task<BrokerOrder> SmartOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, PriceBias bias, DateTime creationDate)
         {
             BrokerOrder smartOrder = new BrokerOrder(this, orderId, DateTime.MinValue);
 
-            var task = Task<BrokerOrder>.Run(() =>
+            if (bias == PriceBias.Urgent)
             {
-                if (bias == PriceBias.Urgent)
+                smartOrder = await MarketOrderAsync(orderId, asset, direction, qty, timeOut, price, creationDate);
+                if (smartOrder.InError)
+                    throw new BrokerException("Error on MarketOrder first step - " + smartOrder.RawStatus + " - " + smartOrder.ErrorMsg, null);
+            }
+            else
+            {
+                double newPrice = price;
+                if (bias == PriceBias.Normal)
                 {
-                    smartOrder = MarketOrder(orderId, asset, direction, qty, timeOut, price, creationDate);
-                    if (smartOrder.InError)
-                        throw new BrokerException("Error on MarketOrder first step - " + smartOrder.RawStatus + " - " + smartOrder.ErrorMsg, null);
+                    var factor = (direction == OrderDirection.BUY ? BIAS_DIFF_FORBUY : BIAS_DIFF_FORSELL);
+                    newPrice *= factor;
                 }
+
+                var lastOrder = await LimitOrderAsync(orderId, asset, direction, qty, timeOut, newPrice, newPrice, creationDate);
+                if (lastOrder.InError)
+                    throw new BrokerException("Error on LimitOrder first step - " + lastOrder.ErrorMsg, null);
                 else
                 {
-                    double newPrice = price;
-                    if (bias == PriceBias.Normal)
+                    bool status = false;
+                    DateTime startWaiting = DateTime.Now;
+
+                    while (!status && (DateTime.Now - startWaiting).TotalMilliseconds < timeOut)
                     {
-                        var factor = (direction == OrderDirection.BUY ? BIAS_DIFF_FORBUY : BIAS_DIFF_FORSELL);
-                        newPrice *= factor;
+                        Thread.Sleep(500);
+
+                        BrokerOrder statusOrder = null;
+
+                        try
+                        {
+                            statusOrder = await OrderStatusAsync(orderId, asset, timeOut);
+                        }
+                        catch (Exception err)
+                        {
+                            base.LogMessage("Order", "Error in the status order, it will not be propagated: " + err.Message);
+                        }
+
+                        if (statusOrder != null)
+                        {
+                            if (!statusOrder.InError && statusOrder.RawStatus == "FILLED")
+                            {
+                                lastOrder = statusOrder;
+                                //Uiippiiii LIMIT ORDER is OK
+                                status = true;
+                            }
+                        }
                     }
 
-                    var lastOrder = LimitOrder(orderId, asset, direction, qty, timeOut, newPrice, newPrice, creationDate);
-                    if (lastOrder.InError)
-                        throw new BrokerException("Error on LimitOrder first step - " + lastOrder.ErrorMsg, null);
+                    //If the LIMIT ORDER hasn't pan out send market order
+                    if (!status)
+                    {
+                        base.LogMessage("Broker", "Cancelling all orders for -" + asset);
+                        //Cancel the prevous limit order
+                        await CancelAllOpenOrdersAsync(asset, timeOut);
+
+                        //If we were trying to sell desperately send a market order
+                        base.LogMessage("Broker", "Sending market order -" + asset);
+                        lastOrder = await MarketOrderAsync(orderId + "u", asset, direction, qty, timeOut, price, creationDate);
+                        smartOrder = lastOrder;
+                        if (lastOrder.InError)
+                        {
+                            base.LogMessage("Broker", "Error in the market order final: " + lastOrder.ErrorMsg);
+                        }
+                    }
                     else
                     {
-                        bool status = false;
-                        DateTime startWaiting = DateTime.Now;
-
-                        while (!status && (DateTime.Now - startWaiting).TotalMilliseconds < timeOut)
-                        {
-                            Thread.Sleep(500);
-
-                            BrokerOrder statusOrder = null;
-
-                            try
-                            {
-                                statusOrder = OrderStatus(orderId, asset, timeOut);
-                            }
-                            catch (Exception err)
-                            {
-                                base.LogMessage("Order", "Error in the status order, it will not be propagated: " + err.Message);
-                            }
-
-                            if (statusOrder != null)
-                            {
-                                if (!statusOrder.InError && statusOrder.RawStatus == "FILLED")
-                                {
-                                    lastOrder = statusOrder;
-                                    //Uiippiiii LIMIT ORDER is OK
-                                    status = true;
-                                }
-                            }
-                        }
-
-                        //If the LIMIT ORDER hasn't pan out send market order
-                        if (!status)
-                        {
-                            base.LogMessage("Broker", "Cancelling all orders for -" + asset);
-                            //Cancel the prevous limit order
-                            CancelAllOpenOrders(asset, timeOut);
-
-                            //If we were trying to sell desperately send a market order
-                            base.LogMessage("Broker", "Sending market order -" + asset);
-                            lastOrder = MarketOrder(orderId + "u", asset, direction, qty, timeOut, price, creationDate);
-                            smartOrder = lastOrder;
-                            if (lastOrder.InError)
-                            {
-                                base.LogMessage("Broker", "Error in the market order final: " + lastOrder.ErrorMsg);
-                            }
-                        }
-                        else
-                        {
-                            smartOrder = lastOrder;
-                        }
+                        smartOrder = lastOrder;
                     }
                 }
-            });
-
-            await task;
+            }
 
             return smartOrder;
         }
 
-        internal override dynamic Post(string url, string queryString, string body, int timeOut)
+        internal override async Task<dynamic> Post(string url, string queryString, string body, int timeOut)
         {
             var headers = new Dictionary<string, string>();
 
@@ -668,15 +637,15 @@ namespace Midas.Core.Broker
             headers.Add("User-Agent", "CandlesFaces");
 
             queryString += "&signature=" + signature;
-            return base.Post(url, queryString, body, headers, timeOut);
+            return await base.Post(url, queryString, body, headers, timeOut);
         }
 
-        internal override dynamic Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
+        internal override async Task<dynamic> Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
         {
-            return Delete(url, queryString, timeOut);
+            return await Delete(url, queryString, timeOut);
         }
 
-        internal override dynamic Delete(string url, string queryString, int timeOut)
+        internal override async Task<dynamic> Delete(string url, string queryString, int timeOut)
         {
             var headers = new Dictionary<string, string>();
 
@@ -692,10 +661,10 @@ namespace Midas.Core.Broker
             headers.Add("User-Agent", "CandlesFaces");
 
             queryString += "&signature=" + signature;
-            return base.Delete(url, queryString, headers, timeOut);
+            return await base.Delete(url, queryString, headers, timeOut);
         }
 
-        internal override dynamic Get(string url, string queryString, int timeOut, bool secure = true)
+        internal override async Task<dynamic> Get(string url, string queryString, int timeOut, bool secure = true)
         {
             var headers = new Dictionary<string, string>();
 
@@ -729,12 +698,12 @@ namespace Midas.Core.Broker
                 finalQueryString += "&signature=" + signature;
             }
 
-            return base.Get(url, finalQueryString, headers, timeOut);
+            return await base.Get(url, finalQueryString, headers, timeOut);
         }
 
-        public override List<BalanceRecord> AccountBalance(int timeOut)
+        public override async Task<List<BalanceRecord>> AccountBalanceAsync(int timeOut)
         {
-            var res = Get(this._accountUri, String.Empty, timeOut, true);
+            var res = await Get(this._accountUri, String.Empty, timeOut, true);
             var balances = new List<BalanceRecord>();
 
             string errorMsg = null;
@@ -763,6 +732,21 @@ namespace Midas.Core.Broker
             return balances;
 
         }
+
+        public override List<BalanceRecord> AccountBalance(int timeOut)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override bool CancelOrder(string orderId, string asset, int timeOut)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void CancelAllOpenOrders(string asset, int timeOut)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class TestBroker : Broker
@@ -781,9 +765,11 @@ namespace Midas.Core.Broker
         {
             //throw new NotImplementedException();
         }
-        public override void CancelAllOpenOrdersAsync(string asset, int timeOut)
+        public override async Task CancelAllOpenOrdersAsync(string asset, int timeOut)
         {
             //throw new NotImplementedException();
+
+            await Task.Factory.StartNew(() => Thread.Sleep(1));
         }
         public override bool CancelOrder(string orderId, string asset, int timeOut)
         {
@@ -796,42 +782,24 @@ namespace Midas.Core.Broker
             else
                 return false;
         }
-        public override double GetPriceQuote(string asset)
+        public override async Task<double> GetPriceQuote(string asset)
         {
-            return 42533;
+            return await Task.FromResult(42533);
         }
 
         public override BrokerOrder LimitOrder(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
-            BrokerOrder order = null;
-            order = new BrokerOrder(this, direction, OrderType.LIMIT, orderId, creationDate);
-            order.DesiredPrice = price;
-            order.AverageValue = currentPrice;
-            order.RawStatus = "NEW";
-            order.Status = BrokerOrderStatus.NEW;
-            order.InError = false;
-            order.Quantity = qty;
-
-            var assetInfo = AssetPriceHub.GetTicker(asset);
-            if (assetInfo != null)
-            {
-                assetInfo.WatchOrder(order);
-
-                base.LogMessage("Test Broker", "Limit Order - " + price + " - " + direction);
-            }
-
-            return order;
+            return this.MarketOrder(orderId, asset, direction, qty, timeOut, price, creationDate, false);
         }
 
         public override async Task<BrokerOrder> LimitOrderAsync(string orderId, string asset, OrderDirection direction, double qty, int timeOut, double price, double currentPrice, DateTime creationDate)
         {
             BrokerOrder order = null;
-            Task t = Task.Run(() =>
+
+            await Task.Run(() =>
             {
                 order = LimitOrder(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
             });
-
-            await t;
 
             return order;
         }
@@ -923,7 +891,17 @@ namespace Midas.Core.Broker
             return order;
         }
 
-        public override IEnumerable<BrokerOrder> OpenOrders(string asset, int timeOut)
+        public override Task<List<BrokerOrder>> OpenOrdersAsync(string asset, int timeOut)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<List<BalanceRecord>> AccountBalanceAsync(int timeOut)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<bool> CancelOrderAsync(string orderId, string asset, int timeOut)
         {
             throw new NotImplementedException();
         }

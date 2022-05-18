@@ -10,14 +10,15 @@ using System.Text;
 using System.Collections.Concurrent;
 using Midas.Sources;
 using Midas.Core.Util;
+using System.Threading.Tasks;
 
 namespace Midas.FeedStream
 {
-    public delegate void SocketNewCancle(string identification,Candle previous, Candle current);
+    public delegate Task SocketNewCancle(string identification,Candle previous, Candle current);
 
-    public delegate void SocketEvent(string identification,string message, Candle c);
+    public delegate Task SocketEvent(string identification,string message, Candle c);
 
-    public delegate void SocketInfo(string identification, string message);
+    public delegate Task SocketInfo(string identification, string message);
     
 
     public abstract class LiveAssetFeedStream : AssetFeedStream, IDisposable
@@ -27,7 +28,7 @@ namespace Midas.FeedStream
         protected CandleType _streamCandleType;
         protected CandleType _queryCandleType;
 
-        private Thread _threadRunner;
+        private Task _threadRunner;
 
         private bool _closing;
 
@@ -39,8 +40,7 @@ namespace Midas.FeedStream
 
             _closing = false;
 
-            _threadRunner = new Thread(new ThreadStart(this.SocketRunner));
-            _threadRunner.Start();
+            _threadRunner = Task.Run(this.SocketRunner);
 
             _state = MidasSocketState.Initial;            
         }
@@ -95,7 +95,7 @@ namespace Midas.FeedStream
             }
         }
 
-        protected virtual void SocketRunner()
+        protected virtual async Task SocketRunner()
         {
             Candle bufferCandle = null;
 
@@ -117,7 +117,7 @@ namespace Midas.FeedStream
                         this._socket.ReOpenAndSubscribe();
 
                         if (_socketInfo != null)
-                            _socketInfo(_asset, "Connected: " + this._socket.SocketStatus);
+                            await _socketInfo(_asset, "Connected: " + this._socket.SocketStatus);
                     }
 
                     if (this._socket == null)
@@ -130,13 +130,13 @@ namespace Midas.FeedStream
                         this._socket.ReOpenAndSubscribe();
 
                         if (_socketInfo != null)
-                            _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
+                            await _socketInfo(_asset, "Socket is null, I will try to create another! - " + this._socket.SocketStatus);
                     }
 
                     var buffer = this._socket.ReconnetableReceive();
 
                     if (_socketInfo != null)
-                        _socketInfo(_asset, buffer);
+                        await _socketInfo(_asset, buffer);
 
                     if (buffer.IndexOf("result") == -1) //Ignore Sometimes when the connection starts binance will return a JSON with result:null
                     {
@@ -150,13 +150,13 @@ namespace Midas.FeedStream
                             bufferCandle = tmpCandle;
 
                         if(_socketUpdate != null)
-                            _socketUpdate(_asset, buffer, bufferCandle);
+                            await _socketUpdate(_asset, buffer, bufferCandle);
 
                         //We've just changed candle, thus, we need to add the lastCandle to the internal buffer
                         if (lastCandle != null && bufferCandle.OpenTime > lastCandle.OpenTime)
                         {
                             if(_socketNew != null)
-                                _socketNew(_asset, lastCandle, bufferCandle);
+                                await _socketNew(_asset, lastCandle, bufferCandle);
                         }
 
                         lastCandle = bufferCandle;
@@ -171,7 +171,7 @@ namespace Midas.FeedStream
 
                     this._socket = null;
                     if(_socketInfo != null)
-                        _socketInfo(_asset, msg);
+                        await _socketInfo(_asset, msg);
                     
                     TraceAndLog.StaticLog("Socket", msg);
                     Thread.Sleep(20000);
@@ -179,7 +179,7 @@ namespace Midas.FeedStream
             }
 
             if(_socketEnd != null)
-                _socketEnd("fim","fim");
+                await _socketEnd("fim","fim");
 
             _state = MidasSocketState.Closed;
         }
@@ -191,7 +191,7 @@ namespace Midas.FeedStream
             if(_socket != null)
                 _socket.Dispose();
 
-            _threadRunner.Join(5000);
+            _threadRunner.Wait(5000);
 
             if (!fromGC)
                 GC.SuppressFinalize(this);

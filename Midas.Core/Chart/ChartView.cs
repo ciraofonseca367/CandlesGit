@@ -361,8 +361,13 @@ namespace Midas.Core.Chart
         private FeatureCoordinate DrawLine(IStockPointInTime pointA, IStockPointInTime pointB, Color c, int size)
         {
             FeatureCoordinate feature = new FeatureCoordinate();
-            var coordA = Translate(pointA);
-            var coordB = Translate(pointB);
+            var diff = pointB.PointInTime - pointA.PointInTime;
+            double minutesPadding = 0;
+            if(diff.TotalMinutes > 0)
+                minutesPadding = diff.TotalMinutes / 2;
+
+            var coordA = Translate(pointA.PointInTime.AddMinutes(minutesPadding), pointA.AmountValue);
+            var coordB = Translate(pointB.PointInTime.AddMinutes(minutesPadding), pointB.AmountValue);
 
             feature = RelativeTranslate(pointA);
 
@@ -420,6 +425,13 @@ namespace Midas.Core.Chart
 
             return Translate(timeStamp, amount);
         }
+
+        internal Coordinate Translate(DateTime point, double amount)
+        {
+            Int64 timeStamp = InSeconds(point);
+
+            return Translate(timeStamp, amount);
+        }        
 
         internal Coordinate Translate(int x, int y)
         {

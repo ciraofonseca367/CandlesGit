@@ -10,6 +10,7 @@ using System.Text;
 using System.Collections.Concurrent;
 using Midas.Sources;
 using Midas.Core.Trade;
+using System.Threading.Tasks;
 
 namespace Midas.FeedStream
 {
@@ -145,7 +146,7 @@ namespace Midas.FeedStream
             _running = false;
         }
 
-        protected override void SocketRunner()
+        protected override async Task SocketRunner()
         {
             Thread.Sleep(5000);
 
@@ -164,10 +165,10 @@ namespace Midas.FeedStream
                 bufferCandle = HeartBeat();
 
                 if (_socketInfo != null)
-                    _socketInfo("testAsset", bufferCandle.ToString());
+                    await _socketInfo("testAsset", bufferCandle.ToString());
 
                 if (_socketUpdate != null)
-                    _socketUpdate("testAsset","Test", bufferCandle);
+                    await _socketUpdate("testAsset","Test", bufferCandle);
 
                 //We've just changed candle, thus, we need to add the lastCandle to the internal buffer
                 if (lastCandle == null || bufferCandle.OpenTime > lastCandle.OpenTime)
@@ -176,7 +177,7 @@ namespace Midas.FeedStream
                         lastCandle = bufferCandle;
 
                     if (_socketNew != null)
-                        _socketNew("testAsset",lastCandle, bufferCandle);
+                        await _socketNew("testAsset",lastCandle, bufferCandle);
                 }
 
                 lastCandle = bufferCandle;
