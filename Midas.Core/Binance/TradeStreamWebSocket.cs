@@ -54,7 +54,7 @@ namespace Midas.Core.Binance
             var item = new TradeStreamItem();
             item.BuyerId = Convert.ToString(stuff["b"]);
             item.SellerId = Convert.ToString(stuff["a"]);
-            item.Qdy = Convert.ToDouble(stuff["q"]);
+            item.Qty = Convert.ToDouble(stuff["q"]);
             item.Price = Convert.ToDouble(stuff["p"]);
             item.Symbol = Convert.ToString(stuff["s"]);
             
@@ -67,8 +67,8 @@ namespace Midas.Core.Binance
     {
         public string BuyerId { get; internal set; }
         public string SellerId { get; internal set; }
-        public double Qdy { get; internal set; }
-        public double Price { get; internal set; }
+        public double Qty { get; set; }
+        public double Price { get;  set; }
         public string Symbol { get; internal set; }
 
         public string Id
@@ -88,7 +88,7 @@ namespace Midas.Core.Binance
 
         public override string ToString()
         {
-            return $"{BuyerId} - {SellerId} - Qdy:{Qdy:0.0000} - Price:{Price:0.00} - Symbol:{Symbol}";
+            return $"{BuyerId} - {SellerId} - Qdy:{Qty:0.0000} - Price:{Price:0.00} - Symbol:{Symbol}";
         }
     }
 }

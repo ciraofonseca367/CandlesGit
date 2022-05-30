@@ -83,8 +83,6 @@ namespace Midas.FeedStream
 
             Thread.Sleep(1000);
 
-            Console.WriteLine(DateRange.ToString());
-
             var res = CandlesGateway.GetCandlesFromRest(
                 _asset,
                 base._queryCandleType,
@@ -132,13 +130,7 @@ namespace Midas.FeedStream
                     var amountFactor = diff / factor;
                     var secondsFactor = c.CandleAge.TotalSeconds / factor;
 
-                    // Random r = new Random();
-                    // Thread.Sleep(r.Next(50,70));
-
                     await _socketNew("Test", previous, seedCandle);
-                    Thread.Sleep(50);
-
-                    int sleep= (hours > 3 ? 20 : 0);
 
                     for(int i=1;i<=factor;i++)
                     {
@@ -154,8 +146,6 @@ namespace Midas.FeedStream
                         close = new DateTime(close.Year,close.Month,close.Day,close.Hour,close.Minute,0);
 
                         nc.PointInTime_Close = close;
-
-                        //Thread.Sleep(sleep);
 
                         await _socketUpdate("test", "test", nc);
                     }

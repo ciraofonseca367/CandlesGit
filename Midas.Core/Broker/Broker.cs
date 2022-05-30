@@ -16,6 +16,7 @@ using Midas.Core.Common;
 using System.Collections.Concurrent;
 using Midas.Core.Trade;
 using Midas.Core.Binance;
+using System.Text;
 
 namespace Midas.Core.Broker
 {
@@ -23,6 +24,10 @@ namespace Midas.Core.Broker
     {
         protected string _baseUrl;
         protected ILogger _logger;
+
+        protected string _host;
+
+        protected string _apiKey, _apiSecret;
 
 
         public static Broker GetBroker(string identification)
@@ -78,25 +83,27 @@ namespace Midas.Core.Broker
         }
 
 
-        internal virtual async Task<dynamic> Post(string url, string queryString, string body, int timeOut)
+        private static HttpClient _brokerHttpClient;
+        private HttpClient GetHttpClient()
         {
-            return await Post(url, queryString, body, timeOut);
-        }
-
-        private HttpClient GetHttpClient(Dictionary<string, string> headers)
-        {
-            var httpClient = new HttpClient();
-
-            httpClient.BaseAddress = new Uri(_baseUrl);
-            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            if (headers != null)
+            if (_brokerHttpClient == null)
             {
-                foreach (var header in headers)
-                    httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+                lock (this)
+                {
+                    if (_brokerHttpClient == null)
+                    {
+                        _brokerHttpClient = new HttpClient();
+                        _brokerHttpClient.BaseAddress = new Uri(_baseUrl);
+                        _brokerHttpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                        _brokerHttpClient.DefaultRequestHeaders.Add("X-MBX-APIKEY", _apiKey);
+                        _brokerHttpClient.DefaultRequestHeaders.Add("Host", _host);
+                        _brokerHttpClient.DefaultRequestHeaders.Add("User-Agent", "CandlesFaces");
+                    }
+                }
             }
 
-            return httpClient;
+            return _brokerHttpClient;
         }
 
         private async Task<dynamic> ProcessResponse(Task<HttpResponseMessage> res, HttpClient httpClient, int timeOut, string completeUrl, string action)
@@ -106,8 +113,7 @@ namespace Midas.Core.Broker
             {
                 var jsonResponse = await res.Result.Content.ReadAsStringAsync();
                 parsedResponse = JsonConvert.DeserializeObject(jsonResponse);
-                if (action != "GET")
-                    LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse);
+                LogHttpCall(action, httpClient.DefaultRequestHeaders, res.Result.Headers, completeUrl, jsonResponse);
             }
             else
             {
@@ -117,9 +123,9 @@ namespace Midas.Core.Broker
             return parsedResponse;
         }
 
-        internal virtual async Task<dynamic> Post(string url, string queryString, string body, Dictionary<string, string> headers, int timeOut)
+        internal virtual async Task<dynamic> Post(string url, string queryString, string body, int timeOut)
         {
-            var httpClient = GetHttpClient(headers);
+            var httpClient = GetHttpClient();
 
             var content = new StringContent(body);
 
@@ -129,18 +135,13 @@ namespace Midas.Core.Broker
             return parsedResponse;
         }
 
-
-        internal virtual async Task<dynamic> Get(string url, string queryString, int timeOut)
-        {
-            return await Get(url, queryString, timeOut, true);
-        }
         internal virtual async Task<dynamic> Get(string url, string queryString, int timeOut, bool secure)
         {
-            return await Get(url, queryString, null, timeOut);
+            return await Get(url, queryString, timeOut);
         }
-        internal virtual async Task<dynamic> Get(string url, string queryString, Dictionary<string, string> headers, int timeOut)
+        internal virtual async Task<dynamic> Get(string url, string queryString, int timeOut)
         {
-            var httpClient = GetHttpClient(headers);
+            var httpClient = GetHttpClient();
 
             var res = httpClient.GetAsync(url + queryString);
 
@@ -149,12 +150,7 @@ namespace Midas.Core.Broker
 
         internal virtual async Task<dynamic> Delete(string url, string queryString, int timeOut)
         {
-            return await Delete(url, queryString, null, timeOut);
-        }
-
-        internal virtual async Task<dynamic> Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
-        {
-            var httpClient = GetHttpClient(headers);
+            var httpClient = GetHttpClient();
 
             var res = httpClient.DeleteAsync(url + queryString);
 
@@ -232,13 +228,16 @@ namespace Midas.Core.Broker
         private string _cancelAllOrdersQueryStringTemplate = "symbol={0}";
         private string _symbolPriceTicker = "symbol={0}";
 
-        private string _host;
-
-        private string _apiKey, _apiSecret;
+        private SemaphoreSlim _transactionSem;
 
         static BinanceBroker()
         {
             _exchangeRates = new ConcurrentDictionary<string, double>();
+        }
+
+        public BinanceBroker()
+        {
+            _transactionSem = new SemaphoreSlim(1, 1);
         }
 
         public override void SetParameters(dynamic config)
@@ -297,7 +296,7 @@ namespace Midas.Core.Broker
                 asset, orderId
             );
 
-            var res = await Delete(_marketOrderUri, queryString, null, timeOut);
+            var res = await Delete(_marketOrderUri, queryString, timeOut);
 
             string errorMsg = null;
             string status = null;
@@ -377,7 +376,7 @@ namespace Midas.Core.Broker
             //Passar o relative now para todos os BrokerOrders para poder calcular o timeout relativo.
             BrokerOrder order = new BrokerOrder(this, direction, type, orderId, creationDate);
             order.Status = BrokerOrderStatus.None;
-            order.Quantity = qty;
+            order.AskedQuantity = qty;
 
             string errorMsg = null;
             string status = null;
@@ -410,9 +409,15 @@ namespace Midas.Core.Broker
                     foreach (var fill in res.fills)
                     {
                         amounts.Add(Convert.ToDouble(fill.price));
+                        //qty
+                        order.AddTrade(new TradeStreamItem()
+                        {
+                            Price = Convert.ToDouble(fill.price),
+                            Qty = Convert.ToDouble(fill.qty)
+                        });
                     }
 
-                    order.AverageValue = amounts.Average();
+                    order.AverageValue = order.CalculatedAverageValue;
                 }
                 else if (status == "EXPIRED")
                 {
@@ -439,15 +444,7 @@ namespace Midas.Core.Broker
             var order = await NewOrder(orderId, asset, OrderType.MARKET, direction, qty, 0, timeOut, creationDate, async);
             order.DesiredPrice = desiredPrice;
 
-            //For market orders, if it is Filled, we automatically add a fake trade for the calculated status
-            order.AddTrade(new TradeStreamItem()
-            {
-                SellerId = "MARKET_ORDER",
-                Qdy = qty,
-                Price = order.AverageValue
-            });
-
-            Console.WriteLine($"Market order {order.BrokerOrderId} - {order.Quantity} - {order.AverageValue}");
+            Console.WriteLine($"Market order {order.BrokerOrderId} - {order.CalculatedExecutedQuantity} - {order.AverageValue}");
 
             return order;
         }
@@ -530,7 +527,7 @@ namespace Midas.Core.Broker
             {
                 string orderId = Convert.ToString(item.clientOrderId);
                 BrokerOrder order = new BrokerOrder(this, orderId, DateTime.MinValue);
-                order.Quantity = Convert.ToDouble(item.origQty);
+                order.AskedQuantity = Convert.ToDouble(item.origQty);
                 order.RawStatus = Convert.ToString(item.status);
                 order.Status = ParseRawStatus(order.RawStatus);
                 order.BrokerOrderId = Convert.ToString(item.orderId);
@@ -623,51 +620,70 @@ namespace Midas.Core.Broker
 
         internal override async Task<dynamic> Post(string url, string queryString, string body, int timeOut)
         {
-            var headers = new Dictionary<string, string>();
+            var resAwait = await _transactionSem.WaitAsync(30000);
+            if (resAwait)
+            {
+                try
+                {
+                    System.DateTime beginningOfTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+                    var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
 
-            System.DateTime beginningOfTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
-            var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
+                    queryString += "&timestamp=" + Convert.ToInt64(timeSpanStamp.TotalMilliseconds).ToString();
+                    queryString += "&recvWindow=30000";
 
-            queryString += "&timestamp=" + Convert.ToInt64(timeSpanStamp.TotalMilliseconds).ToString();
-            queryString += "&recvWindow=30000";
+                    string signature = Midas.Core.Util.HmacSHA256Helper.HashHMACHex(_apiSecret, queryString);
 
-            string signature = Midas.Core.Util.HmacSHA256Helper.HashHMACHex(_apiSecret, queryString);
-            headers.Add("X-MBX-APIKEY", _apiKey);
-            headers.Add("Host", _host);
-            headers.Add("User-Agent", "CandlesFaces");
 
-            queryString += "&signature=" + signature;
-            return await base.Post(url, queryString, body, headers, timeOut);
-        }
-
-        internal override async Task<dynamic> Delete(string url, string queryString, Dictionary<string, string> headers, int timeOut)
-        {
-            return await Delete(url, queryString, timeOut);
+                    queryString += "&signature=" + signature;
+                    return await base.Post(url, queryString, body, timeOut);
+                }
+                finally
+                {
+                    _transactionSem.Release();
+                }
+            }
+            else
+            {
+                throw new ApplicationException("Timeout waiting for the lock on the Post method");
+            }
         }
 
         internal override async Task<dynamic> Delete(string url, string queryString, int timeOut)
         {
-            var headers = new Dictionary<string, string>();
+            var resAwait = await _transactionSem.WaitAsync(30000);
+            if (resAwait)
+            {
+                try
+                {
+                    System.DateTime beginningOfTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+                    var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
 
-            System.DateTime beginningOfTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
-            var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
+                    queryString += "&timestamp=" + Convert.ToInt64(timeSpanStamp.TotalMilliseconds).ToString();
+                    queryString += "&recvWindow=20000";
 
-            queryString += "&timestamp=" + Convert.ToInt64(timeSpanStamp.TotalMilliseconds).ToString();
-            queryString += "&recvWindow=20000";
+                    string signature = Midas.Core.Util.HmacSHA256Helper.HashHMACHex(_apiSecret, queryString);
 
-            string signature = Midas.Core.Util.HmacSHA256Helper.HashHMACHex(_apiSecret, queryString);
-            headers.Add("X-MBX-APIKEY", _apiKey);
-            headers.Add("Host", _host);
-            headers.Add("User-Agent", "CandlesFaces");
+                    queryString += "&signature=" + signature;
+                    return await base.Delete(url, queryString, timeOut);
+                }
+                finally
+                {
+                    _transactionSem.Release();
+                }
+            }
+            else
+            {
+                throw new ApplicationException("Timeout waiting for the lock on the Post method");
+            }
+        }
 
-            queryString += "&signature=" + signature;
-            return await base.Delete(url, queryString, headers, timeOut);
+        internal override async Task<dynamic> Get(string url, string queryString, int timeOut)
+        {
+            return await Get(url, queryString, timeOut, true);
         }
 
         internal override async Task<dynamic> Get(string url, string queryString, int timeOut, bool secure = true)
         {
-            var headers = new Dictionary<string, string>();
-
             System.DateTime beginningOfTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
             var timeSpanStamp = DateTime.UtcNow - beginningOfTime;
 
@@ -682,12 +698,6 @@ namespace Midas.Core.Broker
                 addString += "&recvWindow=20000";
             }
 
-            if (secure)
-                headers.Add("X-MBX-APIKEY", _apiKey);
-
-            headers.Add("Host", _host);
-            headers.Add("User-Agent", "CandlesFaces");
-
             var finalQueryString = queryString;
             if (addString.Length > 0)
                 finalQueryString += separator + addString;
@@ -698,7 +708,9 @@ namespace Midas.Core.Broker
                 finalQueryString += "&signature=" + signature;
             }
 
-            return await base.Get(url, finalQueryString, headers, timeOut);
+            return await base.Get(url, finalQueryString, timeOut);
+
+
         }
 
         public override async Task<List<BalanceRecord>> AccountBalanceAsync(int timeOut)
@@ -799,6 +811,7 @@ namespace Midas.Core.Broker
             await Task.Run(() =>
             {
                 order = LimitOrder(orderId, asset, direction, qty, timeOut, price, currentPrice, creationDate);
+                order.AskedQuantity = qty;
             });
 
             return order;
@@ -812,14 +825,14 @@ namespace Midas.Core.Broker
             order.RawStatus = "FILLED";
             order.Status = BrokerOrderStatus.FILLED;
             order.InError = false;
-            order.Quantity = qty;
+            order.AskedQuantity = qty;
             order.ErrorMsg = "This is the test broker!";
 
             order.AddTrade(new TradeStreamItem()
             {
                 BuyerId = "TESTE",
                 SellerId = "TESTE",
-                Qdy = order.Quantity,
+                Qty = order.AskedQuantity,
                 Price = order.AverageValue
             });
 

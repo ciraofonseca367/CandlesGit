@@ -418,6 +418,14 @@ namespace Midas.Core.Telegram
                         await botClient.SendTextMessageAsync(
                             chatId: message.Chat.Id,
                             text: enterResult, parseMode: ParseMode.Html);
+
+                        if(enterResult != "Nothing to report")
+                        {
+                            Thread.Sleep(1000);
+                            await botClient.SendTextMessageAsync(
+                                chatId: message.Chat.Id,
+                                text: currentTrader.GetState(), parseMode: ParseMode.Html);
+                        }
                     }
                     else
                     {
@@ -449,6 +457,14 @@ namespace Midas.Core.Telegram
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: retText);
 
+                    if(hasOpsStatus)
+                    {
+                        Thread.Sleep(1000);
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: currentTrader.GetState(), parseMode: ParseMode.Html);
+                    }
+
                     break;               
 
                 case "Ask To Close Position":
@@ -467,7 +483,16 @@ namespace Midas.Core.Telegram
                         askText = "No operation to close here";
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
-                                                                text: askText);                     
+                                                                text: askText); 
+
+                    if(hasAskOps)
+                    {
+                        Thread.Sleep(1000);
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: currentTrader.GetState(), parseMode: ParseMode.Html);
+                    }
+                                                                                                        
                     break;
                 case "Close Position":
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -488,6 +513,14 @@ namespace Midas.Core.Telegram
 
                     await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
                                                                 text: text);
+
+                    if(hasOps)
+                    {
+                        Thread.Sleep(1000);
+                        await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: currentTrader.GetState(), parseMode: ParseMode.Html);
+                    }                                                                
 
                     break;
                 case "Clear":

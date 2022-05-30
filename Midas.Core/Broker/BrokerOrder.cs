@@ -70,9 +70,35 @@ namespace Midas.Core.Broker
             _trades.Add(tradeItem);
         }
 
-        public double Quantity
+        /*
+            The quantity of the asset sent to the broker. The original amount intended to be sold or bought
+        */
+        public double AskedQuantity
         {
             get; set;
+        }
+
+        /*
+            Use this method to get the executed Quantity.
+            Here we return preferably the ExecutedQty from the last status check. If we don't have one we get it from trades history
+        */
+        public double CalculatedExecutedQuantity
+        {
+            get
+            {
+                double ret = 0;
+                if(_trades.Count() > 0)
+                    ret = _trades.Sum(t => t.Qty);
+                return ret;
+            }
+        }
+
+        public double ExecutedRatio
+        {
+            get
+            {
+                return (CalculatedExecutedQuantity/AskedQuantity) * 100;
+            }
         }
 
         public string ErrorMsg { get; internal set; }
@@ -94,14 +120,14 @@ namespace Midas.Core.Broker
         {
             get
             {
-                var executedQdy = _trades.Sum(t => t.Qdy);
+                var executedQdy = _trades.Sum(t => t.Qty);
                 BrokerOrderStatus ret = BrokerOrderStatus.None;
                 if(executedQdy == 0)
                     ret = BrokerOrderStatus.NEW;
-                else if(executedQdy.ToString("0.000000") == Quantity.ToString("0.000000"))
-                    ret = BrokerOrderStatus.FILLED;
-                else if(executedQdy < Quantity && executedQdy > 0)
+                else if(executedQdy < AskedQuantity && executedQdy > 0)
                     ret = BrokerOrderStatus.PARTIALLY_FILLED;
+                else if(executedQdy >= AskedQuantity)
+                    ret = BrokerOrderStatus.FILLED;
 
                 return ret;
             }
@@ -111,8 +137,11 @@ namespace Midas.Core.Broker
         {
             get
             {
-                var basedOnTheTrades = (_trades.Count() == 0 ? 0 : _trades.Average(t => t.Price));
-                return basedOnTheTrades == 0 ? AverageValue : basedOnTheTrades;                
+                double basedOnTheTrades = 0;
+                if(_trades.Count() > 0)
+                    basedOnTheTrades = _trades.Sum(t => t.Qty * t.Price) / _trades.Sum(t => t.Qty);
+                    
+                return basedOnTheTrades == 0 ? AverageValue : basedOnTheTrades;
             }
         }
 
@@ -169,7 +198,7 @@ namespace Midas.Core.Broker
 
         public override string ToString()
         {
-            return $"{Direction}({Type})) {Quantity:0.0000} by ${CalculatedAverageValue:0.00}= {Status}:{CalculatedStatus} ({((CalculatedAverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
+            return $"{Direction}({Type}) {AskedQuantity:0.0000}/{CalculatedExecutedQuantity:0.0000}({ExecutedRatio:0.00}%) by ${CalculatedAverageValue:0.00}= {Status}:{CalculatedStatus} ({((CalculatedAverageValue-DesiredPrice)/DesiredPrice)*100:0.0000}%)";
         }
 
         public BrokerOrderDto GetMyDto()

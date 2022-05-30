@@ -90,10 +90,10 @@ namespace Midas.Core.Trade
             bool ret = false;
             if (maList.Count > 2)
             {
-                var lastValue = maList[maList.Count - 1].CloseValue;
-                var oneBeforeLastValue = maList[maList.Count - 2].CloseValue;
+                var lastValue = maList[maList.Count - 1].AmountValue;
+                var oneBeforeLastValue = maList[maList.Count - 2].AmountValue;
 
-                ret = lastValue > oneBeforeLastValue;
+                ret = lastValue >= oneBeforeLastValue;
             }
 
             return ret;
@@ -232,7 +232,9 @@ namespace Midas.Core.Trade
             {
                 _predictionBox.ForceNextPrediction = _params.IsTesting;
                 ret = _predictionBox.GetTrend().Item2;
-            }
+                if(ret == null)
+                    ret = "None";
+            } 
 
             return ret;
         }
@@ -414,6 +416,7 @@ namespace Midas.Core.Trade
 
                     double atr = GetMAValue("ATR");
                     double ratr = atr / cc.CloseValue;
+                    var variation = GetWindowVariation(cc);
 
                     var currentCandle = cc;
 
@@ -444,7 +447,7 @@ namespace Midas.Core.Trade
                             var op = await _manager.SignalEnter(
                                 cc.CloseValue,
                                 cc.OpenTime,
-                                cc.CloseTime.AddMinutes(Convert.ToInt32(_params.CandleType) * 12),
+                                cc.CloseTime.AddMinutes(Convert.ToInt32(this._candleType) * 12),
                                 ratr,
                                 currentModel,
                                 predictionBoxCopy.Image

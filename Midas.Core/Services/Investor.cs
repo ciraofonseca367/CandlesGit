@@ -399,9 +399,9 @@ namespace Midas.Core.Services
             await Task.WhenAll(priceBTCTask, priceBNBTask, priceADATask, priceETHTask);
 
             var priceBTC = priceBTCTask.Result;
-            var priceBNB = priceBTCTask.Result;
-            var priceADA = priceBTCTask.Result;
-            var priceETH = priceBTCTask.Result;
+            var priceBNB = priceBNBTask.Result;
+            var priceADA = priceADATask.Result;
+            var priceETH = priceETHTask.Result;
 
             string emoticon = "\U00002705";
             string balanceReport = "BALANCE REPORT " + emoticon + "\n\n";
@@ -448,7 +448,7 @@ namespace Midas.Core.Services
                     else if(traderPair.Value.Asset == "ADABUSD")
                         price = priceADA;
 
-                    inOrderAmount += order.Quantity * price;
+                    inOrderAmount += order.AskedQuantity * price;
                 }
             }
 
@@ -473,9 +473,9 @@ namespace Midas.Core.Services
             await Task.WhenAll(priceBTCTask, priceBNBTask, priceADATask, priceETHTask);
 
             var priceBTC = priceBTCTask.Result;
-            var priceBNB = priceBTCTask.Result;
-            var priceADA = priceBTCTask.Result;
-            var priceETH = priceBTCTask.Result;
+            var priceBNB = priceBNBTask.Result;
+            var priceADA = priceADATask.Result;
+            var priceETH = priceETHTask.Result;
 
             var balances = await b.AccountBalanceAsync(60000);
             double balanceUSD = 0;
@@ -521,7 +521,7 @@ namespace Midas.Core.Services
                     else if(traderPair.Value.Asset == "ADABUSD")
                         price = priceADA;
 
-                    inOrderAmount += order.Quantity * price;
+                    inOrderAmount += order.AskedQuantity * price;
                 }
             }
             //We need to increment here in order to account for the amount of dollars allocated in open orders.

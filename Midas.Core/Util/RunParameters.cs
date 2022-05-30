@@ -294,14 +294,14 @@ namespace Midas.Core
                 if (modelName != null)
                 {
                     paramName = $"{modelName}-{name}";
-                    _hyperParams.TryGetValue(name, out outValue);
+                    _hyperParams.TryGetValue(paramName, out outValue);
                 }
             }
 
             if (outValue == null)
             {
                 paramName = $"{name}";
-                _hyperParams.TryGetValue(name, out outValue);
+                _hyperParams.TryGetValue(paramName, out outValue);
             }            
 
             return outValue;

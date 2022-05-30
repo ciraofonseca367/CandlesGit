@@ -17,13 +17,22 @@ namespace Midas.Core.Forecast
     {
 
         private string _predictionServer = "http://vps32867.publiccloud.com.br";
-        private HttpClient _httpClient;
+        private static HttpClient _httpClient = null;
+
         public FaceLabelForecast(string predictionServer)
         {
             _predictionServer = predictionServer;
-            _httpClient = new HttpClient();
-
-            _httpClient.BaseAddress = new Uri(_predictionServer);
+            if (_httpClient == null)
+            {
+                lock (this)
+                {
+                    if (_httpClient == null)
+                    {
+                        _httpClient = new HttpClient();
+                        _httpClient.BaseAddress = new Uri(_predictionServer);
+                    }
+                }
+            }
         }
 
         private string TransformImageToBase64(Bitmap image)

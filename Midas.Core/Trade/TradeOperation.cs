@@ -225,7 +225,7 @@ namespace Midas.Trading
             get
             {
                 var buyOrders = _orders.Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == BrokerOrderStatus.FILLED);
-                return buyOrders.Sum(o => o.Quantity * o.CalculatedAverageValue) / buyOrders.Sum(o => o.Quantity);
+                return buyOrders.Sum(o => o.CalculatedExecutedQuantity * o.CalculatedAverageValue) / buyOrders.Sum(o => o.CalculatedExecutedQuantity);
             }
         }
 
@@ -243,7 +243,7 @@ namespace Midas.Trading
             {
                 var sellOrders = _orders.Where(o => o.Direction == OrderDirection.SELL && o.CalculatedStatus == BrokerOrderStatus.FILLED);
                 if (sellOrders.Count() > 0)
-                    return sellOrders.Sum(o => o.Quantity * o.CalculatedAverageValue) / sellOrders.Sum(o => o.Quantity);
+                    return sellOrders.Sum(o => o.CalculatedExecutedQuantity * o.CalculatedAverageValue) / sellOrders.Sum(o => o.CalculatedExecutedQuantity);
                 else
                 {
                     return 0;
@@ -357,7 +357,7 @@ namespace Midas.Trading
             if (!locked)
             {
                 await CancelAllOpenOrders();
-                
+
                 amountLeftToSell = GetAmountLeftToSell();
 
                 var suggestedPrice = LastValue;
@@ -498,9 +498,15 @@ namespace Midas.Trading
             {
                 if (_orders.Count > 0)
                 {
-                    var avgEntrySpread = _orders
-                    .Where(o => o.Direction == OrderDirection.BUY && !o.IsPending)
-                    .Average(o => ((o.CalculatedAverageValue - o.DesiredPrice) / o.DesiredPrice) * 100);
+                    double avgEntrySpread = 0;
+
+                    var confirmedOrders = _orders
+                    .Where(o => o.Direction == OrderDirection.BUY && !o.IsPending);
+
+                    if (confirmedOrders.Count() > 0)
+                    {
+                        avgEntrySpread = confirmedOrders.Average(o => ((o.CalculatedAverageValue - o.DesiredPrice) / o.DesiredPrice) * 100);
+                    }
 
                     return avgEntrySpread;
                 }
@@ -645,8 +651,8 @@ namespace Midas.Trading
         public double GetAmountPurchased()
         {
             var amountPurchased = _orders
-            .Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == BrokerOrderStatus.FILLED)
-            .Sum(o => o.Quantity);
+            .Where(o => o.Direction == OrderDirection.BUY && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED))
+            .Sum(o => o.CalculatedExecutedQuantity);
 
             return amountPurchased;
         }
@@ -654,12 +660,12 @@ namespace Midas.Trading
         public double GetAmountLeftToSell()
         {
             var amountPurchased = _orders
-            .Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == BrokerOrderStatus.FILLED)
-            .Sum(o => o.Quantity);
+            .Where(o => o.Direction == OrderDirection.BUY && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED))
+            .Sum(o => o.CalculatedExecutedQuantity);
 
             var amountSold = _orders
-            .Where(o => o.Direction == OrderDirection.SELL && o.CalculatedStatus == BrokerOrderStatus.FILLED)
-            .Sum(o => o.Quantity);
+            .Where(o => o.Direction == OrderDirection.SELL && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED))
+            .Sum(o => o.CalculatedExecutedQuantity);
 
             return amountPurchased - amountSold;
         }
@@ -668,7 +674,7 @@ namespace Midas.Trading
         {
             var amountPurchased = _orders
             .Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == status)
-            .Sum(o => o.Quantity);
+            .Sum(o => o.CalculatedExecutedQuantity);
 
             return (amountPurchased / _fundSlot.SlotAmount) * 100;
         }
@@ -743,7 +749,7 @@ namespace Midas.Trading
         private bool FailedEntryCheck()
         {
             bool ret = false;
-            var confirmedOrders = _orders.Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == BrokerOrderStatus.FILLED);
+            var confirmedOrders = _orders.Where(o => o.Direction == OrderDirection.BUY && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED));
 
             if (confirmedOrders.Count() == 0) // Não temos ordens confirmadas ainda
             {
@@ -759,12 +765,12 @@ namespace Midas.Trading
             bool ret = false;
 
             var quantityBought = _orders
-            .Where(o => o.Direction == OrderDirection.BUY && o.CalculatedStatus == BrokerOrderStatus.FILLED)
-            .Sum(o => o.Quantity);
+            .Where(o => o.Direction == OrderDirection.BUY && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED))
+            .Sum(o => o.CalculatedExecutedQuantity);
 
             var quantitySold = _orders
-            .Where(o => o.Direction == OrderDirection.SELL && o.CalculatedStatus == BrokerOrderStatus.FILLED)
-            .Sum(o => o.Quantity);
+            .Where(o => o.Direction == OrderDirection.SELL && (o.CalculatedStatus == BrokerOrderStatus.FILLED || o.CalculatedStatus == BrokerOrderStatus.PARTIALLY_FILLED))
+            .Sum(o => o.CalculatedExecutedQuantity);
 
 
             if (quantityBought > 0 && quantitySold > 0 && quantitySold >= quantityBought)
@@ -792,7 +798,7 @@ namespace Midas.Trading
                             o.AverageValue = order.AverageValue;
 
                             if (order.Status == BrokerOrderStatus.FILLED)
-                                Console.WriteLine($"Status orderId:{order.BrokerOrderId} - {order.RawStatus} - {order.Quantity} - {o.AverageValue}");
+                                Console.WriteLine($"Status orderId:{order.BrokerOrderId} - {order.RawStatus} - {order.CalculatedExecutedQuantity} - {o.AverageValue}");
                         }
                         else
                         {
@@ -814,18 +820,9 @@ namespace Midas.Trading
                 await _myMan.OperationFinished(this, _lastCandle, _fundSlot);
                 await ExecuteCloseOperationTasks();
             }
-
-            if (FailedEntryCheck())
-            {
-                if (await ChangeState(TradeOperationState.FailedIn))
-                {
-                    await CancelAllOpenOrders();
-                    await ExecuteCloseOperationTasks(true);
-                }
-            }
         }
 
-        private async Task ExecuteCloseOperationTasks(bool hasFailed = false)
+        private async Task ExecuteCloseOperationTasks()
         {
             Console.WriteLine($"Iniciando saida: {this._myStrId}\n");
 
@@ -833,18 +830,15 @@ namespace Midas.Trading
             _exitDate = LastCloseDate;
 
             string prefix = TelegramEmojis.PERSON_SHRUGGING;
-            if (!hasFailed)
+            if (PriceExitAverage >= PriceEntryAverage)
             {
-                if (PriceExitAverage >= PriceEntryAverage)
-                {
-                    await ChangeState(TradeOperationState.Profit);
-                    prefix = TelegramEmojis.MoneyBag;
-                }
-                else
-                {
-                    await ChangeState(TradeOperationState.Stopped);
-                    prefix = TelegramEmojis.MeanSmirking;
-                }
+                await ChangeState(TradeOperationState.Profit);
+                prefix = TelegramEmojis.MoneyBag;
+            }
+            else
+            {
+                await ChangeState(TradeOperationState.Stopped);
+                prefix = TelegramEmojis.MeanSmirking;
             }
 
 
@@ -893,14 +887,18 @@ namespace Midas.Trading
                             double suggestedPrice = 0;
                             double totalUnits = currentSteps.Sum(s => s.TotalUnits); //The sum of all the units the price have outgrown so far
 
+                            var convertedUnits = Math.Round(totalUnits / LastValue, 4);
+
                             suggestedPrice = LastValue;
                             if (suggestedPrice > 0) //Na hora de comprar sempre mandamos um pouco com limit e outro pouco com MarketOrder
                             {
+                                var firstAmount = Math.Round(convertedUnits / 2, 4);
+                                var secondAmount = convertedUnits - firstAmount;
                                 //Enviar MarketOrder
-                                await AddMarketOrderAsync(OrderDirection.BUY, totalUnits / 2, TIMEOUT_BUY, suggestedPrice, LastValue, LastCloseDate);
+                                await AddMarketOrderAsync(OrderDirection.BUY, firstAmount, TIMEOUT_BUY, suggestedPrice, LastValue, LastCloseDate);
 
-                                //Add a limit order discounting 2% of the entry RATR
-                                await AddLimitOrderAsync(OrderDirection.BUY, totalUnits / 2, TIMEOUT_BUY, suggestedPrice * (1 - (_entryRAtr * 0.01)), LastValue, LastCloseDate);
+                                //Add a limit order discounting 1% of the entry RATR
+                                await AddLimitOrderAsync(OrderDirection.BUY, secondAmount, TIMEOUT_BUY, suggestedPrice * (1 - (_entryRAtr * 0.01)), LastValue, LastCloseDate);
                             }
                         }
                         catch (Exception err)
@@ -917,7 +915,7 @@ namespace Midas.Trading
                     {
                         double chasePerc = RunParameters.GetInstance().GetHyperParamAsDouble("FollowPricePerc");
 
-                        _softStopLossMarker = _priceEntry * (1 + ((gainSoftStopTrigger * chasePerc) / 100));
+                        _softStopLossMarker = _priceEntry * (1 + ((LastMaxGainAbs * chasePerc) / 100));
                     }
 
                     mustStopBySoftStop = LastValue <= _softStopLossMarker && softStopEnabled;
@@ -1002,7 +1000,9 @@ namespace Midas.Trading
 
 
             var gain = ((compareValue - PriceEntryAverage) / PriceEntryAverage) * 100;
-            var percPurchased = GetAmountPurchased() / _fundSlot.SlotAmount;
+            var qtyPurchased = GetAmountPurchased();
+            var qtyInBSB = qtyPurchased * compareValue;
+            var percPurchased = qtyInBSB / _fundSlot.SlotAmount;
 
             return gain * percPurchased;
         }

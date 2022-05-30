@@ -116,7 +116,7 @@ namespace Midas.Core.Trade
             {
                 BuyerId = "TESTE",
                 SellerId = "TESTE",
-                Qdy = order.Quantity,
+                Qty = order.AskedQuantity,
                 Price = order.AverageValue
             });
         }

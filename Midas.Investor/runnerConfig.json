@@ -2,14 +2,13 @@
     "RunMode": "Invest",
     "ExperimentName": "Investing",
     "Asset": "BTCBUSD",
-    "StartDate": "2021-05-30 00:00:00",
+    "StartDate": "2021-01-20 00:00:00",
     "EndDate": "2021-11-15 23:59:59",
     "CandleType": "MIN30",
     "WindowSize": 45,
     "CardWidth": 250,
     "CardHeight": 250,
     "IsTesting": true,
-    "EnableLimitOrders": true,
     "DrawShadow": false,    
     "DelayedTriggerEnabled": false,
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
@@ -19,23 +18,25 @@
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
     /*
-    Uncomment to use historical
+    Uncomment to use historical    */
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Historical",
     "BrokerName": "TestBroker",
-    "PreloadCandles": false, */
+    "PreloadCandles": false,
+    "EnableLimitOrders": false,
 
+    /* Live
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Live",
     "BrokerName": "Binance",
     "PreloadCandles": true,
-
+    "EnableLimitOrders": true, */
 
     "Assets": [
         {
             "Asset": "BTCUSDT",
             "CandleType": "HOUR1",
-            "FundName": "ETHBUSD_MIN15"
+            "FundName": "TestFunds"
         }
     ],
 
@@ -143,14 +144,15 @@
     "HyperParams": {
         "DelayedTrigger": false,        
         "124_Long-DelayedTrigger": true,
-        "AtrStopLoss": 0.1,
+        "52_Long-AtrStopLoss": 0.1,
+        "124_Long-AtrStopLoss": 1,
 
-        "ExcludedModel": "152_Long",
         "StopLossCompSoftness": 0.001,
         "AvgCompSoftness": 0.3,
+        "ExcludedModel": "152_Long",
 
         "SoftStopEnabled": true, 
-        "FollowPricePerc": 0.25,
+        "FollowPricePerc": 0.10,
         "GainSoftStopTrigger": 2,
         
         "NumberOfSlots": 1,
