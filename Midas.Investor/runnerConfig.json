@@ -14,23 +14,24 @@
     "OutputDirectory": "/Users/cironola/CandlesFaceImages",
     "ConString": "mongodb+srv://admin:cI.(00.#ADM@midasstaging.yi35b.mongodb.net/CandlesFacesStaging?retryWrites=true&w=majority",
     "ConStringCandles": "mongodb+srv://admin:cI.(00.#ADM@midas.yi35b.mongodb.net/CandlesFaces?retryWrites=true&w=majority",
+    "USDCoin": "USDT",
 
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
     /*
-    Uncomment to use historical    */
+    Uncomment to use historical 
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Historical",
     "BrokerName": "TestBroker",
     "PreloadCandles": false,
-    "EnableLimitOrders": false,
+    "EnableLimitOrders": false,*/    
 
-    /* Live
+    /* Live*/
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Live",
     "BrokerName": "Binance",
     "PreloadCandles": true,
-    "EnableLimitOrders": true, */
+    "EnableLimitOrders": true, 
 
     "Assets": [
         {
@@ -136,7 +137,6 @@
         }        
     ],
 
-
     "FFmpegBasePath": "/Users/cironola/Downloads/ffmpeg",
     "LiveStreamSiteUrl": "rtmp://live.twitch.tv/app",
     "LiveStreamKey": "/live_701674979_EOlr8A1NFJSwIH5RWkiDf72fCDyoGH",
@@ -144,12 +144,10 @@
     "HyperParams": {
         "DelayedTrigger": false,        
         "124_Long-DelayedTrigger": true,
-        "52_Long-AtrStopLoss": 0.1,
-        "124_Long-AtrStopLoss": 1,
+        "AtrStopLoss": 0.1,
 
         "StopLossCompSoftness": 0.001,
         "AvgCompSoftness": 0.3,
-        "ExcludedModel": "152_Long",
 
         "SoftStopEnabled": true, 
         "FollowPricePerc": 0.10,
@@ -171,10 +169,14 @@
 
         "BTC-124_Long-Avg" : 30,
 
+        "BTC-152_Long-Avg" : 30,
+
         "ETH-52_Long-Avg" : 30,
         "ETH-52_Long-AvgCompSoftness": 0.6,
 
-        "ETH-124_Long-Avg" : 12
+        "ETH-124_Long-Avg" : 12,
+
+        "ETH-152_Long-Avg" : 12
     },
 
     "BrokerParameters": {

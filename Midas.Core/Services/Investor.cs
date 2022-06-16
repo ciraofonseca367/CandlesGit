@@ -76,7 +76,7 @@ namespace Midas.Core.Services
             LoadTraders();
 
             Console.WriteLine("Starting with traders:");
-            foreach(var t in _traders)
+            foreach (var t in _traders)
                 Console.WriteLine(t.ToString());
 
             _runner = Task.Run(this.Runner);
@@ -88,7 +88,112 @@ namespace Midas.Core.Services
             await TelegramBot.SendMessage("Iniciando Investor...");
         }
 
+        public async Task<string> RebalanceFunds()
+        {
+            double ONE_OPERATION_TAXES = 0.0015;
+            var bnbIdentifier = $"BNB{_params.USDCoin}";
+            var report = new StringBuilder();
 
+            if (_params.BrokerName == "Binance") //Execute the process only when running with live Binance Broker (Test mode or production)
+            {
+                try
+                {
+                    BinanceBroker broker = new BinanceBroker();
+                    broker.SetParameters(_params.BrokerParameters);
+
+                    var currentBalance = await this.GetAccountBalance();
+                    var usbBalance = currentBalance.AssetsBalance.Where(a => a.Asset == _params.USDCoin).FirstOrDefault();
+                    if (usbBalance == null)
+                        throw new ArgumentException($"There are no founds for {_params.USDCoin}");
+
+                    var usbBalanceAmount = usbBalance.TotalUSDAmount;
+
+                    if (usbBalanceAmount > 0)
+                    {
+                        if (currentBalance.TotalInOrders == 0)
+                        {
+                            var oneOperationTaxes = usbBalanceAmount * ONE_OPERATION_TAXES;
+                            var bnbBalance = currentBalance.AssetsBalance.Where(a => a.Asset == "BNB").FirstOrDefault();
+                            if (_params.IsTesting && bnbBalance != null) // In test mode we always make it zero so that we can test the funking thing
+                            {
+                                bnbBalance.TotalUSDAmount = 0;
+                                bnbBalance.TotalQuantity = 0;
+                            }
+
+                            //If we have less BNBs(or none) then what it takes to do a full operation we need to by more
+                            report.AppendLine($"{Telegram.TelegramEmojis.CHART_INCREASING} Funds rebalance report:");
+                            if (bnbBalance == null || bnbBalance.TotalUSDAmount < oneOperationTaxes)
+                            {
+                                var bnbQuote = await broker.GetPriceQuote(bnbIdentifier);
+                                var amountInUSDToBuy = oneOperationTaxes * 10;
+                                var amountInBNBToBuy = Math.Round(amountInUSDToBuy / bnbQuote, 2);
+
+                                try
+                                {
+                                    var buyOrder = await broker.MarketOrderAsync(DateTime.Now.ToString("ddMMyyyyHHmmss"), bnbIdentifier, OrderDirection.BUY, amountInBNBToBuy, 20000, bnbQuote, DateTime.UtcNow);
+                                }
+                                catch (Exception err)
+                                {
+                                    throw new ApplicationException("Rebalance: Error when buying new BNBs - " + err.Message, err);
+                                }
+
+                                report.AppendLine($"Bought {amountInBNBToBuy} BNBs by ${bnbQuote:0.00} dolars, totalizing: ${amountInBNBToBuy * bnbQuote:0.00}");
+                            }
+                            else
+                                report.AppendLine($"No need to buy more BNBs, we have ${bnbBalance.TotalUSDAmount:0.00}");
+
+                            report.AppendLine();
+
+                            //Now we recheck our balance in USD and distribute it across all assets
+                            var fundManager = new FundsManager(_params.DbConString);
+                            var newBalance = await this.GetAccountBalance();
+                            var newUsdBalance = currentBalance.AssetsBalance.Where(a => a.Asset == _params.USDCoin).FirstOrDefault();
+                            if (newUsdBalance == null)
+                                throw new ArgumentException($"There are no founds for {_params.USDCoin} (Second)");
+
+                            var fundsTotal = newUsdBalance.TotalUSDAmount * 0.98; //Discound 2% to have something to spare
+
+                            report.AppendLine($"Total funds discounted 2% is ${fundsTotal:0.00}");
+                            foreach (var trader in _traders)
+                            {
+                                var allocatedPerc = fundManager.GetFunds(trader.Value.GetIdentifier());
+                                var perc = allocatedPerc.Amount;
+                                var traderNewFund = fundsTotal * perc; //Get the percentage amount allocated to this Asset
+
+                                var setOk = trader.Value.SetFundAmount(traderNewFund);
+                                if (setOk)
+                                    report.AppendLine($"New fund for {trader.Value.GetIdentifier()} is ${traderNewFund:0.00} that accounts for {perc:0.00%} of the total discounted");
+                                else
+                                    report.AppendLine($"Haven't set new fund configuration for {trader.Value.GetIdentifier()} because we have operations running on this asset pair");
+                            }
+
+                            await TelegramBot.SendMessage(report.ToString());
+                            Console.WriteLine(report.ToString());
+                        }
+                        else
+                        {
+                            var msg = "Impossible do Rebalance, there are dolars being used in other orders";
+                            TraceAndLog.StaticLog("Rebalance", msg);
+                            await TelegramBot.SendMessage($"Relance: {msg}");
+                        }
+                    }
+                    else
+                    {
+                        var msg = "Impossible do Rebalance, no USD funds";
+                        TraceAndLog.StaticLog("Rebalance", msg);
+                        await TelegramBot.SendMessage($"Relance: {msg}");
+                    }
+                }
+                catch (Exception err)
+                {
+                    var msg = "Error rebalancing - " + err.Message;
+                    TraceAndLog.StaticLog("Rebalance", msg);
+                    await TelegramBot.SendMessage($"Rebalance: {msg}");
+                }
+            }
+
+            return report.ToString();
+        }
 
         internal async Task<string> GetAllReport()
         {
@@ -167,12 +272,12 @@ namespace Midas.Core.Services
 
         public static Task<List<TradeOperationDto>> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min)
         {
-            return SearchOperations(conString,experiment,asset,candle,min, DateTime.MinValue, TradeOperationState.None);
+            return SearchOperations(conString, experiment, asset, candle, min, DateTime.MinValue, TradeOperationState.None);
         }
 
 
         public async static Task<List<TradeOperationDto>> SearchOperations(string conString, string experiment, string asset, CandleType candle, DateTime min,
-            DateTime lastUpdateMin, TradeOperationState state, bool noPriceExit=true)
+            DateTime lastUpdateMin, TradeOperationState state, bool noPriceExit = true)
         {
             var client = new MongoClient(conString);
             var database = client.GetDatabase("CandlesFaces");
@@ -181,8 +286,8 @@ namespace Midas.Core.Services
             var filterBuilder1 = Builders<TradeOperationDto>.Filter;
             var filterDefinition = new List<FilterDefinition<TradeOperationDto>>();
             filterDefinition.Add(filterBuilder1.Gte(item => item.EntryDate, min));
-            
-            if(noPriceExit)
+
+            if (noPriceExit)
                 filterDefinition.Add(filterBuilder1.Ne(item => item.PriceExitReal, 0));
 
             if (experiment != null)
@@ -216,23 +321,23 @@ namespace Midas.Core.Services
                 CandleType = group.Max(i => i.CandleType),
                 OperationsCount = group.Count(),
                 PAndL = group.Sum(op => ((op.PriceExitReal - op.PriceEntryReal) / op.PriceEntryReal) * 100),
-                OperationAvg = group.Sum(i => i.Gain)  / Convert.ToDouble(group.Count()),
+                OperationAvg = group.Sum(i => i.Gain) / Convert.ToDouble(group.Count()),
                 SuccessRate = Convert.ToDouble(group.Count(i => i.State == TradeOperationState.Profit)) /
                        Convert.ToDouble(group.Count())
             });
 
             double successOperationCost = 0.06;
             double failedOperationCost = 0.13;
-            foreach(var s in summary)
+            foreach (var s in summary)
             {
-                var pairOpCost = ((s.SuccessRate * successOperationCost) + ((100-s.SuccessRate) * failedOperationCost))/100;
-                s.OperationsCost = pairOpCost*s.OperationsCount;
+                var pairOpCost = ((s.SuccessRate * successOperationCost) + ((100 - s.SuccessRate) * failedOperationCost)) / 100;
+                s.OperationsCost = pairOpCost * s.OperationsCount;
                 s.PAndL_AfterCosts = s.PAndL - s.OperationsCost;
             }
 
             return summary.ToList();
         }
- 
+
         public async Task<string> GetOperationsSummary(int days)
         {
             var allOperations = await SearchOperations(this._params.DbConString, null, null, CandleType.HOUR1, DateTime.UtcNow.AddDays(days * -1), DateTime.MinValue, TradeOperationState.None);
@@ -273,7 +378,7 @@ namespace Midas.Core.Services
 
         public async Task<string> GetLastOperations(int number)
         {
-            var allOperations = await SearchOperations(this._params.DbConString, null, null, CandleType.None, DateTime.UtcNow.AddDays(number*-1));
+            var allOperations = await SearchOperations(this._params.DbConString, null, null, CandleType.None, DateTime.UtcNow.AddDays(number * -1));
             var allOperationsReverse = allOperations.OrderByDescending(op => op.ExitDate).ToList();
 
             StringBuilder sb = new StringBuilder(500);
@@ -284,11 +389,11 @@ namespace Midas.Core.Services
             allOperationsReverse.Take(number).ToList().ForEach(op =>
             {
                 var emoji = TelegramEmojis.PERSON_SHRUGGING;
-                if(op.State == TradeOperationState.Profit || op.State == TradeOperationState.Stopped)
+                if (op.State == TradeOperationState.Profit || op.State == TradeOperationState.Stopped)
                     emoji = op.Gain < 0 ? TelegramEmojis.RedX : TelegramEmojis.GreenCheck;
 
                 total++;
-                if(op.Gain > 0)
+                if (op.Gain > 0)
                     success++;
 
                 var duration = (op.ExitDate - op.EntryDate);
@@ -298,7 +403,7 @@ namespace Midas.Core.Services
                 sb.Append($"{TimeSpanPlus.ToString(duration)}\n\n");
             });
 
-            if(total == 0)
+            if (total == 0)
                 sb.Append("No records in the last 10 days");
             else
             {
@@ -433,19 +538,19 @@ namespace Midas.Core.Services
             balanceReport += $"Total in Wallet: ${inWallet:0.00}";
 
             double inOrderAmount = 0;
-            foreach(var traderPair in _traders)
+            foreach (var traderPair in _traders)
             {
                 var orders = await b.OpenOrdersAsync(traderPair.Value.Asset, 20000);
-                foreach(var order in orders)
+                foreach (var order in orders)
                 {
                     double price = 0;
-                    if(traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
+                    if (traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
                         price = priceBTC;
-                    else if(traderPair.Value.Asset == "ETHBUSD")
+                    else if (traderPair.Value.Asset == "ETHBUSD")
                         price = priceETH;
-                    else if(traderPair.Value.Asset == "BNBBUSD")
+                    else if (traderPair.Value.Asset == "BNBBUSD")
                         price = priceBNB;
-                    else if(traderPair.Value.Asset == "ADABUSD")
+                    else if (traderPair.Value.Asset == "ADABUSD")
                         price = priceADA;
 
                     inOrderAmount += order.AskedQuantity * price;
@@ -456,12 +561,12 @@ namespace Midas.Core.Services
             balanceReport += $"Total in Orders: ${inOrderAmount:0.00}";
 
             balanceReport += "\n";
-            balanceReport += $"Grand Total: <b>${(inOrderAmount+inWallet):0.00}</b>";
+            balanceReport += $"Grand Total: <b>${(inOrderAmount + inWallet):0.00}</b>";
 
             return balanceReport;
         }
 
-        public async Task<Tuple<double,double>> GetAccountBalance()
+        public async Task<AccountBalance> GetAccountBalance()
         {
             BinanceBroker b = new BinanceBroker();
             b.SetParameters(_params.BrokerParameters);
@@ -505,31 +610,33 @@ namespace Midas.Core.Services
             });
 
             double inOrderAmount = 0;
-            foreach(var traderPair in _traders)
+            foreach (var traderPair in _traders)
             {
 
                 var openOrders = await b.OpenOrdersAsync(traderPair.Value.Asset, 20000);
-                foreach(var order in openOrders)
+                foreach (var order in openOrders)
                 {
                     double price = 0;
-                    if(traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
+                    if (traderPair.Value.Asset == "BTCBUSD" || traderPair.Value.Asset == "BTCUSDT")
                         price = priceBTC;
-                    else if(traderPair.Value.Asset == "ETHBUSD")
+                    else if (traderPair.Value.Asset == "ETHBUSD")
                         price = priceETH;
-                    else if(traderPair.Value.Asset == "BNBBUSD")
+                    else if (traderPair.Value.Asset == "BNBBUSD")
                         price = priceBNB;
-                    else if(traderPair.Value.Asset == "ADABUSD")
+                    else if (traderPair.Value.Asset == "ADABUSD")
                         price = priceADA;
 
                     inOrderAmount += order.AskedQuantity * price;
                 }
             }
-            //We need to increment here in order to account for the amount of dollars allocated in open orders.
-            //When we call this method from the totalizer procedure, if we have open orders and not account for open orders, the amount saved for the day will be 
-            balanceUSD += inOrderAmount;
 
-            double totalBalance = balances.Sum(b => b.TotalUSDAmount) + inOrderAmount;
-            return new Tuple<double, double>(totalBalance, balanceUSD);
+            var result = new AccountBalance();
+            result.AssetsBalance = balances;
+            result.TotalUsbBalance = balanceUSD;
+            result.TotalInOrders = inOrderAmount;
+            result.TotalBalance = balanceUSD + inOrderAmount;
+
+            return result;
         }
 
         public void Stop()
@@ -547,7 +654,7 @@ namespace Midas.Core.Services
             StopTraders(false);
 
             _experiment.EndDate = DateTime.Now;
-            SaveExperiment(_params.DbConString);            
+            SaveExperiment(_params.DbConString);
 
             _candleBot.Stop();
 
@@ -581,7 +688,7 @@ namespace Midas.Core.Services
             foreach (var pair in _traders)
                 await pair.Value.Start();
         }
-        
+
         private void SaveExperiment(string conString)
         {
             var client = new MongoClient(conString);
@@ -601,28 +708,32 @@ namespace Midas.Core.Services
 
         public async Task Runner()
         {
+            //Get the amount of dolars we need to assign to each Trader based on the percentage configuration for each Trader/Asset
+            //Got do it before the StartTraders call, otherwise the traders will start without a fund
+            await RebalanceFunds();
+
             await StartTraders();
 
             while (_running)
             {
-                Thread.Sleep(1000*45);
+                Thread.Sleep(1000 * 45);
 
                 try
                 {
                     var now = DateTime.UtcNow;
-                    if(now.Hour == 0 && now.Minute % 30 == 0)
+                    if (now.Hour == 0 && now.Minute % 30 == 0)
                     {
                         var balances = await GetAccountBalance();
-                        var br = new BalanceReport(balances.Item1,balances.Item2);
+                        var br = new BalanceReport(balances.TotalBalance, balances.TotalUsbBalance);
                         br.SaveOrUpdate(_params.DbConString);
 
-                        await TelegramBot.SendMessage($"Balance for the {now:yyyy-MM-dd} is $ {balances.Item1:0.000}, in USD Only: {balances.Item2:0.000}");
-                        TraceAndLog.StaticLog("Investor","Daily balance updated");
+                        await TelegramBot.SendMessage($"Balance for the {now:yyyy-MM-dd} is $ {balances.TotalBalance:0.000}, in USD Only: {balances.TotalUsbBalance:0.000}");
+                        TraceAndLog.StaticLog("Investor", "Daily balance updated");
                     }
                 }
-                catch(Exception err)
+                catch (Exception err)
                 {
-                    TraceAndLog.StaticLog("Investor","Error updating daily balance - "+err.ToString());
+                    TraceAndLog.StaticLog("Investor", "Error updating daily balance - " + err.ToString());
                 }
             }
 
@@ -701,6 +812,26 @@ namespace Midas.Core.Services
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
+    }
+
+    public class AccountBalance
+    {
+        public List<BalanceRecord> AssetsBalance
+        {
+            get; set;
+        }
+
+        public double TotalUsbBalance
+        {
+            get; set;
+        }
+
+        public double TotalInOrders
+        {
+            get;
+            set;
+        }
+        public double TotalBalance { get; internal set; }
     }
 
 }

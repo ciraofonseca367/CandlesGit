@@ -105,6 +105,7 @@ namespace Midas.Core.Util
                 _logFile.Flush();
                 _logFile.Dispose();
                 _traceFile.Dispose();
+                _logFile = null;
             }
         }
 

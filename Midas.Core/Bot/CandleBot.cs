@@ -400,6 +400,23 @@ namespace Midas.Core.Telegram
                         text: allCoins, parseMode: ParseMode.Html);
 
                     break;
+                case "ReBalance":
+                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                    string rebalanceReport = "None";
+                    try
+                    {
+                        rebalanceReport = await _myService.RebalanceFunds();
+                    }
+                    catch (Exception err)
+                    {
+                        rebalanceReport = "Error: " + err.ToString();
+                    }
+
+                    await botClient.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: rebalanceReport, parseMode: ParseMode.Html);  
+                    break;              
                 case "Try Enter":
 
                     await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
@@ -433,15 +450,6 @@ namespace Midas.Core.Telegram
                             chatId: message.Chat.Id,
                             text: "No asset selected");
                     }
-
-                    break;
-                case "Force Sell":
-                    await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
-
-                    var retForce = currentTrader.ForceMaketOrder();
-
-                    await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
-                                                                text: retForce);
 
                     break;
                 case "Force Order Status":
@@ -603,7 +611,7 @@ namespace Midas.Core.Telegram
             buttonsLines.Add(new KeyboardButton[] { "Open Positions" });
             foreach (var pair in _traders)
                 buttonsLines.Add(new KeyboardButton[] { pair.Key });
-            buttonsLines.Add(new KeyboardButton[] { "Balance", "Config" });
+            buttonsLines.Add(new KeyboardButton[] { "Balance", "ReBalance", "Config" });
             buttonsLines.Add(new KeyboardButton[] { "Stop", "Restart", "Shutdown" });
             buttonsLines.Add(new KeyboardButton[] { "Clear" });
 

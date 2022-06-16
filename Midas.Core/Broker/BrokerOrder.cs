@@ -126,7 +126,7 @@ namespace Midas.Core.Broker
                     ret = BrokerOrderStatus.NEW;
                 else if(executedQdy < AskedQuantity && executedQdy > 0)
                     ret = BrokerOrderStatus.PARTIALLY_FILLED;
-                else if(executedQdy >= AskedQuantity)
+                else if(executedQdy.ToString("0.0000") == AskedQuantity.ToString("0.0000"))
                     ret = BrokerOrderStatus.FILLED;
 
                 return ret;

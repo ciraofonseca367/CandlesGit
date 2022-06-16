@@ -260,18 +260,20 @@ namespace Midas.Trading
 
         private Bitmap _myEnterShot;
 
-        public async Task Enter(double price, DateTime point, double ratr, string modelName = "", System.Drawing.Bitmap image = null)
+        public async Task Enter(double price, DateTime point, double ratr, string modelName, System.Drawing.Bitmap image)
         {
             _myEnterShot = image;
             _modelName = modelName;
             if (_state == TradeOperationState.Initial)
             {
-                _stepMan = new PurchaseStepManager(_fundSlot.SlotAmount, RunParameters.GetInstance().GetHyperParam(_shortAsset, this._modelName, "PurchaseSteps"));
+                _stepMan = new PurchaseStepManager(_fundSlot.SlotAmount, RunParameters.GetInstance().GetHyperParam(_shortAsset, modelName, "PurchaseSteps"));
 
                 //double stopLoss = ratr * _myMan.Trader.AssetParams.AtrStopLoss;
                 _entryRAtr = ratr;
                 //double stopLoss = FIXED_STOPLOSS;
-                _stopLossConfig = _entryRAtr * RunParameters.GetInstance().GetHyperParamAsDouble(_shortAsset, _modelName, "AtrStopLoss");
+                var percAtr = RunParameters.GetInstance().GetHyperParamAsDouble(_shortAsset, _modelName, "AtrStopLoss");
+                Console.WriteLine("Perc Atr: "+percAtr);
+                _stopLossConfig = _entryRAtr * percAtr;
                 _firstStopLossRate = _stopLossConfig;
 
                 _entryDate = point;
@@ -773,10 +775,8 @@ namespace Midas.Trading
             .Sum(o => o.CalculatedExecutedQuantity);
 
 
-            if (quantityBought > 0 && quantitySold > 0 && quantitySold >= quantityBought)
-            {
+            if (quantityBought > 0 && quantitySold > 0 && quantitySold.ToString("0.0000") == quantityBought.ToString("0.0000"))
                 ret = true;
-            }
 
             return ret;
         }
@@ -841,6 +841,9 @@ namespace Midas.Trading
                 prefix = TelegramEmojis.MeanSmirking;
             }
 
+            //Ask for a bund relance everytime we finish an peration
+            var task = _myMan.Trader.Service.RebalanceFunds();
+            Console.WriteLine("Relancing funds...");
 
             Console.WriteLine("Terminando saida\n" + this.ToString());
         }

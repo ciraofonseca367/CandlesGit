@@ -72,7 +72,7 @@ namespace Midas.DataGather
                 try
                 {
                     /* Code to read the news every 5 minutes */
-                    if ((DateTime.Now - lastNewsCheck).TotalMinutes > 5)
+                    if ((DateTime.Now - lastNewsCheck).TotalMinutes > 120)
                     {
                         Console.WriteLine("{0:yyyy/MM/dd hh:mm:ss} - Resuming...", DateTime.Now);
 
@@ -114,10 +114,12 @@ namespace Midas.DataGather
                             }
                         }
 
-                        Console.WriteLine("{0:yyyy/MM/dd hh:mm:ss} - Waiting...", DateTime.Now);
+                        Console.WriteLine("{0:yyyy/MM/dd hh:mm:ss} - Waiting 120 minutes", DateTime.Now);
 
                         lastNewsCheck = DateTime.Now;
                     }
+
+                    Thread.Sleep(5000);
                 }
                 catch (Exception err)
                 {

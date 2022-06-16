@@ -239,6 +239,7 @@ namespace Midas.Core
         public string DbConStringCandles { get => _dbConStringCandles; }
         public string AverageToForecast { get; set; }
         public string CustomSearchKey { get; private set; }
+        public string USDCoin { get; private set; }
         public string TelegramBotCode { get; private set; }
         public string Forecaster { get; internal set; }
         public string FeedStreamType { get; internal set; }
@@ -440,6 +441,7 @@ namespace Midas.Core
             BrokerName = Convert.ToString(stuff.BrokerName);
             AverageToForecast = Convert.ToString(stuff.AverageToForecast);
             CustomSearchKey = Convert.ToString(stuff.CustomSearchKey);
+            USDCoin = Convert.ToString(stuff.USDCoin);
 
             CandleType = (CandleType)Enum.Parse(typeof(CandleType), stuff.CandleType.ToString(), true);
             start = Convert.ToDateTime(stuff.StartDate);

@@ -53,7 +53,7 @@ namespace Midas.Core.Trade
             _timeOut = timeOut;
             _myName = String.Format("AssetTrader_{0}_{1}", Asset, _candleType);
             _indicators = _params.GetIndicators();
-            _manager = TradeOperationManager.GetManager(this, _params.DbConString, assetParams.FundName, _params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
+            _manager = TradeOperationManager.GetManager(this, _params.DbConString, _params.BrokerName, _params.BrokerParameters, asset, candleType, _params.ExperimentName);
 
             _operationMap = new ConcurrentDictionary<string, TradeOperation>();
 
@@ -177,6 +177,15 @@ namespace Midas.Core.Trade
             TraceAndLog.StaticLog(_myName, String.Format("Starting runner with {0} cached candles", cacheCandles.Count()));
         }
 
+        private double _currentFunds;
+
+        internal bool SetFundAmount(double traderNewFund)
+        {
+            _currentFunds = traderNewFund;
+            return _manager.SetNewFunds(traderNewFund);
+        }
+
+
         // private void RestoreOpIfAny()
         // {
         //     var op = _manager.RestoreState();
@@ -199,6 +208,14 @@ namespace Midas.Core.Trade
         public AssetParameters AssetParams { get => _assetParams; }
         public string Asset { get => _asset; }
         public CandleType CandleType { get => _candleType; }
+
+        public InvestorService Service
+        {
+            get
+            {
+                return _myService;
+            }
+        }
 
         public void Stop(bool closeOp = true)
         {
@@ -621,7 +638,7 @@ namespace Midas.Core.Trade
         public string GetParametersReport()
         {
             string configs = $"<b>== {this.Asset.ToUpper()} - {this._candleType.ToString()} = {_params.WindowSize.ToString()} W ==</b>\n";
-            configs += $"Fund: ${this._manager.Funds:0.0000}\n";
+            configs += $"Fund: ${_currentFunds:0.0000}\n";
             configs += $"{_params.CardWidth} x {_params.CardHeight}\n";
             configs += "\n";
             configs += _params.ToString();
@@ -877,26 +894,6 @@ namespace Midas.Core.Trade
             }
 
             return sb.ToString();
-        }
-
-        internal string ForceMaketOrder()
-        {
-            string ret;
-
-            try
-            {
-                var order = _manager.ForceMarketSell();
-                if (order.InError)
-                    ret = $"Order error: {order.ErrorMsg}";
-                else
-                    ret = $"SOLD! Avg: {order.AverageValue}";
-            }
-            catch (Exception err)
-            {
-                ret = $"Error selling: {err.Message}";
-            }
-
-            return ret;
         }
 
         public async Task<bool> AskToCloseOperationIfAny()

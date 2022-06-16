@@ -27,11 +27,7 @@ namespace Midas.Trading
         private string _conString;
         private string _brokerName;
         private Broker _broker;
-        private System.Timers.Timer _fundRefresher;
-        private double _fund;
         private dynamic _brokerConfig;
-
-        private string _fundAccountName;
 
         private string _asset;
         private CandleType _candleType;
@@ -54,7 +50,7 @@ namespace Midas.Trading
             _managers = new Dictionary<string, TradeOperationManager>(11);
         }
 
-        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string fundAccountName, string brokerName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
+        public static TradeOperationManager GetManager(AssetTrader trader, string conString, string brokerName, dynamic brokerConfig, string asset, CandleType candleType, string experiment)
         {
             TradeOperationManager man = null;
 
@@ -68,7 +64,7 @@ namespace Midas.Trading
                     _managers.TryGetValue(key, out man);
                     if (man == null)
                     {
-                        man = new TradeOperationManager(trader, conString, fundAccountName, brokerConfig, asset, candleType, experiment, brokerName);
+                        man = new TradeOperationManager(trader, conString, brokerConfig, asset, candleType, experiment, brokerName);
                         _managers.Add(key, man);
                     }
                 }
@@ -77,7 +73,7 @@ namespace Midas.Trading
             return man;
         }
 
-        public TradeOperationManager(AssetTrader trader, string conString, string fundAccountName, dynamic brokerConfig, string asset, CandleType candleType, string experiment, string brokerName)
+        public TradeOperationManager(AssetTrader trader, string conString, dynamic brokerConfig, string asset, CandleType candleType, string experiment, string brokerName)
         {
             _currentOperation = null;
             _allOperations = new ConcurrentBag<TradeOperation>();
@@ -94,21 +90,11 @@ namespace Midas.Trading
 
             _lastAttempt = ANGEL_BIRTH;
 
-            _fundAccountName = fundAccountName;
-
-            _fundRefresher = new System.Timers.Timer(60 * 1000);
-            _fundRefresher.Elapsed += OnTimedEvent;
-            _fundRefresher.AutoReset = true;
-            _fundRefresher.Enabled = true;
-
             _brokerConfig = brokerConfig;
 
             if (trader != null)
             {
-                GetFunds();
-
                 Console.WriteLine($"Starting Trader with {RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots")} slots");
-                _slotManager = new FundSlotManager(_fund, RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots"));
                 string endPoint = Convert.ToString(brokerConfig.WebSocket);
 
                 if (RunParameters.GetInstance().EnableLimitOrders)
@@ -141,9 +127,17 @@ namespace Midas.Trading
         //     return state;
         // }
 
-        private void OnTimedEvent(Object source, ElapsedEventArgs e)
+        public bool SetNewFunds(double fund)
         {
-            GetFunds();
+            var operationRunning = GetOneActiveOperation();
+            var ret = false;
+            if(operationRunning == null)
+            {
+                _slotManager = new FundSlotManager(fund, RunParameters.GetInstance().GetHyperParamAsInt("NumberOfSlots"));
+                ret = true;
+            }
+
+            return ret;
         }
 
         public AssetTrader Trader { get => _trader; }
@@ -155,22 +149,6 @@ namespace Midas.Trading
                 return _experiment;
             }
         }
-
-        internal void GetFunds()
-        {
-            var man = new FundsManager(_conString);
-            _fund = man.GetFunds(_fundAccountName).Amount;
-        }
-
-        public double Funds
-        {
-            get
-            {
-                return _fund;
-            }
-        }
-
-        public FundSlotManager SlotManager { get => _slotManager; }
 
         public List<TradeOperationDto> SearchOperations(string asset, DateTime min)
         {
@@ -264,6 +242,9 @@ namespace Midas.Trading
             TradeOperation ret = null;
 
 
+            if(_slotManager == null)
+                throw new ArgumentException("Can't start operation with no fund set on me.");
+
             if (_allOperations.Count() > 50)
             {
                 lock (_allOperations)
@@ -282,7 +263,7 @@ namespace Midas.Trading
             if (op == null)
             {
 
-                var slot = SlotManager.TryGetSlot();
+                var slot = _slotManager.TryGetSlot();
                 if (slot != null)
                 {
                     Console.WriteLine($"Starting OP with slot: {slot.SlotAmount}");
@@ -294,7 +275,7 @@ namespace Midas.Trading
                 }
                 else
                 {
-                    SlotManager.Dump();
+                    _slotManager.Dump();
                     Console.WriteLine("===== SEM SLOTS ======");
                 }
             }
@@ -313,12 +294,6 @@ namespace Midas.Trading
             return ret;
         }
 
-        public BrokerOrder ForceMarketSell()
-        {
-            var order = _broker.MarketOrder("EMERGENCYSELL", _asset, OrderDirection.SELL, _fund, 60000, 0, DateTime.UtcNow, false);
-            return order;
-        }
-
         public async Task OnCandleUpdate(Candle c)
         {
             foreach (var op in _allOperations)
@@ -327,7 +302,8 @@ namespace Midas.Trading
 
         public void Dispose()
         {
-
+            if(_orderWatcher != null)
+                _orderWatcher.Dispose();
         }
 
         internal void WatchOrder(BrokerOrder order)

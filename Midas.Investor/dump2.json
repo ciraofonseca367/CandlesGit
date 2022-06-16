@@ -1,0 +1,16 @@
+[
+    {
+        "Fare": 1242.6000,
+        "Taxes": 80.9200,
+        "DuAmount": 0.0000,
+        "PaxType": "CHD",
+        "CountFlights": 4
+    },
+    {
+        "Fare": 1242.6000,
+        "Taxes": 80.9200,
+        "DuAmount": 0.0000,
+        "PaxType": "ADT",
+        "CountFlights": 4
+    }
+]

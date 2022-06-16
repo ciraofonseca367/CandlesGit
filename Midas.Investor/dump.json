@@ -1,0 +1,70 @@
+[
+    {
+        "Origin": "FOR",
+        "Destination": "FLN",
+        "ArrivalTime": "2022-07-24T09:35:00",
+        "DepartureTime": "2022-07-24T06:10:00",
+        "Cia": "JJ",
+        "Source": 59,
+        "f": [
+            {
+                "DepartureAirport": "FOR",
+                "ArrivalAirport": "CGH",
+                "Destination": "CGH",
+                "AirCraftType": "A320",
+                "CiaCode": "LA",
+                "CabinType": 2,
+                "ClassOfService": "Q",
+                "FlightNumber": "3451",
+                "OperatedBy": "LA",
+                "NumberOfStops": 0
+            },
+            {
+                "DepartureAirport": "CGH",
+                "ArrivalAirport": "FLN",
+                "Destination": "FLN",
+                "AirCraftType": "A320",
+                "CiaCode": "LA",
+                "CabinType": 2,
+                "ClassOfService": "Q",
+                "FlightNumber": "3456",
+                "OperatedBy": "LA",
+                "NumberOfStops": 0
+            }
+        ]
+    },
+    {
+        "Origin": "FLN",
+        "Destination": "FOR",
+        "ArrivalTime": "2022-07-30T20:00:00",
+        "DepartureTime": "2022-07-30T18:40:00",
+        "Cia": "JJ",
+        "Source": 59,
+        "f": [
+            {
+                "DepartureAirport": "FLN",
+                "ArrivalAirport": "GRU",
+                "Destination": "GRU",
+                "AirCraftType": "A321",
+                "CiaCode": "LA",
+                "CabinType": 2,
+                "ClassOfService": "Q",
+                "FlightNumber": "3303",
+                "OperatedBy": "LA",
+                "NumberOfStops": 0
+            },
+            {
+                "DepartureAirport": "GRU",
+                "ArrivalAirport": "FOR",
+                "Destination": "FOR",
+                "AirCraftType": "A321",
+                "CiaCode": "LA",
+                "CabinType": 2,
+                "ClassOfService": "Q",
+                "FlightNumber": "3316",
+                "OperatedBy": "LA",
+                "NumberOfStops": 0
+            }
+        ]
+    }
+]
