@@ -33,7 +33,7 @@ My experiments show that running this model based on the date range 2021-05-01 u
 
 Number of transations: 318
 
-Taxes: Worth of 24%
+Taxes: Worth of 23%
 
 Success Rate: 24%
 
