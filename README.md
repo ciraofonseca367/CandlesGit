@@ -45,3 +45,5 @@ Optimized cost per transaction(In and Out) using Binance: 0.0085%
 
 
 I would definitelly accept contributions and suggestions!
+
+We can find me at ciro.nola@gmail.com
