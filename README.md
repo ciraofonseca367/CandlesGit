@@ -1,7 +1,7 @@
 # CandlesFace AI Trading
 
 This is an experimental .NET 6.0 solution for a trading bot based on image recognition using a neural network model pre-trained with "faces" of
-45 1 hour candles that have been grouped by the ones with optimal result, considering exists in 16, 25, 30, and 36 periods and 1% stops.
+45 1 hour candles that have been grouped by the ones with optimal result, considering exits in 16, 25, 30, and 36 periods and 1% stops.
 
 # Projects
 
