@@ -32,10 +32,15 @@ Executable project responsible por generating all possible cards(images) of hist
 My experiments show that running this model based on the date range 2021-05-01 until 2022-04-31 would generate 120% profit, considering the following stats:
 
 Number of transations: 318
+
 Taxes: Worth of 24%
+
 Success Rate: 24%
+
 StopLoss: 10% of the MaxAtr in 14 periods
+
 Avg gain per transaction: 0.39%
+
 Optimized cost per transaction(In and Out) using Binance: 0.0085%
 
 
