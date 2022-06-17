@@ -91,6 +91,7 @@ namespace Midas.Core.Services
         public async Task<string> RebalanceFunds()
         {
             double ONE_OPERATION_TAXES = 0.0015;
+            double PERCENT_TO_SPARE = 4;
             var bnbIdentifier = $"BNB{_params.USDCoin}";
             var report = new StringBuilder();
 
@@ -110,7 +111,7 @@ namespace Midas.Core.Services
 
                     if (usbBalanceAmount > 0)
                     {
-                        if (currentBalance.TotalInOrders == 0)
+                        if (GetAllOpenOperations().Count() == 0)
                         {
                             var oneOperationTaxes = usbBalanceAmount * ONE_OPERATION_TAXES;
                             var bnbBalance = currentBalance.AssetsBalance.Where(a => a.Asset == "BNB").FirstOrDefault();
@@ -126,7 +127,7 @@ namespace Midas.Core.Services
                             {
                                 var bnbQuote = await broker.GetPriceQuote(bnbIdentifier);
                                 var amountInUSDToBuy = oneOperationTaxes * 10;
-                                var amountInBNBToBuy = Math.Round(amountInUSDToBuy / bnbQuote, 2);
+                                var amountInBNBToBuy = Math.Round(amountInUSDToBuy / bnbQuote, 3);
 
                                 try
                                 {
@@ -151,9 +152,9 @@ namespace Midas.Core.Services
                             if (newUsdBalance == null)
                                 throw new ArgumentException($"There are no founds for {_params.USDCoin} (Second)");
 
-                            var fundsTotal = newUsdBalance.TotalUSDAmount * 0.98; //Discound 2% to have something to spare
+                            var fundsTotal = newUsdBalance.TotalUSDAmount * (1-(PERCENT_TO_SPARE/100)); //Discount PERCENT_TO_SPARE to have something to spare
 
-                            report.AppendLine($"Total funds discounted 2% is ${fundsTotal:0.00}");
+                            report.AppendLine($"Total funds discounted {PERCENT_TO_SPARE}% is ${fundsTotal:0.00}");
                             foreach (var trader in _traders)
                             {
                                 var allocatedPerc = fundManager.GetFunds(trader.Value.GetIdentifier());
@@ -172,7 +173,7 @@ namespace Midas.Core.Services
                         }
                         else
                         {
-                            var msg = "Impossible do Rebalance, there are dolars being used in other orders";
+                            var msg = "Impossible do Rebalance, there are other operations running";
                             TraceAndLog.StaticLog("Rebalance", msg);
                             await TelegramBot.SendMessage($"Relance: {msg}");
                         }
@@ -181,7 +182,7 @@ namespace Midas.Core.Services
                     {
                         var msg = "Impossible do Rebalance, no USD funds";
                         TraceAndLog.StaticLog("Rebalance", msg);
-                        await TelegramBot.SendMessage($"Relance: {msg}");
+                        await TelegramBot.SendMessage($"Rebalance: {msg}");
                     }
                 }
                 catch (Exception err)
@@ -237,7 +238,7 @@ namespace Midas.Core.Services
                 sb.Append("</code>");
             }
             else
-                sb.Append("NO TRANDERS ON");
+                sb.Append("NO TRADERS ON");
 
 
             return sb.ToString();
@@ -490,6 +491,15 @@ namespace Midas.Core.Services
             return sb.ToString();
         }
 
+        public IEnumerable<TradeOperation> GetAllOpenOperations()
+        {
+            foreach(var t in _traders)
+            {
+                var ops = t.Value.Manager.GetAllActiveOperations();
+                foreach(var op in ops)
+                    yield return op;
+            }
+        }
 
         public async Task<string> GetBalanceReport()
         {

@@ -65,6 +65,14 @@ namespace Midas.Core.Trade
             return $"{_asset}:{_candleType} - {_assetParams}";
         }
 
+        public TradeOperationManager Manager
+        {
+            get
+            {
+                return _manager;
+            }
+        }
+
         public double GetMAValue(string maName)
         {
             var allCandles = _candleMovieRoll.GetList();
