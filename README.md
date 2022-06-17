@@ -18,6 +18,8 @@ A BitCoin specific news indexer that sends unique BitCoin news to the telegram c
 Executable project responsible for monitoring the market for a specific broker(Binance, CoinBase, etc...), host the telegram server for remote
 controlling and reports.
 
+The can be used as a backtest tool, since it can be configured to run on Historical data streams :D
+
 # Midas.ML
 
 Some of the python files with the grouping and neural networks trainning. I will post later the main Colab Python files with the image grouping
