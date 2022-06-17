@@ -23,7 +23,7 @@ The can be used as a backtest tool, since it can be configured to run on Histori
 # Midas.ML
 
 Some of the python files with the grouping and neural networks trainning. I will post later the main Colab Python files with the image grouping
-and neral networks training.
+and neural networks training.
 
 # Midas.Runner
 
