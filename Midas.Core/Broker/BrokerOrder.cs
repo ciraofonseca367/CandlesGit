@@ -124,10 +124,10 @@ namespace Midas.Core.Broker
                 BrokerOrderStatus ret = BrokerOrderStatus.None;
                 if(executedQdy == 0)
                     ret = BrokerOrderStatus.NEW;
+                else if(executedQdy.ToString("0.0000") == AskedQuantity.ToString("0.0000"))
+                    ret = BrokerOrderStatus.FILLED;                    
                 else if(executedQdy < AskedQuantity && executedQdy > 0)
                     ret = BrokerOrderStatus.PARTIALLY_FILLED;
-                else if(executedQdy.ToString("0.0000") == AskedQuantity.ToString("0.0000"))
-                    ret = BrokerOrderStatus.FILLED;
 
                 return ret;
             }
