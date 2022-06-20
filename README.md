@@ -1,7 +1,7 @@
 # CandlesFace AI Trading
 
 This is an experimental .NET 6.0 solution for a trading bot based on image recognition using a neural network model pre-trained with "faces" of
-45 1 hour candles that have been grouped by the ones with optmal result, considering exists in 16, 25, 30, and 36 periods and 1% stops.
+45 1 hour candles that have been grouped by the ones with optimal result, considering exits in 16, 25, 30, and 36 periods and 1% stops.
 
 # Projects
 
@@ -18,10 +18,12 @@ A BitCoin specific news indexer that sends unique BitCoin news to the telegram c
 Executable project responsible for monitoring the market for a specific broker(Binance, CoinBase, etc...), host the telegram server for remote
 controlling and reports.
 
+It can also be used as a backtest tool, since it can be configured to run on historical data streams :D
+
 # Midas.ML
 
 Some of the python files with the grouping and neural networks trainning. I will post later the main Colab Python files with the image grouping
-and neral networks training.
+and neural networks training.
 
 # Midas.Runner
 
@@ -33,7 +35,7 @@ My experiments show that running this model based on the date range 2021-05-01 u
 
 Number of transations: 318
 
-Taxes: Worth of 24%
+Taxes: Worth of 23%
 
 Success Rate: 24%
 
