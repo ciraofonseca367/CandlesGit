@@ -369,7 +369,6 @@ namespace Midas.Core.Trade
                     {
                         Console.WriteLine($"There are operations running on the pair {this.GetIdentifier()}");
                         await TelegramBot.SendImage(currentImg, $"There are operations running on the pair {this.GetIdentifier()}");
-                        await TelegramBot.SendMessage("Follow me live on https://www.twitch.tv/cirofns");
                     }
 
                     //Save the stills to the operation directory
@@ -726,7 +725,7 @@ namespace Midas.Core.Trade
                                 Gain = operation.GetGain(cc.CloseValue),
                                 ExitValue = operation.PriceExitAverage,
                                 StopLossMark = operation.StopLossMark,
-                                SoftStopMark = operation.SoftStopLossMarker,
+                                SoftStopMark = 0,
                                 Volume = 1,
                                 State = $"{operation.State.ToString()} [{operation.PurchaseStatusDescription}] ",
                                 PointInTime_Open = operation.EntryDate,
@@ -904,14 +903,14 @@ namespace Midas.Core.Trade
             return sb.ToString();
         }
 
-        public async Task<bool> AskToCloseOperationIfAny()
+        public bool AskToCloseOperationIfAny()
         {
             var haveSome = false;
             var allActiveOps = _manager.GetAllActiveOperations();
             foreach (var op in allActiveOps)
             {
                 haveSome = true;
-                await op.AskToSoftCloseOperation();
+                op.AskToSoftCloseOperation();
             }
 
             return haveSome;

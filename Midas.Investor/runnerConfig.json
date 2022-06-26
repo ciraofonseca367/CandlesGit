@@ -191,6 +191,6 @@
     },
 
 
-    "UrlPriceModel" : "http://10.0.0.188:8080",
+    "UrlPriceModel" : "http://146.148.98.144:3389",
     "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
 }

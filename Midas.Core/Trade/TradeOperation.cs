@@ -40,7 +40,6 @@ namespace Midas.Trading
         private FundSlot _fundSlot;
         private double _limitStopLossMarker;
         private double _stopLossMarker;
-        private double _softStopLossMarker;
         private DateTime _softStopTime;
 
         private double _lastMaxValue;
@@ -109,7 +108,6 @@ namespace Midas.Trading
 
             TEST_MODE = RunParameters.GetInstance().IsTesting;
 
-            _softStopLossMarker = -1;
         }
 
         private void Log(string module, string description)
@@ -175,7 +173,6 @@ namespace Midas.Trading
         public TradeOperation(TradeOperationDto state, FundSlot fundSlot, TradeOperationManager man, string connectionString, string brokerType, dynamic config) : this(man, connectionString, brokerType, (JObject)config)
         {
             _fundSlot = fundSlot;
-            _softStopLossMarker = state.SoftStopLossMarker;
             _state = state.State;
 
             _myId = ObjectId.Parse(state._id.ToString());
@@ -285,8 +282,7 @@ namespace Midas.Trading
                 Console.WriteLine($"Starting operation, SL: {_stopLossConfig * 100:0.00}%");
 
                 var baseStopLoss = GetStopLoss(price, _stopLossConfig);
-                _limitStopLossMarker = baseStopLoss;
-                _stopLossMarker = baseStopLoss * (1 - (_entryRAtr * 0.04));
+                RecalculateStopLoss(baseStopLoss);
 
                 await ChangeState(TradeOperationState.In);
                 TradeRunner();
@@ -295,6 +291,12 @@ namespace Midas.Trading
             {
                 throw new ArgumentException("Trying to enter an operation in " + _state + " state.");
             }
+        }
+
+        private void RecalculateStopLoss(double baseValue, double offSetAtr = 0.04)
+        {
+            _limitStopLossMarker = baseValue;
+            _stopLossMarker = baseValue * (1 - (_entryRAtr * offSetAtr));
         }
 
         public bool WaitOperationToFinish(int timeout)
@@ -341,7 +343,7 @@ namespace Midas.Trading
             _myEnterShot.Save(dirLabel.FullName + "/" + this.LastCloseDate.ToString("yyyyMMddHHmm") + ".gif");
         }
 
-        public async Task AskToSoftCloseOperation()
+        public async Task PerformSoftCloseOperation()
         {
             double amountLeftToSell;
             bool locked = true;
@@ -366,6 +368,11 @@ namespace Midas.Trading
                 var priceToSell = suggestedPrice * (1 + (_entryRAtr * 0.01));
                 await AddLimitOrderAsync(OrderDirection.SELL, amountLeftToSell, TIMEOUT_SELL, priceToSell, LastValue, LastCloseDate);
             }
+        }
+
+        public void AskToSoftCloseOperation()
+        {
+            RecalculateStopLoss(LastValue);
         }
 
         private async Task CloseOperation(bool hardStopped = true)
@@ -912,16 +919,15 @@ namespace Midas.Trading
 
                     var softStopEnabled = RunParameters.GetInstance().GetHyperParamAsBoolean("SoftStopEnabled");
 
-                    var mustStopBySoftStop = false;
                     var gainSoftStopTrigger = RunParameters.GetInstance().GetHyperParamAsDouble("GainSoftStopTrigger");
                     if (LastMaxGainAbs >= gainSoftStopTrigger)
                     {
                         double chasePerc = RunParameters.GetInstance().GetHyperParamAsDouble("FollowPricePerc");
 
-                        _softStopLossMarker = _priceEntry * (1 + ((LastMaxGainAbs * chasePerc) / 100));
-                    }
+                        var softStopLossMarker = _priceEntry * (1 + ((LastMaxGainAbs * chasePerc) / 100));
 
-                    mustStopBySoftStop = LastValue <= _softStopLossMarker && softStopEnabled;
+                        RecalculateStopLoss(softStopLossMarker, 0.02);
+                    }
 
                     var mustStopByLimitStopLoss = LastValue <= _limitStopLossMarker;
                     var mustStopByStopLoss = LastValue <= _stopLossMarker;
@@ -943,10 +949,9 @@ namespace Midas.Trading
                     var mustStopByMovingAvg = ShouldStopByMovingAverage(RunParameters.GetInstance().GetHyperParamAsInt(_shortAsset, this.ModelName, "Avg"));
 
                     if (mustStopByLimitStopLoss && !mustStopByStopLoss)
-                        await AskToSoftCloseOperation();
+                        await PerformSoftCloseOperation();
 
-                    if (mustStopBySoftStop ||
-                        mustStopByMovingAvg ||
+                    if (mustStopByMovingAvg ||
                         mustStopByStopLoss)
                     {
                         await _myMan.OperationFinished(this, _lastCandle, _fundSlot);
@@ -1032,7 +1037,6 @@ namespace Midas.Trading
                 EntryDateUtc = this.EntryDateInUTC,
                 ForecastDate = this._forecastDate,
                 StopLossMarker = this._stopLossMarker,
-                SoftStopLossMarker = this._softStopLossMarker,
                 PriceEntryDesired = this.PriceEntryAverage,
                 PriceEntryReal = this.PriceEntryAverage,
                 PriceExitDesired = this.PriceExitAverage,
@@ -1080,7 +1084,6 @@ namespace Midas.Trading
             }
         }
 
-        public double SoftStopLossMarker { get => _softStopLossMarker; }
         public string ModelName { get => _modelName; set => _modelName = value; }
 
         public async Task Persist(bool withLogs = true)

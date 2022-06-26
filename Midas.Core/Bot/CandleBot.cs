@@ -482,7 +482,7 @@ namespace Midas.Core.Telegram
                                                                 text: "It can take a a couple of minutes to close the operation, wait...");
 
                     string askText;
-                    var hasAskOps = await currentTrader.AskToCloseOperationIfAny();
+                    var hasAskOps = currentTrader.AskToCloseOperationIfAny();
                     if (hasAskOps)
                     {
                         askText = "Done!";

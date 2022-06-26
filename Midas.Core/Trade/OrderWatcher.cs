@@ -95,7 +95,6 @@ namespace Midas.Core.Trade
             {
                 List<string> toRemove = new List<string>();
 
-                Console.WriteLine($"Garbage orders in watcher: {_buffer.Count()}");
                 foreach (var order in _orders)
                 {
                     if (order.Value.CalculatedStatus == BrokerOrderStatus.FILLED)
@@ -103,7 +102,6 @@ namespace Midas.Core.Trade
                         toRemove.Add(order.Value.BrokerOrderId);
                     }
                 }
-
 
                 BrokerOrder removedOrder = null;
                 toRemove.ForEach(oId => {

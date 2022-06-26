@@ -127,7 +127,7 @@ namespace Midas.Core.Services
                             {
                                 var bnbQuote = await broker.GetPriceQuote(bnbIdentifier);
                                 var amountInUSDToBuy = oneOperationTaxes * 10;
-                                var amountInBNBToBuy = Math.Round(amountInUSDToBuy / bnbQuote, 3);
+                                var amountInBNBToBuy = Math.Round(amountInUSDToBuy / bnbQuote, 2);
 
                                 try
                                 {
