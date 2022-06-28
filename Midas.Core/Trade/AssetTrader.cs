@@ -357,7 +357,7 @@ namespace Midas.Core.Trade
                 if (_predictionBox != null)
                 {
                     var currentTrend = _predictionBox.GetTrend();
-                    _manager.Signal(currentTrend.Item1);
+                    await _manager.Signal(currentTrend);
                 }
 
 

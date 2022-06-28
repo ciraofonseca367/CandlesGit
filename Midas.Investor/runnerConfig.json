@@ -19,19 +19,19 @@
     "TelegramBotCode": "1908479381:AAFvPVeSoPj8JbMc6RA3LFIhdccGeb5tp7A",
 
     /*
-    Uncomment to use historical 
+    Uncomment to use historical   */  
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Historical",
     "BrokerName": "TestBroker",
     "PreloadCandles": false,
-    "EnableLimitOrders": false,*/    
+    "EnableLimitOrders": false,
 
-    /* Live*/
+    /* Live
     "Forecaster": "FaceLabelForecast",
     "FeedStreamType": "Live",
     "BrokerName": "Binance",
     "PreloadCandles": true,
-    "EnableLimitOrders": true, 
+    "EnableLimitOrders": true, */
 
     "Assets": [
         {
@@ -191,6 +191,6 @@
     },
 
 
-    "UrlPriceModel" : "http://146.148.98.144:3389",
+    "UrlPriceModel" : "http://10.0.0.165",
     "UrlAvgModel" : "http://vps32867.publiccloud.com.br:8000"
 }

@@ -204,17 +204,16 @@ namespace Midas.Trading
             TradeRunner();
         }
 
-        internal void Signal(TrendType trend)
+        internal async Task Signal(Tuple<TrendType, string> trend)
         {
-            // if ((trend == TrendType.LONG || trend == TrendType.DOUBLE_LONG) && _lastCandle != null)
-            // {
-            //     if (GetCurrentMaxGain() <= 0.5)
-            //     {
-            //         _lastLongPrediction = _lastCandle.OpenTime;
-            //         if (LastValue < PriceEntryAverage)
-            //             _stopLossMarker = GetStopLoss(_lastCandle.AmountValue, _firstStopLossRate);
-            //     }
-            // }
+            if (trend.Item2.EndsWith("Short"))
+            {
+                Console.WriteLine("SAINDO PELA IMAGEM");
+
+                await CloseOperation(true);
+                await Persist();
+                await ProcessOperationStatus();
+            }
         }
 
         public double PriceEntryAverage
@@ -269,7 +268,7 @@ namespace Midas.Trading
                 _entryRAtr = ratr;
                 //double stopLoss = FIXED_STOPLOSS;
                 var percAtr = RunParameters.GetInstance().GetHyperParamAsDouble(_shortAsset, _modelName, "AtrStopLoss");
-                Console.WriteLine("Perc Atr: "+percAtr);
+                Console.WriteLine("Perc Atr: " + percAtr);
                 _stopLossConfig = _entryRAtr * percAtr;
                 _firstStopLossRate = _stopLossConfig;
 
@@ -929,9 +928,6 @@ namespace Midas.Trading
                         RecalculateStopLoss(softStopLossMarker, 0.02);
                     }
 
-                    var mustStopByLimitStopLoss = LastValue <= _limitStopLossMarker;
-                    var mustStopByStopLoss = LastValue <= _stopLossMarker;
-
                     var stepSellEnabled = RunParameters.GetInstance().GetHyperParamAsBoolean("StepSellEnabled");
                     if (stepSellEnabled)
                     {
@@ -947,12 +943,16 @@ namespace Midas.Trading
                     }
 
                     var mustStopByMovingAvg = ShouldStopByMovingAverage(RunParameters.GetInstance().GetHyperParamAsInt(_shortAsset, this.ModelName, "Avg"));
+                    if (mustStopByMovingAvg)
+                        RecalculateStopLoss(LastValue);
+
+                    var mustStopByLimitStopLoss = LastValue <= _limitStopLossMarker;
+                    var mustStopByStopLoss = LastValue <= _stopLossMarker;
 
                     if (mustStopByLimitStopLoss && !mustStopByStopLoss)
                         await PerformSoftCloseOperation();
 
-                    if (mustStopByMovingAvg ||
-                        mustStopByStopLoss)
+                    if (mustStopByStopLoss)
                     {
                         await _myMan.OperationFinished(this, _lastCandle, _fundSlot);
                         await CloseOperation(true);
@@ -1115,11 +1115,14 @@ namespace Midas.Trading
         {
             TraceAndLog.GetInstance().LogTraceHttpAction("TradeOperation", action, headers, respHeaders, completeUrl, body);
 
-            _logs.Add(new TraceEntry()
+            if (action != "GET")
             {
-                Title = String.Concat(action, " ", completeUrl),
-                Description = body
-            });
+                _logs.Add(new TraceEntry()
+                {
+                    Title = String.Concat(action, " ", completeUrl),
+                    Description = body
+                });
+            }
         }
 
         public void LogMessage(string module, string message)

@@ -192,6 +192,14 @@ namespace Midas.Core.Services
                     await TelegramBot.SendMessage($"Rebalance: {msg}");
                 }
             }
+            else
+            {
+                //When we are testing any fund we set will do
+                foreach (var trader in _traders)
+                {
+                    trader.Value.SetFundAmount(1000);
+                }
+            }
 
             return report.ToString();
         }
@@ -238,8 +246,9 @@ namespace Midas.Core.Services
                 sb.Append("</code>");
             }
             else
-                sb.Append("NO TRADERS ON");
+            {
 
+            }
 
             return sb.ToString();
         }

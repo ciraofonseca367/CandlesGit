@@ -226,15 +226,14 @@ namespace Midas.Trading
         public IEnumerable<TradeOperation> GetLastRecentOperations()
         {
             return _allOperations
-            .Where(o => o.IsIn)
-            .OrderByDescending(op => op.EntryDate)
-            .Take(10);
+            .Where(o => o.EntryDate > DateTime.UtcNow.AddHours(-48))
+            .OrderByDescending(op => op.EntryDate);
         }
 
-        public void Signal(TrendType signal)
+        public async Task Signal(Tuple<TrendType, string> trend)
         {
             if (_currentOperation != null)
-                _currentOperation.Signal(signal);
+                await _currentOperation.Signal(trend);
         }
 
         public async Task<TradeOperation> SignalEnter(double value, DateTime pointInTime, DateTime forecastPeriod, double ratr, string modelName, Bitmap image)
